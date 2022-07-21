@@ -1,0 +1,110 @@
+from typing import Optional, Tuple, Sequence, Type, Union, Literal
+from pathlib import Path, PurePath
+import warnings
+import pandas as pd
+import cooler
+import pybedtools
+import h5py
+import numpy as np
+
+
+
+
+
+def parse_annotations(
+    filename: Union[Path, str],
+    delimiter: Optional[str] = '\t',
+    header: Optional = 'infer',
+    multi_label: Optional[bool] = False,
+    annotated_column: Optional[int] = 999
+):
+    input_file=Path(filename)      # allow passing strings
+    anno=pd.read_table(input_file,header=header,delimiter=delimiter)
+    if len(anno.columns)<4:   #default bed file   chr | start | end
+        bed_format='simple'     # no annotation provided besides bed regions
+    else:
+        if multi_label==False:
+            bed_format='double'  #each bed regions is annotated with a specific label (i.e. promoters' name)
+        else:
+            bed_format='multi_label'  #each bed regions is annotated with a specific class (i.e. promoter, enhancer, insulator)
+        if annotated_column==999:
+            warnings.warn("you have not specified the column with annotation label. The 4th column will be selected by default")
+    return bed_format
+
+def cool_processing(
+    cool_file: Union[Path, str]
+):
+    cool_input=cooler.Cooler(cool_file)
+    bins = cool_input.bins()[:]  # fetch all the bins
+    pix = cool_input.pixels()[:]  # fetch all pixels 
+    cool_pairs=cooler.annotate(pix, bins)  # chrom1|start1|end1|annotation1|chrom2|start2|end2|annotation2|bin1_id|bin2_id|count
+    hic_bed_f=pd.DataFrame()
+    for i in set(cool_pairs['bin1_id'])|set(cool_pairs['bin2_id']):
+        hic_bed=cool_input.bins()[i]
+        hic_bed_f=pd.concat([hic_bed,hic_bed_f])
+    hic_bed_f['codes']=hic_bed_f.index                 # chrom|start|end|codes
+    intersection_bed= pybedtools.BedTool.from_dataframe(hic_bed_f)
+    return cool_input,intersection_bed   #metto questa funzione subito sotto
+
+def simple_annotation(
+    cool_file: Union[Path, str],
+    anno_file: Union[Path, str],
+    name: Optional[str]='annotation'
+):
+    # RESULT: list of int associated to each bin in cool_file.bin()[:] -> 0 if region doesn't show intersection, 1 if it does show intersection with the annotated file
+    input_file=Path(cool_file)
+    input_anno=Path(anno_file)
+    anno_bed=pybedtools.BedTool(input_anno)
+    cool_input,intersection_bed= cool_processing(input_file)
+    # 1) annotation generation
+    intersected=intersection_bed.intersect(anno_bed)
+    intersected_df=intersected.to_dataframe()
+    cols=intersected_df.columns
+    anno=np.zeros(cool_input.bins()[:].shape[0])
+    for i in intersected_df[cols[-1]].tolist():   #intersected_df[cols[-1]]=list of bin codes showing intersection with annotation file
+        anno[i]=1
+    # 2) storing the list in the cool file
+    f = h5py.File(input_file, "a")
+    f['bins'].create_dataset(name=name,data=anno)
+    f.close()
+    cool_output=cooler.Cooler(input_file)
+    return cool_output
+
+def double_annotation(
+    cool_file: Union[Path, str],
+    anno_file: Union[Path, str],
+    name: Optional[str]='annotation',
+    annotated_column: Optional[int] = 4
+):
+    # RESULT: list of int associated to each bin in cool_file.bin()[:] -> 0 if region doesn't show intersection, 1 if it does show intersection with the annotated file
+    input_file=Path(cool_file)
+    input_anno=Path(anno_file)
+    anno_bed=pybedtools.BedTool(input_anno)
+    cool_input,intersection_bed= cool_processing(cool_file)
+    # 1) annotation generation
+    intersected=intersection_bed.intersect(anno_bed,wa=True,wb=True)
+    intersected_df_tot=intersected.to_dataframe()
+    intersected_df=pd.DataFrame([intersected_df_tot.iloc[:,3],intersected_df_tot.iloc[:,3+annotated_column]],index=['code','anno_name']).T
+    ### 1.1) simple annotation
+    anno=np.zeros(cool_input.bins()[:].shape[0])
+    for i in intersected_df['code'].tolist():   #intersected_df[cols[-1]]=list of bin codes showing intersection with annotation file
+        anno[i]=1
+    ### 1.2) annotation names
+    anno_names=['0' for x in range(cool_input.bins()[:].shape[0])]
+    for cd in set(intersected_df.iloc[:,0]):
+        annotated_code=intersected_df[intersected_df['code']==cd]
+        code_anno_name=[x for x in annotated_code['anno_name']]
+        if len(code_anno_name)==1:
+            anno_name=code_anno_name[0]
+        else:
+            anno_name=code_anno_name[0]
+            for i in range(1,len(anno_name)):
+                anno_name=anno_name+' '+code_anno_name[i]
+        anno_names[cd]=anno_name
+    # 2) storing the list in the cool file
+    f = h5py.File(input_file, "a")
+    f['bins'].create_dataset(name=name,data=anno)
+    f['bins'].create_dataset(name=name+'name',data=anno_names)
+    f.close()
+    cool_output=cooler.Cooler(cool_file)
+    return cool_output
