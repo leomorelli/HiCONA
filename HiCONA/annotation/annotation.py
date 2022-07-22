@@ -32,6 +32,9 @@ def parse_annotations(
     return bed_format
 
 
+
+
+
 def cool_processing(
     cool_file
 ):
@@ -49,6 +52,9 @@ def cool_processing(
         hic_bed['chrom']=chromosomes
     intersection_bed= pybedtools.BedTool.from_dataframe(hic_bed)
     return cool_input,intersection_bed
+
+
+
 
 
 def simple_annotation(
@@ -74,6 +80,10 @@ def simple_annotation(
     f.close()
     cool_output=cooler.Cooler(cool_file)
     return cool_output
+
+
+
+
 
 def double_annotation(
     cool_file: Union[Path, str],
@@ -115,3 +125,64 @@ def double_annotation(
     f.close()
     cool_output=cooler.Cooler(cool_file)
     return cool_output
+
+
+
+
+
+def hierarchical_annotation(
+    cool_file: Union[Path, str],
+    anno_file: Union[Path, str],
+    hierarchy: Union[Path, str],
+    name: Optional[str]='annotation',
+    annotated_column: Optional[int] = 3
+):
+    input_file=Path(cool_file)
+    input_anno=Path(anno_file)
+    hierarchy=pd.read_table(hierarchy,header=None)
+    anno_bed=pybedtools.BedTool(input_anno)
+    cool_input,intersection_bed= cool_processing(cool_file)
+    # 1) annotation generation
+    intersected=intersection_bed.intersect(anno_bed,wa=True,wb=True)
+    intersected_df_tot=intersected.to_dataframe()
+    codes_columns=3
+    intersected_df=pd.DataFrame([intersected_df_tot.iloc[:,codes_columns],intersected_df_tot.iloc[:,codes_columns+1+annotated_column]],index=['code','anno_name']).T
+    anno=np.zeros(cool_input.bins()[:].shape[0])
+    for i in range(len(hierarchy[0])):
+        anno_id=i+1
+        anno_term=hierarchy[0][i]
+        intersected_df_i=intersected_df[intersected_df['anno_name']==anno_term]
+        for cd in intersected_df_i['code'].tolist():   #intersected_df[cols[-1]]=list of bin codes showing intersection with annotation file
+            if anno[int(cd)] == 0:
+                anno[int(cd)]=anno_id
+    # 2) storing the list in the cool file
+    f = h5py.File(input_file, "a")
+    f['bins'].create_dataset(name=name,data=anno)
+    f.close()
+    cool_output=cooler.Cooler(cool_file)
+    return cool_output
+
+
+
+
+
+def bin_annotation(
+    cool_file: Union[Path, str],
+    anno_file: Union[Path, str],
+    annotation_strategy:Optional[str]='simple'|'double'|'hierarchical',
+    hierarchy: Optional[Path, str],
+    name: Optional[str]='annotation',
+    annotated_column: Optional[int] = 3,
+    report: Optional[bool] = False,
+    save_report: Optional[bool] = False
+):
+    print(annotation_strategy)
+    
+    
+    
+state='hierarchical'
+bins=cool_output.bins()[:]
+pix=cool_output.pixels()[:]
+idxs=list(set(pix['bin1_id'])|set(pix['bin2_id']))
+bins.iloc[idxs][state]
+    
