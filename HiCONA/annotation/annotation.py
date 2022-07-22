@@ -31,20 +31,25 @@ def parse_annotations(
             warnings.warn("you have not specified the column with annotation label. The 4th column will be selected by default")
     return bed_format
 
+
 def cool_processing(
-    cool_file: Union[Path, str]
+    cool_file
 ):
     cool_input=cooler.Cooler(cool_file)
     bins = cool_input.bins()[:]  # fetch all the bins
+    bins=bins.iloc[:,:3]
     pix = cool_input.pixels()[:]  # fetch all pixels 
     cool_pairs=cooler.annotate(pix, bins)  # chrom1|start1|end1|annotation1|chrom2|start2|end2|annotation2|bin1_id|bin2_id|count
-    hic_bed_f=pd.DataFrame()
-    for i in set(cool_pairs['bin1_id'])|set(cool_pairs['bin2_id']):
-        hic_bed=cool_input.bins()[i]
-        hic_bed_f=pd.concat([hic_bed,hic_bed_f])
-    hic_bed_f['codes']=hic_bed_f.index                 # chrom|start|end|codes
-    intersection_bed= pybedtools.BedTool.from_dataframe(hic_bed_f)
-    return cool_input,intersection_bed   #metto questa funzione subito sotto
+    to_keep=list(set(cool_pairs['bin1_id'])|set(cool_pairs['bin2_id']))
+    hic_bed=bins.iloc[to_keep]
+    hic_bed.loc[:,'codes']=hic_bed.index               # chrom|start|end|codes
+    # adapt format of chromosomes to bedtools
+    if str(hic_bed['chrom'].tolist()[0]).startswith('chr')==False:
+        chromosomes=['chr'+str(x) for x in hic_bed['chrom'].tolist()]
+        hic_bed['chrom']=chromosomes
+    intersection_bed= pybedtools.BedTool.from_dataframe(hic_bed)
+    return cool_input,intersection_bed
+
 
 def simple_annotation(
     cool_file: Union[Path, str],
@@ -55,7 +60,7 @@ def simple_annotation(
     input_file=Path(cool_file)
     input_anno=Path(anno_file)
     anno_bed=pybedtools.BedTool(input_anno)
-    cool_input,intersection_bed= cool_processing(input_file)
+    cool_input,intersection_bed= cool_processing(cool_file)
     # 1) annotation generation
     intersected=intersection_bed.intersect(anno_bed)
     intersected_df=intersected.to_dataframe()
@@ -67,14 +72,14 @@ def simple_annotation(
     f = h5py.File(input_file, "a")
     f['bins'].create_dataset(name=name,data=anno)
     f.close()
-    cool_output=cooler.Cooler(input_file)
+    cool_output=cooler.Cooler(cool_file)
     return cool_output
 
 def double_annotation(
     cool_file: Union[Path, str],
     anno_file: Union[Path, str],
     name: Optional[str]='annotation',
-    annotated_column: Optional[int] = 4
+    annotated_column: Optional[int] = 3
 ):
     # RESULT: list of int associated to each bin in cool_file.bin()[:] -> 0 if region doesn't show intersection, 1 if it does show intersection with the annotated file
     input_file=Path(cool_file)
@@ -84,27 +89,29 @@ def double_annotation(
     # 1) annotation generation
     intersected=intersection_bed.intersect(anno_bed,wa=True,wb=True)
     intersected_df_tot=intersected.to_dataframe()
-    intersected_df=pd.DataFrame([intersected_df_tot.iloc[:,3],intersected_df_tot.iloc[:,3+annotated_column]],index=['code','anno_name']).T
+    codes_columns=3
+    intersected_df=pd.DataFrame([intersected_df_tot.iloc[:,codes_columns],intersected_df_tot.iloc[:,codes_columns+1+annotated_column]],index=['code','anno_name']).T
     ### 1.1) simple annotation
     anno=np.zeros(cool_input.bins()[:].shape[0])
     for i in intersected_df['code'].tolist():   #intersected_df[cols[-1]]=list of bin codes showing intersection with annotation file
-        anno[i]=1
+        anno[int(i)]=1
     ### 1.2) annotation names
     anno_names=['0' for x in range(cool_input.bins()[:].shape[0])]
     for cd in set(intersected_df.iloc[:,0]):
         annotated_code=intersected_df[intersected_df['code']==cd]
         code_anno_name=[x for x in annotated_code['anno_name']]
         if len(code_anno_name)==1:
-            anno_name=code_anno_name[0]
+            anno_name=str(code_anno_name[0])
         else:
-            anno_name=code_anno_name[0]
-            for i in range(1,len(anno_name)):
-                anno_name=anno_name+' '+code_anno_name[i]
-        anno_names[cd]=anno_name
+            anno_name=str(code_anno_name[0])
+            for i in range(1,len(code_anno_name)):
+                anno_name=str(anno_name)+' '+str(code_anno_name[i])
+        anno_names[int(cd)]=anno_name
+    asciiList = [n.encode("ascii", "ignore") for n in anno_names]   #format for string supported by h5py
     # 2) storing the list in the cool file
     f = h5py.File(input_file, "a")
     f['bins'].create_dataset(name=name,data=anno)
-    f['bins'].create_dataset(name=name+'name',data=anno_names)
+    f['bins'].create_dataset(name=name+'_'+'name',data=asciiList)
     f.close()
     cool_output=cooler.Cooler(cool_file)
     return cool_output
