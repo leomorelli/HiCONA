@@ -164,25 +164,73 @@ def hierarchical_annotation(
 
 
 
+def annotation_report(
+    cool_file: Union[Path, str],
+    hierarchy: Optional[str]='',
+    strategy:Optional[str]='simple',
+    store_report: Optional[bool] = False,
+    report_location: Optional[str]='.'
+):
+    cool_output=cooler.Cooler(cool_file)
+    bins=cool_output.bins()[:]
+    pix=cool_output.pixels()[:]
+    idxs=list(set(pix['bin1_id'])|set(pix['bin2_id']))
+    df=bins.iloc[idxs][strategy]
+    df.index=[x for x in range(df.shape[0])]
+    tot_nnz_bins=len(df.index)
+    not_anno=len(df[df==0])
+    print(f''' {round((not_anno/tot_nnz_bins)*100,2)}% ({not_anno}) of Hi-C bins are NOT annotated \n {100 - round((not_anno/tot_nnz_bins)*100,2)}% ({tot_nnz_bins-not_anno}) of Hi-C bins overlap an annotated region  \n''')
+    if store_report==True:
+        report_name=cool_file.split('/')[-1].split('.')[0]    #name of the file without its extension
+        with open(f'{report_location}/{report_name}_report.txt', 'a') as f:
+            f.write(f'{round((not_anno/tot_nnz_bins)*100,2)}% ({not_anno}) of Hi-C bins are NOT annotated')
+            f.write('\n')
+            f.write(f'{100 - round((not_anno/tot_nnz_bins)*100,2)}% ({tot_nnz_bins-not_anno}) of Hi-C bins overlap an annotated region')
+            f.write('\n')
+            f.write('\n')
+            f.close()
+    if strategy=='multiple':
+        hierarchy_path='../input_files/test/hierarchy.txt'
+        hierarchy=pd.read_table(hierarchy_path,header=None)
+        for i in range(len(hierarchy[0])):
+            anno_term=hierarchy[0][i]
+            anno_id=i+1
+            n_anno=len(df[df==anno_id])
+            print(f' {round((n_anno/tot_nnz_bins)*100,2)}% ({n_anno}) of Hi-C bins are annotated as {anno_term}')
+            if store_report==True:
+                with open(f'{report_location}/{report_name}_report.txt', 'a') as f:
+                    f.write(f'{round((n_anno/tot_nnz_bins)*100,2)}% ({n_anno}) of Hi-C bins are annotated as {anno_term}')
+                    f.write('\n')
+                    f.close()
+
+
+
 
 
 def bin_annotation(
     cool_file: Union[Path, str],
     anno_file: Union[Path, str],
-    annotation_strategy:Optional[str]='simple'|'double'|'hierarchical',
-    hierarchy: Optional[Path, str],
+    hierarchy: Optional[str]='',
+    strategy:Optional[str]='simple',
     name: Optional[str]='annotation',
     annotated_column: Optional[int] = 3,
-    report: Optional[bool] = False,
-    save_report: Optional[bool] = False
+    report: Optional[bool] = True,
+    store_report: Optional[bool] = False,
+    report_location: Optional[str]='.'
 ):
-    print(annotation_strategy)
+    if strategy=='simple':
+        cool_output=simple_annotation(cool_file=cool_file,anno_file=anno_file,name=name)
+    elif strategy=='double':
+        cool_output=double_annotation(cool_file=cool_file,anno_file=anno_file,name=name,annotated_column=annotated_column)
+    elif strategy=='multiple':
+        if len(hierarchy)<1:
+            raise ValueError('In order to annotate Hi-C bins according to different classes of annotations, you must provide a text file representing the hierarchy of annotation')
+        cool_output=hierarchical_annotation(cool_file=cool_file,anno_file=anno_file,hierarchy=hierarchy,name=name,annotated_column=annotated_column)
+    else:
+        raise ValueError('Remember to provide a suitable entry for the `strategy` of annotation parameter. You can choose one of the following: `simple`, `double`, `multiple`')
+    if report==True:
+        annotation_report(cool_file=cool_file,hierarchy=hierarchy,strategy=strategy,store_report=store_report)
+    return cool_output
     
-    
-    
-state='hierarchical'
-bins=cool_output.bins()[:]
-pix=cool_output.pixels()[:]
-idxs=list(set(pix['bin1_id'])|set(pix['bin2_id']))
-bins.iloc[idxs][state]
+
     
