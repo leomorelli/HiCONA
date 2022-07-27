@@ -136,7 +136,41 @@ def filter_edges(
     return sg
 
 #4. generate PE,PP,EE
-
+def annotated_bigraph(
+    graph:nx.classes.graph.Graph,
+    annotation:str,
+    bilabel:tuple
+):
+    g=graph
+    if type(graph) != nx.classes.graph.Graph:
+        raise TypeError('a networkx graph object is required for these analyses')
+    if (type(bilabel) != tuple) | (len(bilabel)!=2):
+        raise TypeError('each annotation pair must be provided in a tuple of length = 2')
+    try:
+        n0=list(g.nodes())[0]
+        fmt=g.nodes.data(True)[n0][annotation]
+    except KeyError:
+        raise KeyError('the name of the annotation provided is not present in nodes annotation. You can check the available annotations with `g.nodes.data(True)[list(g.nodes())[0]][annotation]`')
+    # annotate the edge list with terms of the selected annotation
+    elist=nx.to_pandas_edgelist(g)
+    anno_source=[]
+    for n in elist.source.tolist():
+        anno_source.append(g.nodes.data()[n][annotation])
+    anno_target=[]
+    for n in elist.target.tolist():
+        anno_target.append(g.nodes.data()[n][annotation])
+    elist[f'{annotation}_source']=anno_source
+    elist[f'{annotation}_target']=anno_target
+    # filter out edges, which nodes does not possess the annotation pair specified in `bilabel`
+    elist_filtered=elist[((elist[f'{annotation}_source']==bilabel[0])&(elist[f'{annotation}_target']==bilabel[1]))|((elist[f'{annotation}_source']==bilabel[1])&(elist[f'{annotation}_target']==bilabel[0]))]
+    edges_filtered=[]
+    for i in elist_filtered.index:
+        source=elist_filtered.loc[i,'source']    
+        target=elist_filtered.loc[i,'target']
+        edges_filtered.append((source,target))
+    # bigraph generation
+    sg=g.edge_subgraph(edges_filtered)
+    return sg
 
 # 5. slicing (given 2 regions)
 
@@ -231,6 +265,99 @@ def iCDs(
     return iCD_graphs
 
 #7. total linked and linked
+
+def sequential_bins(
+    cool_file:Union[cooler.api.Cooler,str],
+    chromosome:str
+):
+    if type(cool_file)==str:
+        c=cooler.Cooler(cool_file)
+    else:
+        c=cool_file
+    bins=c.bins()[:]
+    to_select=list(bins[bins['chrom']==chromosome].index)
+    pix_tot=c.pixels()[:]
+    pix=pix_tot[(pix_tot.bin1_id.isin(to_select))&(pix_tot.bin2_id.isin(to_select))]
+    for i in range(1):
+        if len(pix.index)==0:
+            warnings.warn(f'no connections in chromosome {chromosome}')
+            continue
+        else:
+            max_count=max(pix['count'])
+            sequential_pixels=list(set(pix['bin1_id'])|set(pix['bin2_id']))
+            min_bin=min(sequential_pixels)
+            max_bin=max(sequential_pixels)
+            sequential_bins=list(bins.index[min_bin:max_bin+1])
+            sequential_pairs=[]
+            for i in range(len(sequential_bins)):
+                if i+1==len(sequential_bins):
+                    continue
+                n1=sequential_bins[i]
+                n2=sequential_bins[i+1]
+                sequential_pairs.append((n1,n2))
+            df_sequential_pairs=pd.DataFrame(sequential_pairs,columns=['bin1_id','bin2_id'])
+            df_sequential_pairs['count']=[max_count for x in range(df_sequential_pairs.shape[0])]
+            return df_sequential_pairs
+
+def sequential_pixels(
+    cool_file:Union[cooler.api.Cooler,str],
+    chromosome:str
+):
+    if type(cool_file)==str:
+        c=cooler.Cooler(cool_file)
+    else:
+        c=cool_file
+    bins=c.bins()[:]
+    to_select=list(bins[bins['chrom']==chromosome].index)
+    pix_tot=c.pixels()[:]
+    pix=pix_tot[(pix_tot.bin1_id.isin(to_select))&(pix_tot.bin2_id.isin(to_select))]
+    for i in range(1):
+        if len(pix.index)==0:
+            warnings.warn(f'no connections in chromosome {chromosome}')
+            continue
+        else:
+            max_count=max(pix['count'])
+            sequential_pixels=sort(list(set(pix['bin1_id'])|set(pix['bin2_id'])))
+            sequential_pairs=[]
+            for i in range(len(sequential_pixels)):
+                if i+1==len(sequential_pixels):
+                    continue
+                n1=sequential_pixels[i]
+                n2=sequential_pixels[i+1]
+                sequential_pairs.append((n1,n2))
+            df_sequential_pairs=pd.DataFrame(sequential_pairs,columns=['bin1_id','bin2_id'])
+            df_sequential_pairs['count']=[max_count for x in range(df_sequential_pairs.shape[0])]
+            return df_sequential_pairs
+
+
+def linked_graph(
+    cool_file:Union[cooler.api.Cooler,str],
+    total_graph:Optional[bool]=False
+):
+    if type(cool_file)==str:
+        c=cooler.Cooler(cool_file)
+    else:
+        c=cool_file
+    chromosomes=c.chromnames
+    PIX=pd.DataFrame(columns=['bin1_id','bin2_id','count'])
+    bins=c.bins()[:]
+    pix=c.pixels()[:]
+    pix['genomic_link']=[0 for x in range(pix.shape[0])]
+    for chrom in chromosomes:
+        
+        if total_graph==True:
+            pix_chr=sequential_bins(c,chrom)
+            PIX=pd.concat([PIX,pix_chr])
+        else:
+            pix_chr=sequential_pixels(c,chrom)
+            PIX=pd.concat([PIX,pix_chr])
+    PIX['genomic_link']=[1 for x in range(len(PIX.index))]
+    pix=pd.concat([pix,PIX])
+    pix.index=[x for x in range(len(pix.index))]
+    df=cooler.annotate(pix,bins)
+    g=nx.from_pandas_edgelist(df,source='bin1_id',target='bin2_id',edge_attr=['count','genomic_link'])
+    return g
+
 
 
 #8. storing and loading
