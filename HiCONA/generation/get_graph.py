@@ -356,6 +356,14 @@ def linked_graph(
     pix.index=[x for x in range(len(pix.index))]
     df=cooler.annotate(pix,bins)
     g=nx.from_pandas_edgelist(df,source='bin1_id',target='bin2_id',edge_attr=['count','genomic_link'])
+    #node annotation
+    node_list=bins[bins.index.isin(np.sort([x for x in g.nodes]))]
+    for n in node_list.index:
+        g.nodes[n]['chrom'] = node_list['chrom'][n] #chromosomes
+        g.nodes[n]['start'] = node_list['start'][n] #bin start
+        g.nodes[n]['end'] = node_list['end'][n] #bin start
+    # graph attributes (bin size)
+    g.graph['bin_size'] = c.binsize
     return g
 
 
