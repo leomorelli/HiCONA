@@ -317,7 +317,7 @@ def sequential_pixels(
             continue
         else:
             max_count=max(pix['count'])
-            sequential_pixels=sort(list(set(pix['bin1_id'])|set(pix['bin2_id'])))
+            sequential_pixels=np.sort(list(set(pix['bin1_id'])|set(pix['bin2_id'])))
             sequential_pairs=[]
             for i in range(len(sequential_pixels)):
                 if i+1==len(sequential_pixels):
