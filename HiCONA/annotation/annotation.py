@@ -6,7 +6,7 @@ import cooler
 import pybedtools
 import h5py
 import numpy as np
-
+import networkx as nx
 
 
 
@@ -158,6 +158,7 @@ def hierarchical_annotation(
     # 2) storing the list in the cool file
     f = h5py.File(input_file, "a")
     f['bins'].create_dataset(name=name,data=anno)
+    f['bins'][name].attrs[f'{name}_categories']=[x for x in hierarchy[0]]
     f.close()
     cool_output=cooler.Cooler(cool_file)
     return cool_output
@@ -232,5 +233,50 @@ def bin_annotation(
         annotation_report(cool_file=cool_file,hierarchy=hierarchy,strategy=strategy,store_report=store_report)
     return cool_output
     
+    
+    
+def delete_annotation(
+    cool_file: Union[Path, str],
+    name: Optional[str]='annotation'
+):
+    f = h5py.File(cool_file, "a")
+    del f['bins'][name]
+    f.close()
+    
 
+
+
+def to_bed(
+    graph: nx.classes.graph.Graph,
+    store_bed: Optional[bool]=False,
+    file_name: Optional[str]='./node_annotation.bed',
+    delimiter:Optional[str]='\t',
+    report: Optional[bool]=False,
+    annotation: Optional[str]='annotation',
+    store_report:Optional[bool]=False,
+    normalize_report:Optional[bool]=True,
+):
+    if type(graph) != nx.classes.graph.Graph:
+        raise TypeError('a networkx graph object is required for these analyses')
+    g=graph
+    df=pd.DataFrame.from_dict(dict(g.nodes(data=True)), orient='index')
+    if report==True:
+        report_file=df.value_counts(subset=annotation,normalize=normalize_report)
+        if store_report==True:
+            file_output=file_name.split('/')
+            report_tot=file_output[-1].split('.')
+            path='/'.join(file_output[:-1])
+            name=report_tot[0]+'_report.'+report_tot[-1]
+            if len(path)<1:
+                report_output='./'+name
+            else:
+                report_output=path+'/'+name
+            report_file.to_csv(report_output,sep=delimiter)
+    if (store_bed==True)|((store_bed==False)&(store_report==True)):
+        if file_name=='./node_annotation.bed':
+            warnings.warn('it seems that you have not specified the file name with the `file_name` parameter: your data will be stored as `./node_annotation.bed`')
+        df.to_csv(file_name,header=None,sep=delimiter)
+    return df
+    
+    
     
