@@ -12,10 +12,111 @@ import pandas as pd
 #2 annotate the total graph:
 #  -annotation
 #  -cc
+#  - linked and linked total from cool file
+
+
+def sequential_bins(
+    cool_file:Union[cooler.api.Cooler,str],
+    chromosome:str
+):
+    if type(cool_file)==str:
+        c=cooler.Cooler(cool_file)
+    else:
+        c=cool_file
+    bins=c.bins()[:]
+    to_select=list(bins[bins['chrom']==chromosome].index)
+    pix_tot=c.pixels()[:]
+    pix=pix_tot[(pix_tot.bin1_id.isin(to_select))&(pix_tot.bin2_id.isin(to_select))]
+    for i in range(1):
+        if len(pix.index)==0:
+            warnings.warn(f'no connections in chromosome {chromosome}')
+            continue
+        else:
+            max_count=max(pix['count'])
+            sequential_pixels=list(set(pix['bin1_id'])|set(pix['bin2_id']))
+            min_bin=min(sequential_pixels)
+            max_bin=max(sequential_pixels)
+            sequential_bins=list(bins.index[min_bin:max_bin+1])
+            sequential_pairs=[]
+            for i in range(len(sequential_bins)):
+                if i+1==len(sequential_bins):
+                    continue
+                n1=sequential_bins[i]
+                n2=sequential_bins[i+1]
+                sequential_pairs.append((n1,n2))
+            df_sequential_pairs=pd.DataFrame(sequential_pairs,columns=['bin1_id','bin2_id'])
+            df_sequential_pairs['count']=[max_count for x in range(df_sequential_pairs.shape[0])]
+            return df_sequential_pairs
+
+def sequential_pixels(
+    cool_file:Union[cooler.api.Cooler,str],
+    chromosome:str
+):
+    if type(cool_file)==str:
+        c=cooler.Cooler(cool_file)
+    else:
+        c=cool_file
+    bins=c.bins()[:]
+    to_select=list(bins[bins['chrom']==chromosome].index)
+    pix_tot=c.pixels()[:]
+    pix=pix_tot[(pix_tot.bin1_id.isin(to_select))&(pix_tot.bin2_id.isin(to_select))]
+    for i in range(1):
+        if len(pix.index)==0:
+            warnings.warn(f'no connections in chromosome {chromosome}')
+            continue
+        else:
+            max_count=max(pix['count'])
+            sequential_pixels=np.sort(list(set(pix['bin1_id'])|set(pix['bin2_id'])))
+            sequential_pairs=[]
+            for i in range(len(sequential_pixels)):
+                if i+1==len(sequential_pixels):
+                    continue
+                n1=sequential_pixels[i]
+                n2=sequential_pixels[i+1]
+                sequential_pairs.append((n1,n2))
+            df_sequential_pairs=pd.DataFrame(sequential_pairs,columns=['bin1_id','bin2_id'])
+            df_sequential_pairs['count']=[max_count for x in range(df_sequential_pairs.shape[0])]
+            return df_sequential_pairs
+
+
+def linked_graph_from_cool(
+    cool_file:Union[cooler.api.Cooler,str],
+    total_genome:Optional[bool]=False
+):
+    if type(cool_file)==str:
+        c=cooler.Cooler(cool_file)
+    else:
+        c=cool_file
+    chromosomes=c.chromnames
+    PIX=pd.DataFrame(columns=['bin1_id','bin2_id','count'])
+    bins=c.bins()[:]
+    pix=c.pixels()[:]
+    pix['genomic_link']=[0 for x in range(pix.shape[0])]
+    for chrom in chromosomes:
+        if total_genome==True:
+            pix_chr=sequential_bins(c,chrom)
+            PIX=pd.concat([PIX,pix_chr])
+        else:
+            pix_chr=sequential_pixels(c,chrom)
+            PIX=pd.concat([PIX,pix_chr])
+    PIX['genomic_link']=[1 for x in range(len(PIX.index))]
+    pix=pd.concat([pix,PIX])
+    pix.index=[x for x in range(len(pix.index))]
+    df=cooler.annotate(pix,bins)
+    g=nx.from_pandas_edgelist(df,source='bin1_id',target='bin2_id',edge_attr=['count','genomic_link'],create_using=nx.MultiDiGraph())
+    #node annotation
+    node_list=bins[bins.index.isin(np.sort([x for x in g.nodes]))]
+    for n in node_list.index:
+        g.nodes[n]['chrom'] = node_list['chrom'][n] #chromosomes
+        g.nodes[n]['start'] = node_list['start'][n] #bin start
+        g.nodes[n]['end'] = node_list['end'][n] #bin start
+    return g
 
 def get_graph(
     cool_file: Union[cooler.api.Cooler,str],
-    annotation: Optional[list]=[]
+    annotation: Optional[list]=[],
+    linked: Optional[bool]=False,
+    total_genome:Optional[bool]=False
 ):
     if type(annotation)!=list:
         raise TypeError('the input for the `annotation` parameter must be of tipe `list`')
@@ -23,17 +124,20 @@ def get_graph(
         c=cooler.Cooler(cool_file)
     else:
         c=cool_file
-    #edge annotation
     bins=c.bins()[:]
     pix=c.pixels()[:]
     df=cooler.annotate(pix,bins)
-    g=nx.from_pandas_edgelist(df,source='bin1_id',target='bin2_id',edge_attr='count')
-    #node annotation
-    node_list=bins[bins.index.isin(np.sort([x for x in g.nodes]))]
-    for n in node_list.index:
-        g.nodes[n]['chrom'] = node_list['chrom'][n] #chromosomes
-        g.nodes[n]['start'] = node_list['start'][n] #bin start
-        g.nodes[n]['end'] = node_list['end'][n] #bin start
+    if linked==False:
+        #edge annotation
+        g=nx.from_pandas_edgelist(df,source='bin1_id',target='bin2_id',edge_attr='count')
+        #node annotation
+        node_list=bins[bins.index.isin(np.sort([x for x in g.nodes]))]
+        for n in node_list.index:
+            g.nodes[n]['chrom'] = node_list['chrom'][n] #chromosomes
+            g.nodes[n]['start'] = node_list['start'][n] #bin start
+            g.nodes[n]['end'] = node_list['end'][n] #bin start
+    if linked==True:
+        g=linked_graph_from_cool(cool_file=c,total_genome=total_genome)
     # graph attributes (bin size)
     g.graph['bin_size'] = c.binsize
     #if you want to annotate nodes with other annotations beside chromosomes and start
@@ -262,110 +366,63 @@ def iCDs(
     else:
         raise ValueError('The function cannot recognize the regions file')
     iCD_graphs=iCDs_from_list(graph=g,list_of_regions=list_of_regions)
+    if len(iCD_graphs)==0:
+        warnings.warn(f'0 iCDs found for for regions {regions} in your graph')
     return iCD_graphs
 
-#7. total linked and linked
-
-def sequential_bins(
-    cool_file:Union[cooler.api.Cooler,str],
-    chromosome:str
-):
-    if type(cool_file)==str:
-        c=cooler.Cooler(cool_file)
-    else:
-        c=cool_file
-    bins=c.bins()[:]
-    to_select=list(bins[bins['chrom']==chromosome].index)
-    pix_tot=c.pixels()[:]
-    pix=pix_tot[(pix_tot.bin1_id.isin(to_select))&(pix_tot.bin2_id.isin(to_select))]
-    for i in range(1):
-        if len(pix.index)==0:
-            warnings.warn(f'no connections in chromosome {chromosome}')
-            continue
-        else:
-            max_count=max(pix['count'])
-            sequential_pixels=list(set(pix['bin1_id'])|set(pix['bin2_id']))
-            min_bin=min(sequential_pixels)
-            max_bin=max(sequential_pixels)
-            sequential_bins=list(bins.index[min_bin:max_bin+1])
-            sequential_pairs=[]
-            for i in range(len(sequential_bins)):
-                if i+1==len(sequential_bins):
-                    continue
-                n1=sequential_bins[i]
-                n2=sequential_bins[i+1]
-                sequential_pairs.append((n1,n2))
-            df_sequential_pairs=pd.DataFrame(sequential_pairs,columns=['bin1_id','bin2_id'])
-            df_sequential_pairs['count']=[max_count for x in range(df_sequential_pairs.shape[0])]
-            return df_sequential_pairs
-
-def sequential_pixels(
-    cool_file:Union[cooler.api.Cooler,str],
-    chromosome:str
-):
-    if type(cool_file)==str:
-        c=cooler.Cooler(cool_file)
-    else:
-        c=cool_file
-    bins=c.bins()[:]
-    to_select=list(bins[bins['chrom']==chromosome].index)
-    pix_tot=c.pixels()[:]
-    pix=pix_tot[(pix_tot.bin1_id.isin(to_select))&(pix_tot.bin2_id.isin(to_select))]
-    for i in range(1):
-        if len(pix.index)==0:
-            warnings.warn(f'no connections in chromosome {chromosome}')
-            continue
-        else:
-            max_count=max(pix['count'])
-            sequential_pixels=np.sort(list(set(pix['bin1_id'])|set(pix['bin2_id'])))
-            sequential_pairs=[]
-            for i in range(len(sequential_pixels)):
-                if i+1==len(sequential_pixels):
-                    continue
-                n1=sequential_pixels[i]
-                n2=sequential_pixels[i+1]
-                sequential_pairs.append((n1,n2))
-            df_sequential_pairs=pd.DataFrame(sequential_pairs,columns=['bin1_id','bin2_id'])
-            df_sequential_pairs['count']=[max_count for x in range(df_sequential_pairs.shape[0])]
-            return df_sequential_pairs
-
+#7. total linked and linked from a graph
 
 def linked_graph(
-    cool_file:Union[cooler.api.Cooler,str],
-    total_graph:Optional[bool]=False
+    graph: nx.classes.graph.Graph,
+    total_genome:Optional[bool]=True,
+    bin_size:Optional[int]=0
 ):
-    if type(cool_file)==str:
-        c=cooler.Cooler(cool_file)
-    else:
-        c=cool_file
-    chromosomes=c.chromnames
-    PIX=pd.DataFrame(columns=['bin1_id','bin2_id','count'])
-    bins=c.bins()[:]
-    pix=c.pixels()[:]
-    pix['genomic_link']=[0 for x in range(pix.shape[0])]
-    for chrom in chromosomes:
-        
-        if total_graph==True:
-            pix_chr=sequential_bins(c,chrom)
-            PIX=pd.concat([PIX,pix_chr])
-        else:
-            pix_chr=sequential_pixels(c,chrom)
-            PIX=pd.concat([PIX,pix_chr])
-    PIX['genomic_link']=[1 for x in range(len(PIX.index))]
-    pix=pd.concat([pix,PIX])
-    pix.index=[x for x in range(len(pix.index))]
-    df=cooler.annotate(pix,bins)
-    g=nx.from_pandas_edgelist(df,source='bin1_id',target='bin2_id',edge_attr=['count','genomic_link'])
-    #node annotation
-    node_list=bins[bins.index.isin(np.sort([x for x in g.nodes]))]
-    for n in node_list.index:
-        g.nodes[n]['chrom'] = node_list['chrom'][n] #chromosomes
-        g.nodes[n]['start'] = node_list['start'][n] #bin start
-        g.nodes[n]['end'] = node_list['end'][n] #bin start
-    # graph attributes (bin size)
-    g.graph['bin_size'] = c.binsize
+    g=graph
+    if type(g) != nx.classes.graph.Graph:
+        raise TypeError('a networkx graph object is required for these analyses')
+    nx.set_edge_attributes(g, 0, "genomic_link")
+    g=nx.MultiGraph(g) #allows parallel edges
+    max_edge=max(nx.get_edge_attributes(g,'count').values())
+    graph_chromosomes=set(nx.get_node_attributes(g,'chrom').values())
+    for chrom in graph_chromosomes:
+        selected_nodes=[n for n,v in g.nodes(data=True) if v['chrom'] in [chrom]]
+        #1) link only sequential nodes of the original graph
+        if total_genome==False:
+            sequential_nodes=np.sort(selected_nodes)
+            for i in range(len(sequential_nodes)):
+                if i+1==len(sequential_nodes):
+                    continue
+                n1=sequential_nodes[i]
+                n2=sequential_nodes[i+1]
+                g.add_edge(n1,n2,count=max_edge,genomic_link=1)
+        #2) link all chromatin regions between original graph nodes
+        elif total_genome==True:
+            min_node=min(selected_nodes)
+            max_node=max(selected_nodes)
+            sequential_nodes=[x for x in range(min_node,max_node+1)]
+            for i in range(len(sequential_nodes)):
+                if i+1==len(sequential_nodes):
+                    continue
+                n1=sequential_nodes[i]
+                n2=sequential_nodes[i+1]
+                g.add_edge(n1,n2,count=max_edge,genomic_link=1)
+            # bin size determination
+            if (type(bin_size)!=int)|(bin_size==0):
+                try:
+                    bin_size=g.graph['bin_size']
+                except KeyError:
+                    try:
+                        n0=list(g1.nodes)[0]
+                        s=g.nodes[n0]['start']
+                        e=g.nodes[n0]['end']
+                        bin_size=e-s
+                    except KeyError:
+                        raise KeyError('bin size cannot be determined by graph`s or nodes` attributes. Set it manually with the `bin_size` parameter (it must be of tipe == int)')
+            for n in sequential_nodes:
+                if len(g.nodes[n])==0:
+                    g.nodes[n]['chrom'] = chrom
+                    g.nodes[n]['start'] = g.nodes[n-1]['start']+bin_size
+                    g.nodes[n]['end'] = g.nodes[n-1]['end']+bin_size
     return g
-
-
 
 #8. storing and loading
