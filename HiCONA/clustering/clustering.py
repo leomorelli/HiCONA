@@ -9,7 +9,7 @@ import time
 import logging
 
 
-def minimize_nested(
+def clustering(                             #minimize nested block model
     xml_file:Union[Path,str],
     layers: Optional[bool]=False,
     n_iter:Optional[int]=100
@@ -39,7 +39,7 @@ def minimize_nested(
                 state_final=state
     return state_final
 
-
+# 1. collect cluster assignments probability
 def collect_marginal_probabilities(
     graph,
     state,
@@ -59,8 +59,23 @@ def collect_marginal_probabilities(
     logging.info(f'2/2 equilibration performed in {time3-time2}')
     return state, pv
 
+def assignment_probability(
+    xml_file:Union[Path,str],
+    layers: Optional[bool]=False,
+    n_iter:Optional[int]=100,   # number of minimization procedures
+    n_events:Optional[int]=1000
+):
+    try:
+        g = gt.load_graph(xml_file,fmt='xml')
+    except OSError:
+        raise OSError('Wrong graph format!')
+    state_pre=clustering(xml_file=xml_file,layers=layers,n_iter=n_iter)
+    state,pv=collect_marginal_probabilities(graph=g,state=state_pre,forced_iteration=n_events)
+    return state,pv
 
-def graph_of_clusters(
+
+# 2. generate separated graphs for each cluster
+def list_of_clusters_graphs(
     graph,
     state,
     store:Optional[bool]=False,
@@ -83,3 +98,19 @@ def graph_of_clusters(
             u.save(f"{path}/{name}_{cl}.xml.gz")
     return clusters
 
+
+def graph_clusters(
+    xml_file:Union[Path,str],
+    layers: Optional[bool]=False,
+    n_iter:Optional[int]=100,   # number of minimization procedures
+    store:Optional[bool]=False,
+    path:Optional[str]='.',
+    name:Optional[str]='graph_cluster'
+):
+    try:
+        g = gt.load_graph(xml_file,fmt='xml')
+    except OSError:
+        raise OSError('Wrong graph format!')
+    state_pre=clustering(xml_file=xml_file,layers=layers,n_iter=n_iter)
+    graph_clusters=list_of_clusters_graphs(graph=g,state=state_pre,store=store,path=path,name=name)
+    return graph_clusters
