@@ -112,11 +112,71 @@ def linked_graph_from_cool(
         g.nodes[n]['end'] = node_list['end'][n] #bin start
     return g
 
+
+def linked_graph(
+    graph: nx.classes.graph.Graph,
+    total_genome:Optional[bool]=True,
+    bin_size:Optional[int]=0
+):
+    g=graph
+    if type(g) != nx.classes.graph.Graph:
+        raise TypeError('a networkx graph object is required for these analyses')
+    nx.set_edge_attributes(g, 0, "genomic_link")
+    g=nx.MultiGraph(g) #allows parallel edges
+    max_edge=max(nx.get_edge_attributes(g,'count').values())
+    graph_chromosomes=set(nx.get_node_attributes(g,'chrom').values())
+    for chrom in graph_chromosomes:
+        selected_nodes=[n for n,v in g.nodes(data=True) if v['chrom'] in [chrom]]
+        #1) link only sequential nodes of the original graph
+        if total_genome==False:
+            sequential_nodes=np.sort(selected_nodes)
+            for i in range(len(sequential_nodes)):
+                if i+1==len(sequential_nodes):
+                    continue
+                n1=sequential_nodes[i]
+                n2=sequential_nodes[i+1]
+                g.add_edge(n1,n2,count=max_edge,genomic_link=1)
+        #2) link all chromatin regions between original graph nodes
+        elif total_genome==True:
+            min_node=min(selected_nodes)
+            max_node=max(selected_nodes)
+            sequential_nodes_hic=np.sort(selected_nodes)
+            sequential_nodes=[x for x in range(min_node,max_node+1)]
+            for i in range(len(sequential_nodes)):
+                if i+1==len(sequential_nodes):
+                    continue
+                n1=sequential_nodes[i]
+                n2=sequential_nodes[i+1]
+                g.add_edge(n1,n2,count=max_edge,genomic_link=1)
+            # bin size determination
+            if (type(bin_size)!=int)|(bin_size==0):
+                try:
+                    bin_size=g.graph['bin_size']
+                except KeyError:
+                    try:
+                        n0=list(g.nodes)[0]
+                        s=g.nodes[n0]['start']
+                        e=g.nodes[n0]['end']
+                        bin_size=e-s
+                    except KeyError:
+                        raise KeyError('bin size cannot be determined by graph`s or nodes` attributes. Set it manually with the `bin_size` parameter (it must be of tipe == int)')
+        for n in sequential_nodes:
+            if len(g.nodes[n])==0:
+                g.nodes[n]['chrom'] = chrom
+                g.nodes[n]['start'] = g.nodes[n-1]['start']+bin_size
+                g.nodes[n]['end'] = g.nodes[n-1]['end']+bin_size
+                if n in sequential_nodes_hic:
+                    g.nodes[n]['type'] = 'hic'
+                else:
+                    g.nodes[n]['type'] = 'genomic'
+    return g
+
 def get_graph(
     cool_file: Union[cooler.api.Cooler,str],
     annotation: Optional[list]=[],
     linked: Optional[bool]=False,
-    total_genome:Optional[bool]=False
+    total_genome:Optional[bool]=False,
+    bin_size:Optional[int]=0
 ):
     if type(annotation)!=list:
         raise TypeError('the input for the `annotation` parameter must be of tipe `list`')
@@ -127,19 +187,17 @@ def get_graph(
     bins=c.bins()[:]
     pix=c.pixels()[:]
     df=cooler.annotate(pix,bins)
-    if linked==False:
-        #edge annotation
-        g=nx.from_pandas_edgelist(df,source='bin1_id',target='bin2_id',edge_attr='count')
-        #node annotation
-        node_list=bins[bins.index.isin(np.sort([x for x in g.nodes]))]
-        for n in node_list.index:
-            g.nodes[n]['chrom'] = node_list['chrom'][n] #chromosomes
-            g.nodes[n]['start'] = node_list['start'][n] #bin start
-            g.nodes[n]['end'] = node_list['end'][n] #bin start
+    #edge annotation
+    g=nx.from_pandas_edgelist(df,source='bin1_id',target='bin2_id',edge_attr='count')
+    #node annotation
+    node_list=bins[bins.index.isin(np.sort([x for x in g.nodes]))]
+    for n in node_list.index:
+        g.nodes[n]['chrom'] = node_list['chrom'][n] #chromosomes
+        g.nodes[n]['start'] = node_list['start'][n] #bin start
+        g.nodes[n]['end'] = node_list['end'][n] #bin start
     if linked==True:
-        g=linked_graph_from_cool(cool_file=c,total_genome=total_genome)
-    # graph attributes (bin size)
-    g.graph['bin_size'] = c.binsize
+        g_nl=g
+        g=linked_graph(graph=g_nl,total_genome=total_genome,bin_size=bin_size)
     #if you want to annotate nodes with other annotations beside chromosomes and start
     if len(annotation)>0:
         for a in annotation:
@@ -168,7 +226,6 @@ def get_graph(
             except KeyError:
                 raise KeyError(f'`{a}` is not present in the `bins` table. Try `cool_file.bins()[:] in order to take a look to your available annotations`')
     return g
-
 
 #3. filter out nodes and edges according to annotation or edges according to cc
 
@@ -399,6 +456,7 @@ def linked_graph(
         elif total_genome==True:
             min_node=min(selected_nodes)
             max_node=max(selected_nodes)
+            sequential_nodes_hic=np.sort(selected_nodes)
             sequential_nodes=[x for x in range(min_node,max_node+1)]
             for i in range(len(sequential_nodes)):
                 if i+1==len(sequential_nodes):
@@ -418,11 +476,15 @@ def linked_graph(
                         bin_size=e-s
                     except KeyError:
                         raise KeyError('bin size cannot be determined by graph`s or nodes` attributes. Set it manually with the `bin_size` parameter (it must be of tipe == int)')
-            for n in sequential_nodes:
-                if len(g.nodes[n])==0:
-                    g.nodes[n]['chrom'] = chrom
-                    g.nodes[n]['start'] = g.nodes[n-1]['start']+bin_size
-                    g.nodes[n]['end'] = g.nodes[n-1]['end']+bin_size
+        for n in sequential_nodes:
+            if len(g.nodes[n])==0:
+                g.nodes[n]['chrom'] = chrom
+                g.nodes[n]['start'] = g.nodes[n-1]['start']+bin_size
+                g.nodes[n]['end'] = g.nodes[n-1]['end']+bin_size
+                if n in sequential_nodes_hic:
+                    g.nodes[n]['type'] = 'hic'
+                else:
+                    g.nodes[n]['type'] = 'genomic'
     return g
 
 #8. storing and loading
