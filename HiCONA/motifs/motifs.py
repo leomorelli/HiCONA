@@ -32,8 +32,8 @@ def motifs_sig(
         pval=len([x for x in tot_random_motifs_T[i] if x > real_motifs[i]])/n_shuffles
         if pval<=threshold:
             sig_motifs.append((analysis[0][i],pval))
-    if len(motifs_list)==0:
-        raise ValueError(f'Zero network motifs seems to be statistically significant. You may try to increase the threshold, which is currently {threshold}')
+    if len(sig_motifs)==0:
+        warnings.warn(f'Zero network motifs seems to be statistically significant. You may try to increase the threshold, which is currently {threshold}')
     return sig_motifs
 
 
@@ -104,7 +104,7 @@ def prop_to_anno(
 
 #return motif graph, text property maps of maximum anno per node, int property map for fraction of max anno
 def max_anno(
-    matrix_anno_motif
+    anno_nodes
 ):
     results=[]
     for mm in matrix_anno_motif:
@@ -177,3 +177,25 @@ def annotation_significance(
         df=pd.DataFrame(motif_sig,columns=anno_population_count.index).T
         results.append([pm_object,df])
     return results
+
+
+
+#link
+def motifs_analysis(
+    g,
+    n_vertices:int,
+    annotation:str,
+    motifs_sig_threshold:Optional[float]=0.01,
+    n_shuffles:Optional[int]=1000,
+    analysis:Optional[str]='sig', #can be also max
+):
+    sig_motifs=motifs_sig(g,n_vertices=n_vertices,n_shuffles=n_shuffles,threshold=motifs_sig_threshold)
+    pmXnodes=motifs_annotation(g,n_vertices=n_vertices,motifs_list=sig_motifs,annotation=annotation,total_output=False)
+    annoXnodes=prop_to_anno(g,annotation=annotation,matrix_motif=pmXnodes)
+    if analysis=='sig':
+        pm_anno_sig=annotation_significance(g,annotation=annotation,anno_nodes=annoXnodes,permutation=n_shuffles)
+        return pm_anno_sig
+    elif max_annotation=='max':
+        pm_anno_max=max_anno(anno_nodes=annoXnodes)
+        return pm_anno_max
+
