@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import itertools
 import time
+import scipy as scp
 from typing import Optional, Tuple, Sequence, Type, Union, Literal
 
 
@@ -31,6 +32,8 @@ def motifs_sig(
         pval=len([x for x in tot_random_motifs_T[i] if x > real_motifs[i]])/n_shuffles
         if pval<=threshold:
             sig_motifs.append((analysis[0][i],pval))
+    if len(motifs_list)==0:
+        raise ValueError(f'Zero network motifs seems to be statistically significant. You may try to increase the threshold, which is currently {threshold}')
     return sig_motifs
 
 
@@ -76,15 +79,15 @@ def motifs_annotation(
 
 
 def prop_to_anno(
+    g,
+    annotation,
     matrix_motif,
 ):
+    categories=set([x for x in g.vp[annotation]])
     results=[]
     for mm in matrix_motif:
         pm=mm[0]
         m=mm[1]
-        categories=[]
-        for i in m:
-            categories=list(set(categories)|set(i))
         array_m=np.array(m)
         array_m_T=array_m.T
         anno_matrix=[]
@@ -94,8 +97,9 @@ def prop_to_anno(
                 anno_node.append(list(n).count(c))
             anno_matrix.append(anno_node)
         df=pd.DataFrame(anno_matrix,columns=categories).T
+        df=df.sort_index()
         results.append([pm,df])
-    return results    # return -> motif(graph),df (annoXnodes)
+    return results  # return -> motif(graph),df (annoXnodes)
 
 
 #return motif graph, text property maps of maximum anno per node, int property map for fraction of max anno
@@ -115,4 +119,61 @@ def max_anno(
         anno_pm=pm.new_vertex_property('string',vals=anno_max)
         fraction_pm=pm.new_vertex_property('float',vals=anno_fraction)
         results.append([pm,anno_pm,fraction_pm])
+    return results
+
+
+
+
+# anno sig
+def annotation_significance(
+    g,
+    annotation,
+    anno_nodes,
+    permutation:Optional[int]=1000
+):
+    anno_population=[x for x in g.vp[annotation]]
+    anno_population_count=pd.Series(anno_population).value_counts().sort_index()
+    results=[]
+    for pm in anno_nodes:
+        pm_object=pm[0]
+        anno_n=pm[1]
+        motif_sig=[]
+        for n in anno_n.columns:
+            node_sig=[]
+            for a in range(len(anno_population_count)):
+                node=anno_n[n].sort_index().tolist()
+                anno_count_a=anno_population_count.tolist()
+                success=node[a]
+                p_success=anno_count_a[a]
+                node.pop(a)
+                failure=sum(node)
+                anno_count_a.pop(a)
+                p_failure=sum(anno_count_a)
+                node_a=[success,failure]
+                p_a=[p_success,p_failure]
+                p_a_norm=[x/sum(p_a) for x in p_a]
+                prob_real=scp.stats.multinomial.pmf(x=node_a, p=p_a_norm,n=sum(node_a))
+
+                probs_rand=[]
+                for x in range(permutation):
+                    picks=[]
+                    for i in range(sum(node)):
+                        idx=np.random.randint(low=2,high=len(anno_population),size=1)
+                        picks.append(anno_population[int(idx)])
+                    picks_count=pd.Series(picks,dtype='category').value_counts().sort_index()
+                    if len(anno_population_count.index)!=len(picks_count.index):
+                        lacking_annos=list(set(anno_population_count.index)-set(picks_count.index))
+                        series_to_add=pd.Series([0 for a in range(len(lacking_annos))],index=lacking_annos)
+                        picks_count=pd.concat([picks_count,series_to_add]).sort_index()
+                    node_rand=picks_count.tolist()
+                    success=node_rand[a]
+                    node_rand.pop(a)
+                    failure=sum(node_rand)
+                    node_rand_a=[success,failure]
+                    p_rand=scp.stats.multinomial.pmf(x=node_rand_a, p=p_a_norm,n=sum(node_rand_a))
+                    probs_rand.append(p_rand)
+                node_sig.append(len([x for x in probs_rand if x<prob_real])/permutation)
+            motif_sig.append(node_sig)
+        df=pd.DataFrame(motif_sig,columns=anno_population_count.index).T
+        results.append([pm_object,df])
     return results
