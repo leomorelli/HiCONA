@@ -14,12 +14,15 @@ def min_degree(h):
             return m
         
 
-def degree_distribution(g):
+def degree_distribution(
+    g,
+    colour:Optional='green'   #any matplotlib color
+):
     h = gt.vertex_hist(g,'total')
     degree_freq = h[0]
     degrees = range(len(degree_freq))
     plt.figure(figsize=(12, 8)) 
-    plt.loglog(degrees[min_degree(h[0]):], degree_freq[min_degree(h[0]):],'go-') 
+    plt.loglog(degrees[min_degree(h[0]):], degree_freq[min_degree(h[0]):],'go-',c=colour) 
     plt.xlabel('Degree')
     plt.ylabel('Frequency')
 
