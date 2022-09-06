@@ -103,7 +103,7 @@ def prop_to_anno(
 
 
 #return motif graph, text property maps of maximum anno per node, int property map for fraction of max anno
-def max_anno(
+def count_anno(
     anno_nodes
 ):
     results=[]
@@ -187,7 +187,7 @@ def motifs_analysis(
     annotation:str,
     motifs_sig_threshold:Optional[float]=0.01,
     n_shuffles:Optional[int]=1000,
-    analysis:Optional[str]='sig', #can be also max
+    analysis:Optional[str]='sig', #can be also `count`
 ):
     sig_motifs=motifs_sig(g,n_vertices=n_vertices,n_shuffles=n_shuffles,threshold=motifs_sig_threshold)
     pmXnodes=motifs_annotation(g,n_vertices=n_vertices,motifs_list=sig_motifs,annotation=annotation,total_output=False)
@@ -195,7 +195,7 @@ def motifs_analysis(
     if analysis=='sig':
         pm_anno_sig=annotation_significance(g,annotation=annotation,anno_nodes=annoXnodes,permutation=n_shuffles)
         return pm_anno_sig
-    elif max_annotation=='max':
-        pm_anno_max=max_anno(anno_nodes=annoXnodes)
+    elif max_annotation=='count':
+        pm_anno_max=count_anno(anno_nodes=annoXnodes)
         return pm_anno_max
 
