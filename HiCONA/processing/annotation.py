@@ -233,7 +233,57 @@ def bin_annotation(
         annotation_report(cool_file=cool_file,hierarchy=hierarchy,strategy=strategy,store_report=store_report)
     return cool_output
     
-    
+#generation of a dateframe with the following attributes of each node: chrom, start, end, id
+def make_node_df(G):
+    nodes = {}
+    for node, attribute in G.nodes(data=True):
+        if not nodes.get('node'):
+            nodes['node'] = [node]
+        else:
+            nodes['node'].append(node)
+        for key, value in attribute.items():
+            if not nodes.get(key):
+                nodes[key] = [value]
+            else:
+                nodes[key].append(value)
+    df=pd.DataFrame(nodes)
+    df=df[['chrom', 'start', 'end','node']]
+    return df
+
+
+#SIMPLE ANNOTATION
+def graph_annotation(
+    graph: Union[nx.classes.graph.Graph,str],
+    anno_files: Union[list],
+    names: Optional[list]=['annotation']
+):
+# RESULT: graph whose nodes are annotated, according to one or multiple bed files
+    if type(graph)==str:
+        graph=nx.read_graphml(graph)
+    else:
+        graph=graph
+    df_attrtibutes=make_node_df(graph)
+    intersection_bed=pybedtools.BedTool.from_dataframe(df_attrtibutes)
+    for x in range(len(anno_files)):
+        anno_file=anno_files[x]
+        name=names[x]
+        input_anno=Path(anno_file)
+        anno_bed=pybedtools.BedTool(input_anno)
+        # 1) annotation generation
+        intersected=intersection_bed.intersect(anno_bed)
+        intersected_df=intersected.to_dataframe()
+        cols=intersected_df.columns
+        anno=np.zeros(df_attrtibutes.shape[0])
+        node_idx=list(set(intersected_df[cols[-1]]))
+        node_pos=df_attrtibutes[df_attrtibutes['node'].isin(node_idx)].index
+        for i in node_pos:   #intersected_df[cols[-1]]=list of bin codes showing intersection with annotation file
+            anno[i]=1
+        # generation of a dictionary, pairing nodes and their annotations
+        keys = list(g.nodes())
+        values = anno
+        annotation = dict(zip(keys, values))
+        nx.set_node_attributes(g, annotation, name)
+    return graph
     
 def delete_annotation(
     cool_file: Union[Path, str],
