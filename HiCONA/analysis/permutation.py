@@ -30,11 +30,9 @@ def permutation(
         raise TypeError('the input for `terms` parameter must be of tipe `list` or `string`')
 
     anno_list=[x for x in g.vp[f'{annotation}']]
-    anno_nodes=[]
-    for i in range(len(anno_list)):
-        if anno_list[i] in terms:
-            anno_nodes.append(i)
-
+    
+    anno_nodes=[index for (index, item) in enumerate(anno_list) if item in terms]
+    
     g_real=g.copy()
     g_real.remove_vertex(anno_nodes, fast=True)
     if stat=='average_degree':
@@ -75,5 +73,5 @@ def permutation(
         if store_plot==True:
             plt.savefig(plot_file,dpi=200)
             
-    pval=len([x for x in distribution if x <stat_real])/len(distribution)
+    pval=(len([x for x in distribution if x <stat_real])+1)/(len(distribution)+1)
     return pval
