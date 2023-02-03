@@ -1,0 +1,17 @@
+#!/bin/bash
+
+#PBS -N filt_bench
+#PBS -o ./filt_bench.out 
+#PBS -e ./filt_bench.err 
+#PBS -q common_cpuQ 
+#PBS -l select=1:mem=100gb 
+
+cd /shares/CIBIO-Storage/GROUPS/sharedCE/Leonardo/HiCONA/Rao_2014/
+export PATH=$HOME/miniconda3/bin:$PATH
+
+source activate hicona
+# Run 
+
+python3 filtered_pix_bench.py
+
+conda deactivate
