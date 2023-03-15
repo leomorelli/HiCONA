@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>hicona.generation.sparsification &mdash; HiCONA pre-alpha documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+        <script src="../../../_static/sphinx_highlight.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            HiCONA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules.html">hicona</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../hicona.html">hicona package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../hicona.annotation.html">hicona.annotation package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../hicona.generation.html">hicona.generation package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../hicona.utils.html">hicona.utils package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">HiCONA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">hicona.generation.sparsification</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for hicona.generation.sparsification</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Sparsification</span>
+
+<span class="sd">Set of functions to perform edge sparsification starting from a COO formatted </span>
+<span class="sd">matrix corresponding to Hi-C experiment results. Different sparsification </span>
+<span class="sd">methods are supported. The main intended use is through the automatic pipeline</span>
+<span class="sd"> for conversion of cool-format files into graph-tool objects. </span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="c1"># TODO: complete module docstring with functions, imports, errors etc.</span>
+
+<span class="kn">from</span> <span class="nn">math</span> <span class="kn">import</span> <span class="n">floor</span>
+
+<span class="kn">import</span> <span class="nn">networkx</span> <span class="k">as</span> <span class="nn">nx</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">pandas</span> <span class="kn">import</span> <span class="n">DataFrame</span>
+<span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">integrate</span>
+
+
+<div class="viewcode-block" id="round_half_up"><a class="viewcode-back" href="../../../hicona.generation.html#hicona.generation.sparsification.round_half_up">[docs]</a><span class="k">def</span> <span class="nf">round_half_up</span><span class="p">(</span><span class="n">number</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">decimals</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return half way up rounded decimal number</span>
+<span class="sd">    </span>
+<span class="sd">    Auxiliary function to round numbers since python default is not what it is</span>
+<span class="sd">     commonly expected rounding to be. Half way up rounding means &quot;round to </span>
+<span class="sd">    closest value, either up or down, and break ties returning upper value&quot;.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">multiplier</span> <span class="o">=</span> <span class="mi">10</span> <span class="o">**</span> <span class="n">decimals</span>
+    <span class="k">return</span> <span class="n">floor</span><span class="p">(</span><span class="n">number</span><span class="o">*</span><span class="n">multiplier</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">/</span> <span class="n">multiplier</span></div>
+
+
+<div class="viewcode-block" id="disparity_index_confidence"><a class="viewcode-back" href="../../../hicona.generation.html#hicona.generation.sparsification.disparity_index_confidence">[docs]</a><span class="k">def</span> <span class="nf">disparity_index_confidence</span><span class="p">(</span><span class="n">pix_df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Add alpha column to dataframe (computed as per Serrano et al. 2009)</span>
+
+<span class="sd">    Add a column to the dataframe containing the alpha values for the edges, </span>
+<span class="sd">    meaning the confidence level of a weighted edge given local fluctuations </span>
+<span class="sd">    in the network, see Serrano et al. 2009 for in depth explaination. Edge </span>
+<span class="sd">    iteration is done using an index based approach which takes into account </span>
+<span class="sd">    coo properties to speed up the search.</span>
+
+<span class="sd">    WARNING: this function might increase substantially the size of the </span>
+<span class="sd">    dataframe (+33% or more); edges might be filtered directly to avoid this </span>
+<span class="sd">    but it would mean recomputing all alpha values for each threshold to test.</span>
+
+<span class="sd">    WARNING: the edge in a disconnected doublet always gets alpha = 1,</span>
+<span class="sd">    therefore it will be subsequently filtered. This behaviour might not be </span>
+<span class="sd">    the desired one and might be changed.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># TODO: Try preallocating container for the indexes</span>
+    <span class="c1"># TODO: Try and simplify/split the function</span>
+    <span class="c1"># TODO: Address doublet problem?</span>
+    <span class="c1"># TODO: Add alternative break out condition? (maximum iterations maybe)</span>
+    <span class="c1"># TODO: Right now creating a copy of the dataframe (rm pix_df?)</span>
+
+    <span class="c1"># Initialization step</span>
+    <span class="n">step</span> <span class="o">=</span> <span class="n">pix_df</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>                          <span class="c1"># Number of edges</span>
+    <span class="n">flat_df</span> <span class="o">=</span> <span class="n">pix_df</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="n">order</span><span class="o">=</span><span class="s2">&quot;F&quot;</span><span class="p">)</span>  <span class="c1"># Dataframe in list form</span>
+    <span class="n">alphas</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">step</span><span class="p">)</span>                          <span class="c1"># Non-significant alphas</span>
+    <span class="n">bin_id</span> <span class="o">=</span> <span class="n">flat_df</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>                             <span class="c1"># Starting bin id</span>
+
+    <span class="c1"># Store both indexes and values to minimize lookup</span>
+    <span class="n">bin1_ind</span> <span class="o">=</span> <span class="mi">0</span>         <span class="c1"># Only one value since only one starting point</span>
+    <span class="n">bin1_id</span> <span class="o">=</span> <span class="n">bin_id</span>     <span class="c1"># Current value for bin1  HOW TO USE</span>
+    <span class="n">bin2_indexes</span> <span class="o">=</span> <span class="p">[]</span>    <span class="c1"># List of all starting points in column 2</span>
+    <span class="n">bin2_ids</span> <span class="o">=</span> <span class="p">[]</span>        <span class="c1"># List of current values for bin2</span>
+    <span class="n">bin2_min</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">infty</span>  <span class="c1"># Mock value that should never be equal at the first iteration</span>
+
+    <span class="c1"># Initialize part of the stopping criterion</span>
+    <span class="n">bin1_ids_left</span> <span class="o">=</span> <span class="n">bin1_ind</span> <span class="o">!=</span> <span class="n">step</span>
+
+    <span class="c1"># Iterate until edges are exhausted (knowing max bin id is O(E) complex)</span>
+    <span class="k">while</span> <span class="n">bin1_ids_left</span> <span class="ow">or</span> <span class="n">bin2_indexes</span><span class="p">:</span>
+
+        <span class="c1"># Containers for bin id specific values</span>
+        <span class="n">b_indexes</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">b_values</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="c1"># Check for bin id in bin2 column</span>
+        <span class="k">if</span> <span class="n">bin_id</span> <span class="o">==</span> <span class="n">bin2_min</span><span class="p">:</span>
+
+            <span class="n">bin2_min_items</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="p">(</span><span class="n">pos</span><span class="p">,</span> <span class="n">ind</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="k">for</span> <span class="n">pos</span><span class="p">,</span> <span class="n">ind</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">bin2_indexes</span><span class="p">,</span> <span class="n">bin2_ids</span><span class="p">))</span>
+                <span class="k">if</span> <span class="n">ind</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="n">bin2_min</span><span class="p">]</span>
+
+            <span class="k">for</span> <span class="n">bin2_pos</span><span class="p">,</span> <span class="n">bin2_ind</span> <span class="ow">in</span> <span class="n">bin2_min_items</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+
+                <span class="n">b_indexes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">bin2_ind</span> <span class="o">-</span> <span class="n">step</span><span class="p">)</span>
+                <span class="n">b_values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">flat_df</span><span class="p">[</span><span class="n">bin2_ind</span> <span class="o">+</span> <span class="n">step</span><span class="p">])</span>
+
+                <span class="c1"># Increment bin2 index, then decide whether to keep or not</span>
+                <span class="n">bin2_ind</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="n">bin1_changes</span> <span class="o">=</span> <span class="n">flat_df</span><span class="p">[</span><span class="n">bin2_ind</span><span class="o">-</span><span class="n">step</span><span class="p">]</span> <span class="o">!=</span> <span class="n">flat_df</span><span class="p">[</span><span class="n">bin2_ind</span><span class="o">-</span><span class="n">step</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">bin2_ind</span> <span class="o">==</span> <span class="mi">2</span><span class="o">*</span><span class="n">step</span> <span class="ow">or</span> <span class="n">bin1_changes</span><span class="p">:</span>
+                    <span class="k">del</span> <span class="n">bin2_indexes</span><span class="p">[</span><span class="n">bin2_pos</span><span class="p">],</span> <span class="n">bin2_ids</span><span class="p">[</span><span class="n">bin2_pos</span><span class="p">]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">bin2_indexes</span><span class="p">[</span><span class="n">bin2_pos</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="n">bin2_ids</span><span class="p">[</span><span class="n">bin2_pos</span><span class="p">]</span> <span class="o">=</span> <span class="n">flat_df</span><span class="p">[</span><span class="n">bin2_ind</span><span class="p">]</span>
+
+            <span class="n">bin2_min</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">infty</span>
+            <span class="k">if</span> <span class="n">bin2_ids</span><span class="p">:</span>
+                <span class="n">bin2_min</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">bin2_ids</span><span class="p">)</span>
+
+        <span class="c1"># Check for bin in bin1 column</span>
+        <span class="k">if</span> <span class="n">bin1_ids_left</span><span class="p">:</span>
+            <span class="n">old_bin1_ind</span> <span class="o">=</span> <span class="n">bin1_ind</span>
+            <span class="k">while</span> <span class="n">bin1_id</span> <span class="o">==</span> <span class="n">bin_id</span><span class="p">:</span>
+                <span class="n">bin1_ind</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="n">bin1_id</span> <span class="o">=</span> <span class="n">flat_df</span><span class="p">[</span><span class="n">bin1_ind</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">bin1_ind</span> <span class="o">==</span> <span class="n">step</span><span class="p">:</span>
+                    <span class="n">bin1_ids_left</span> <span class="o">=</span> <span class="kc">False</span>
+                    <span class="k">break</span>
+
+            <span class="c1"># If there was a change in bin1 index, apply changes</span>
+            <span class="k">if</span> <span class="n">old_bin1_ind</span> <span class="o">!=</span> <span class="n">bin1_ind</span><span class="p">:</span>
+                <span class="n">b_indexes</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">old_bin1_ind</span><span class="p">,</span> <span class="n">bin1_ind</span><span class="p">))</span>
+                <span class="n">b_values</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">flat_df</span><span class="p">[</span><span class="n">old_bin1_ind</span><span class="o">+</span><span class="mi">2</span><span class="o">*</span><span class="n">step</span><span class="p">:</span><span class="n">bin1_ind</span><span class="o">+</span><span class="mi">2</span><span class="o">*</span><span class="n">step</span><span class="p">])</span>
+                <span class="n">bin2_indexes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">old_bin1_ind</span> <span class="o">+</span> <span class="n">step</span><span class="p">)</span>
+                <span class="n">new_bin2_val</span> <span class="o">=</span> <span class="n">flat_df</span><span class="p">[</span><span class="n">old_bin1_ind</span> <span class="o">+</span> <span class="n">step</span><span class="p">]</span>
+                <span class="n">bin2_ids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_bin2_val</span><span class="p">)</span>
+                <span class="n">bin2_min</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">bin2_min</span><span class="p">,</span> <span class="n">new_bin2_val</span><span class="p">)</span>
+
+        <span class="n">bin_id</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="c1"># Compute alpha values and update</span>
+        <span class="n">tot</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">b_values</span><span class="p">)</span>  <span class="c1"># Sum of weights of neighbouring edges</span>
+        <span class="n">k</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">b_values</span><span class="p">)</span>    <span class="c1"># Number of neighbouring edges</span>
+
+        <span class="c1"># Normalization does not work on terminal nodes</span>
+        <span class="k">if</span> <span class="n">k</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">continue</span>
+
+        <span class="n">new_alphas</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="mi">1</span><span class="o">-</span><span class="p">(</span><span class="n">k</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="n">integrate</span><span class="o">.</span><span class="n">quad</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="n">x</span><span class="p">)</span><span class="o">**</span><span class="p">(</span><span class="n">k</span><span class="o">-</span><span class="mi">2</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span> <span class="n">val</span><span class="o">/</span><span class="n">tot</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">ind</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">b_indexes</span><span class="p">,</span> <span class="n">b_values</span><span class="p">)]</span>
+
+        <span class="k">for</span> <span class="n">pos</span><span class="p">,</span> <span class="n">ind</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">b_indexes</span><span class="p">):</span>
+            <span class="n">alphas</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">alphas</span><span class="p">[</span><span class="n">ind</span><span class="p">],</span> <span class="n">round_half_up</span><span class="p">(</span><span class="n">new_alphas</span><span class="p">[</span><span class="n">pos</span><span class="p">],</span> <span class="mi">4</span><span class="p">))</span>
+
+    <span class="c1"># Add alpha values and return dataframe</span>
+    <span class="n">flat_df</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">([</span><span class="n">flat_df</span><span class="p">,</span> <span class="n">alphas</span><span class="p">])</span>
+    <span class="n">pix_df</span> <span class="o">=</span> <span class="n">DataFrame</span><span class="p">(</span>
+        <span class="n">flat_df</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">step</span><span class="p">,</span><span class="mi">4</span><span class="p">),</span> <span class="n">order</span><span class="o">=</span><span class="s2">&quot;F&quot;</span><span class="p">),</span>
+        <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;bin1_id&quot;</span><span class="p">,</span> <span class="s2">&quot;bin2_id&quot;</span><span class="p">,</span> <span class="s2">&quot;count&quot;</span><span class="p">,</span> <span class="s2">&quot;alpha&quot;</span><span class="p">])</span>
+    <span class="n">pix_df</span> <span class="o">=</span> <span class="n">pix_df</span><span class="o">.</span><span class="n">astype</span><span class="p">({</span><span class="s2">&quot;bin1_id&quot;</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="s2">&quot;bin2_id&quot;</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="s2">&quot;count&quot;</span><span class="p">:</span><span class="nb">int</span><span class="p">})</span>
+
+    <span class="k">return</span> <span class="n">pix_df</span></div>
+
+
+<div class="viewcode-block" id="disparity_network_confidence"><a class="viewcode-back" href="../../../hicona.generation.html#hicona.generation.sparsification.disparity_network_confidence">[docs]</a><span class="k">def</span> <span class="nf">disparity_network_confidence</span><span class="p">(</span><span class="n">pix_df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Add alpha column to dataframe (computed as per Serrano et al. 2009)</span>
+
+<span class="sd">    Add a column to the dataframe containing the alpha values for the edges, </span>
+<span class="sd">    meaning the confidence level of a weighted edge given local fluctuations </span>
+<span class="sd">    in the network, see Serrano et al. 2009 for in depth explaination. A graph</span>
+<span class="sd">     is built starting from the list of edges, then the procedure is iterated</span>
+<span class="sd">    over the nodes; the resulting network is converted back to edge list and </span>
+<span class="sd">    sorted, since graph traversal does not have inherent order.</span>
+
+<span class="sd">    WARNING: this function might increase substantially the size of the </span>
+<span class="sd">    dataframe (+33% or more); edges might be filtered directly to avoid this </span>
+<span class="sd">    but it would mean recomputing all alpha values for each threshold to test.</span>
+
+<span class="sd">    WARNING: the edge in a disconnected doublet always gets alpha = 1,</span>
+<span class="sd">    therefore it will be subsequently filtered. This behaviour might not be </span>
+<span class="sd">    the desired one and might be changed.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Add default alpha value</span>
+    <span class="n">pix_df</span><span class="p">[</span><span class="s2">&quot;alpha&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+
+    <span class="n">graph</span> <span class="o">=</span> <span class="n">nx</span><span class="o">.</span><span class="n">from_pandas_edgelist</span><span class="p">(</span>
+        <span class="n">pix_df</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="s1">&#39;bin1_id&#39;</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="s1">&#39;bin2_id&#39;</span><span class="p">,</span> <span class="n">edge_attr</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">graph</span><span class="p">:</span>
+        <span class="n">k</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">graph</span><span class="p">[</span><span class="n">node</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="n">k</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>  <span class="c1"># Skip if node only has one neighbour</span>
+            <span class="k">continue</span>
+
+        <span class="n">weigths_sum</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">graph</span><span class="p">[</span><span class="n">node</span><span class="p">][</span><span class="n">n</span><span class="p">][</span><span class="s2">&quot;count&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">graph</span><span class="p">[</span><span class="n">node</span><span class="p">])</span>
+
+        <span class="k">for</span> <span class="n">neigh</span> <span class="ow">in</span> <span class="n">graph</span><span class="p">[</span><span class="n">node</span><span class="p">]:</span>
+            <span class="n">norm_weight</span> <span class="o">=</span> <span class="n">graph</span><span class="p">[</span><span class="n">node</span><span class="p">][</span><span class="n">neigh</span><span class="p">][</span><span class="s2">&quot;count&quot;</span><span class="p">]</span> <span class="o">/</span> <span class="n">weigths_sum</span>
+            <span class="n">new_alpha</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="p">(</span><span class="n">k</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="n">integrate</span><span class="o">.</span><span class="n">quad</span><span class="p">(</span>
+                <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">nn</span><span class="o">=</span><span class="n">k</span><span class="o">-</span><span class="mi">2</span><span class="p">:</span> <span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="n">x</span><span class="p">)</span><span class="o">**</span><span class="p">(</span><span class="n">nn</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span> <span class="n">norm_weight</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+            <span class="n">graph</span><span class="p">[</span><span class="n">node</span><span class="p">][</span><span class="n">neigh</span><span class="p">][</span><span class="s2">&quot;alpha&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span>
+                <span class="n">graph</span><span class="p">[</span><span class="n">node</span><span class="p">][</span><span class="n">neigh</span><span class="p">][</span><span class="s2">&quot;alpha&quot;</span><span class="p">],</span> <span class="n">round_half_up</span><span class="p">(</span><span class="n">new_alpha</span><span class="p">,</span> <span class="mi">4</span><span class="p">))</span>
+
+    <span class="n">pix_df</span> <span class="o">=</span> <span class="n">nx</span><span class="o">.</span><span class="n">to_pandas_edgelist</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="s1">&#39;bin1_id&#39;</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="s1">&#39;bin2_id&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Requires sorting since graph traversal is not sorted</span>
+    <span class="c1"># Sort items in pair</span>
+    <span class="n">pix_df</span><span class="p">[</span><span class="s2">&quot;bin1_id&quot;</span><span class="p">],</span> <span class="n">pix_df</span><span class="p">[</span><span class="s2">&quot;bin2_id&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+        <span class="n">pix_df</span><span class="p">[</span><span class="s2">&quot;bin1_id&quot;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">pix_df</span><span class="p">[</span><span class="s2">&quot;bin2_id&quot;</span><span class="p">],</span>
+        <span class="p">(</span><span class="n">pix_df</span><span class="p">[</span><span class="s2">&quot;bin1_id&quot;</span><span class="p">],</span> <span class="n">pix_df</span><span class="p">[</span><span class="s2">&quot;bin2_id&quot;</span><span class="p">]),</span>
+        <span class="p">(</span><span class="n">pix_df</span><span class="p">[</span><span class="s2">&quot;bin2_id&quot;</span><span class="p">],</span> <span class="n">pix_df</span><span class="p">[</span><span class="s2">&quot;bin1_id&quot;</span><span class="p">]))</span>
+    <span class="c1"># Sort items in index order</span>
+    <span class="n">pix_df</span><span class="o">.</span><span class="n">sort_values</span><span class="p">([</span><span class="s2">&quot;bin1_id&quot;</span><span class="p">,</span> <span class="s2">&quot;bin2_id&quot;</span><span class="p">],</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">pix_df</span></div>
+
+
+<div class="viewcode-block" id="add_sparsity_alpha"><a class="viewcode-back" href="../../../hicona.generation.html#hicona.generation.sparsification.add_sparsity_alpha">[docs]</a><span class="k">def</span> <span class="nf">add_sparsity_alpha</span><span class="p">(</span><span class="n">pix_df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">,</span> <span class="n">modality</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;disparity-index&quot;</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Add column with sparsification significance values to the dataframe</span>
+
+<span class="sd">    Switch case function to define which function should be used to compute </span>
+<span class="sd">    the significance level for network sparsification. Column is directly </span>
+<span class="sd">    added to the input object. </span>
+
+<span class="sd">    Consider using sparsification.sparsify_network when testing for a single </span>
+<span class="sd">    significance cutoff.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    pix_df : pandas.DataFrame </span>
+<span class="sd">        Dataframe of edges in coo format (bin1, bin2, count)</span>
+<span class="sd">    modality : str</span>
+<span class="sd">        Method used to compute alpha values (default: &quot;disparity-index&quot;)</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    pandas.DataFrame</span>
+<span class="sd">        Dataframe of pixels in coo format with associated alpha value, hence </span>
+<span class="sd">        the rows are in the form (bin1, bin2, count, alpha)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># TODO: Add better way to show available modality</span>
+
+    <span class="k">if</span> <span class="n">modality</span> <span class="o">==</span> <span class="s2">&quot;disparity-index&quot;</span><span class="p">:</span>
+        <span class="n">pix_df</span> <span class="o">=</span> <span class="n">disparity_index_confidence</span><span class="p">(</span><span class="n">pix_df</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">modality</span> <span class="o">==</span> <span class="s2">&quot;disparity-network&quot;</span><span class="p">:</span>
+        <span class="n">pix_df</span> <span class="o">=</span> <span class="n">disparity_network_confidence</span><span class="p">(</span><span class="n">pix_df</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">modality</span><span class="si">}</span><span class="s2"> is not a supported modality.&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">pix_df</span></div>
+
+
+<div class="viewcode-block" id="filter_network"><a class="viewcode-back" href="../../../hicona.generation.html#hicona.generation.sparsification.filter_network">[docs]</a><span class="k">def</span> <span class="nf">filter_network</span><span class="p">(</span>
+        <span class="n">pix_df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">,</span>
+        <span class="n">cutoff</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.05</span><span class="p">,</span>
+        <span class="n">alpha_col_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;alpha&quot;</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return a dataframe with edges filtered according to significance</span>
+
+<span class="sd">    Retrieve only edges with a value less than, or equal to, the specificied </span>
+<span class="sd">    cutoff in the specified column, then removes said column. Return a copy, </span>
+<span class="sd">    this way multiple cutoff filters can be tested without recomputing the </span>
+<span class="sd">    significance levels each time.</span>
+
+<span class="sd">    Consider using sparsification.sparsify_network when testing for a single </span>
+<span class="sd">    significance cutoff.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    pix_df : pandas.DataFrame </span>
+<span class="sd">        Dataframe of edges in coo format and realtive alpha value, or other </span>
+<span class="sd">        metric to filter on; rows are in the form (bin1, bin2, count, alpha)</span>
+<span class="sd">    cutoff : float </span>
+<span class="sd">        Maximum accepted alpha value (default: 0.05)</span>
+<span class="sd">    pval_col_name : str</span>
+<span class="sd">        Column to use when filtering (default: &quot;alpha&quot;)</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    pandas.DataFrame</span>
+<span class="sd">        Filtered pixel dataframe</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># TODO: Directly work on the dataframe?</span>
+
+    <span class="n">mask</span> <span class="o">=</span> <span class="n">pix_df</span><span class="p">[</span><span class="n">alpha_col_name</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">cutoff</span>
+    <span class="n">filtered_df</span> <span class="o">=</span> <span class="n">pix_df</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">alpha_col_name</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">filtered_df</span></div>
+
+
+<div class="viewcode-block" id="sparsify_network"><a class="viewcode-back" href="../../../hicona.generation.html#hicona.generation.sparsification.sparsify_network">[docs]</a><span class="k">def</span> <span class="nf">sparsify_network</span><span class="p">(</span>
+        <span class="n">pix_df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">,</span>
+        <span class="n">modality</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;disparity-index&quot;</span><span class="p">,</span>
+        <span class="n">cutoff</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.05</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return a dataframe of edges corresponding to the sparsified network</span>
+<span class="sd">    </span>
+<span class="sd">    Compute significance level of the weighted edges of a network using some </span>
+<span class="sd">    modality, then filter them according to some cutoff.</span>
+
+<span class="sd">    Wrapper for simpler use of the workflow sparsification.add_sparsity_alpha </span>
+<span class="sd">    + sparsification.filter_network when only one value of alpha is required. </span>
+<span class="sd">    In order to test different values of alpha, loop filter_network directly, </span>
+<span class="sd">    so to have only one sparsified network in memory at a time (or more if </span>
+<span class="sd">    needed, though not suggested with very big networks).</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    pix_df : pandas.DataFrame </span>
+<span class="sd">        Dataframe of edges in coo form (bin1, bin2, count)</span>
+<span class="sd">    modality : str</span>
+<span class="sd">        How to compute alpha values (default: &quot;disparity-index&quot;)</span>
+<span class="sd">    cutoff : float </span>
+<span class="sd">        Maximum accepted alpha value (default: 0.05)</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    pandas.DataFrame</span>
+<span class="sd">        Sparsified pixels DataFrame</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># TODO: move alpha value to annotations?</span>
+    <span class="c1"># TODO: add info to cool?</span>
+
+    <span class="n">pix_df</span> <span class="o">=</span> <span class="n">add_sparsity_alpha</span><span class="p">(</span><span class="n">pix_df</span><span class="p">,</span> <span class="n">modality</span><span class="p">)</span>
+    <span class="n">pix_df</span> <span class="o">=</span> <span class="n">filter_network</span><span class="p">(</span><span class="n">pix_df</span><span class="p">,</span> <span class="n">cutoff</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">pix_df</span></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Leonardo Morelli, Stefano Cretti.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

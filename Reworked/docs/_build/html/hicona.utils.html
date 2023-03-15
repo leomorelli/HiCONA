@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>hicona.utils package &mdash; HiCONA pre-alpha documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="hicona.generation package" href="hicona.generation.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            HiCONA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="modules.html">hicona</a></li>
+<li class="toctree-l1"><a class="reference internal" href="hicona.html">hicona package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="hicona.annotation.html">hicona.annotation package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="hicona.generation.html">hicona.generation package</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">hicona.utils package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-hicona.utils.gen_synthetic_files">hicona.utils.gen_synthetic_files module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#hicona.utils.gen_synthetic_files.gen_synthetic_pixels"><code class="docutils literal notranslate"><span class="pre">gen_synthetic_pixels()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#module-hicona.utils">Module contents</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">HiCONA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">hicona.utils package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/hicona.utils.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="hicona-utils-package">
+<h1>hicona.utils package<a class="headerlink" href="#hicona-utils-package" title="Permalink to this heading"></a></h1>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this heading"></a></h2>
+</section>
+<section id="module-hicona.utils.gen_synthetic_files">
+<span id="hicona-utils-gen-synthetic-files-module"></span><h2>hicona.utils.gen_synthetic_files module<a class="headerlink" href="#module-hicona.utils.gen_synthetic_files" title="Permalink to this heading"></a></h2>
+<p>Module containing functions to generate synthetic files</p>
+<p>NOTE: These files are meant for testing purposes only, such as memory
+footprint, since they make arbitrary distribution assumptions which are
+not based on any biological experiment or observation.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="hicona.utils.gen_synthetic_files.gen_synthetic_pixels">
+<span class="sig-prename descclassname"><span class="pre">hicona.utils.gen_synthetic_files.</span></span><span class="sig-name descname"><span class="pre">gen_synthetic_pixels</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num_bins</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p_edges</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mu_counts</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_folder</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rng_seed</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hicona/utils/gen_synthetic_files.html#gen_synthetic_pixels"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.utils.gen_synthetic_files.gen_synthetic_pixels" title="Permalink to this definition"></a></dt>
+<dd><p>Return a pandas DataFrame, in coo format, of simulated data</p>
+<p>Given a number of sequential bins, with id from 0 to num_bins-1, for each
+bin define a random number of interacting bins among those with a higher
+id, then assign a random number of counts to each pair. The fraction of
+interacting bins is sampled from a binomial distribution with parameters
+n = number of bins with higher id, p = p_edges. The number of counts is
+sampled from a Poisson distribution with parameter mu = mu_counts. The
+return is a pd.DataFrame in coo format (bin1_id, bin2_id, count).</p>
+<p>Keyword arguments:
+num_bins – (int) Number of sequential bins (named starting from 0)
+p_edges – (float) Probability parameter of the binomial distribution
+mu_counts – (int) Mu parameter of the Poisson distribution
+save_folder – (str) If present, output folder for the coo (default: None)
+rng_seed – (int) Random number generation seed (default: None)</p>
+<p>Returns:
+coo – (pd.DataFrame) Pandas dataframe in coo form (bin1, bin2, count)</p>
+</dd></dl>
+
+</section>
+<section id="module-hicona.utils">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-hicona.utils" title="Permalink to this heading"></a></h2>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="hicona.generation.html" class="btn btn-neutral float-left" title="hicona.generation package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Leonardo Morelli, Stefano Cretti.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
