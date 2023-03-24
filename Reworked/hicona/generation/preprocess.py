@@ -60,6 +60,22 @@ def get_sequential_bins(
     return df_bins
 
 
+def link_graph(
+        pix_df: DataFrame,
+        start: int,
+        end: int,
+        weight: int,
+        breaks: tuple = tuple()):
+    """ Placeholder
+    Placeholder
+    """
+
+    # TODO: Right now it works but it is not great
+    new_pixels = get_sequential_bins(start, end, weight, breaks)
+    pix_df.concat(new_pixels, copy=False)
+    pix_df.sort_values(["bin1_id", "bin2_id"], inplace=True)
+
+
 def filter_pixels(
         pix_df: DataFrame,
         bin_size: int,
