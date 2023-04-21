@@ -47,11 +47,8 @@
 <li class="toctree-l1"><a class="reference internal" href="hicona.generation.html">hicona.generation package</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">hicona.utils package</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#submodules">Submodules</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#module-hicona.utils.gen_synthetic_files">hicona.utils.gen_synthetic_files module</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#hicona.utils.gen_synthetic_files.gen_synthetic_pixels"><code class="docutils literal notranslate"><span class="pre">gen_synthetic_pixels()</span></code></a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="#module-hicona.utils">Module contents</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#hicona-utils-gen-synthetic-files-module">hicona.utils.gen_synthetic_files module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-contents">Module contents</a></li>
 </ul>
 </li>
 </ul>
@@ -85,36 +82,11 @@
 <section id="submodules">
 <h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this heading"></a></h2>
 </section>
-<section id="module-hicona.utils.gen_synthetic_files">
-<span id="hicona-utils-gen-synthetic-files-module"></span><h2>hicona.utils.gen_synthetic_files module<a class="headerlink" href="#module-hicona.utils.gen_synthetic_files" title="Permalink to this heading"></a></h2>
-<p>Module containing functions to generate synthetic files</p>
-<p>NOTE: These files are meant for testing purposes only, such as memory
-footprint, since they make arbitrary distribution assumptions which are
-not based on any biological experiment or observation.</p>
-<dl class="py function">
-<dt class="sig sig-object py" id="hicona.utils.gen_synthetic_files.gen_synthetic_pixels">
-<span class="sig-prename descclassname"><span class="pre">hicona.utils.gen_synthetic_files.</span></span><span class="sig-name descname"><span class="pre">gen_synthetic_pixels</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num_bins</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p_edges</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mu_counts</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_folder</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rng_seed</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hicona/utils/gen_synthetic_files.html#gen_synthetic_pixels"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.utils.gen_synthetic_files.gen_synthetic_pixels" title="Permalink to this definition"></a></dt>
-<dd><p>Return a pandas DataFrame, in coo format, of simulated data</p>
-<p>Given a number of sequential bins, with id from 0 to num_bins-1, for each
-bin define a random number of interacting bins among those with a higher
-id, then assign a random number of counts to each pair. The fraction of
-interacting bins is sampled from a binomial distribution with parameters
-n = number of bins with higher id, p = p_edges. The number of counts is
-sampled from a Poisson distribution with parameter mu = mu_counts. The
-return is a pd.DataFrame in coo format (bin1_id, bin2_id, count).</p>
-<p>Keyword arguments:
-num_bins – (int) Number of sequential bins (named starting from 0)
-p_edges – (float) Probability parameter of the binomial distribution
-mu_counts – (int) Mu parameter of the Poisson distribution
-save_folder – (str) If present, output folder for the coo (default: None)
-rng_seed – (int) Random number generation seed (default: None)</p>
-<p>Returns:
-coo – (pd.DataFrame) Pandas dataframe in coo form (bin1, bin2, count)</p>
-</dd></dl>
-
+<section id="hicona-utils-gen-synthetic-files-module">
+<h2>hicona.utils.gen_synthetic_files module<a class="headerlink" href="#hicona-utils-gen-synthetic-files-module" title="Permalink to this heading"></a></h2>
 </section>
-<section id="module-hicona.utils">
-<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-hicona.utils" title="Permalink to this heading"></a></h2>
+<section id="module-contents">
+<h2>Module contents<a class="headerlink" href="#module-contents" title="Permalink to this heading"></a></h2>
 </section>
 </section>
 

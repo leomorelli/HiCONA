@@ -48,16 +48,8 @@
 <li class="toctree-l1 current"><a class="current reference internal" href="#">hicona.generation package</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#submodules">Submodules</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#hicona-generation-preprocess-module">hicona.generation.preprocess module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#module-hicona.generation.sparsification">hicona.generation.sparsification module</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#hicona.generation.sparsification.add_sparsity_alpha"><code class="docutils literal notranslate"><span class="pre">add_sparsity_alpha()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="#hicona.generation.sparsification.disparity_index_confidence"><code class="docutils literal notranslate"><span class="pre">disparity_index_confidence()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="#hicona.generation.sparsification.disparity_network_confidence"><code class="docutils literal notranslate"><span class="pre">disparity_network_confidence()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="#hicona.generation.sparsification.filter_network"><code class="docutils literal notranslate"><span class="pre">filter_network()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="#hicona.generation.sparsification.round_half_up"><code class="docutils literal notranslate"><span class="pre">round_half_up()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="#hicona.generation.sparsification.sparsify_network"><code class="docutils literal notranslate"><span class="pre">sparsify_network()</span></code></a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="#module-hicona.generation">Module contents</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#hicona-generation-sparsification-module">hicona.generation.sparsification module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-contents">Module contents</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="hicona.utils.html">hicona.utils package</a></li>
@@ -95,148 +87,11 @@
 <section id="hicona-generation-preprocess-module">
 <h2>hicona.generation.preprocess module<a class="headerlink" href="#hicona-generation-preprocess-module" title="Permalink to this heading"></a></h2>
 </section>
-<section id="module-hicona.generation.sparsification">
-<span id="hicona-generation-sparsification-module"></span><h2>hicona.generation.sparsification module<a class="headerlink" href="#module-hicona.generation.sparsification" title="Permalink to this heading"></a></h2>
-<p>Sparsification</p>
-<p>Set of functions to perform edge sparsification starting from a COO formatted
-matrix corresponding to Hi-C experiment results. Different sparsification
-methods are supported. The main intended use is through the automatic pipeline</p>
-<blockquote>
-<div><p>for conversion of cool-format files into graph-tool objects.</p>
-</div></blockquote>
-<dl class="py function">
-<dt class="sig sig-object py" id="hicona.generation.sparsification.add_sparsity_alpha">
-<span class="sig-prename descclassname"><span class="pre">hicona.generation.sparsification.</span></span><span class="sig-name descname"><span class="pre">add_sparsity_alpha</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pix_df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">modality</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'disparity-index'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hicona/generation/sparsification.html#add_sparsity_alpha"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.generation.sparsification.add_sparsity_alpha" title="Permalink to this definition"></a></dt>
-<dd><p>Add column with sparsification significance values to the dataframe</p>
-<p>Switch case function to define which function should be used to compute
-the significance level for network sparsification. Column is directly
-added to the input object.</p>
-<p>Consider using sparsification.sparsify_network when testing for a single
-significance cutoff.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>pix_df</strong> (<em>pandas.DataFrame</em>) – Dataframe of edges in coo format (bin1, bin2, count)</p></li>
-<li><p><strong>modality</strong> (<em>str</em>) – Method used to compute alpha values (default: “disparity-index”)</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>Dataframe of pixels in coo format with associated alpha value, hence
-the rows are in the form (bin1, bin2, count, alpha)</p>
-</dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>pandas.DataFrame</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="hicona.generation.sparsification.disparity_index_confidence">
-<span class="sig-prename descclassname"><span class="pre">hicona.generation.sparsification.</span></span><span class="sig-name descname"><span class="pre">disparity_index_confidence</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pix_df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hicona/generation/sparsification.html#disparity_index_confidence"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.generation.sparsification.disparity_index_confidence" title="Permalink to this definition"></a></dt>
-<dd><p>Add alpha column to dataframe (computed as per Serrano et al. 2009)</p>
-<p>Add a column to the dataframe containing the alpha values for the edges,
-meaning the confidence level of a weighted edge given local fluctuations
-in the network, see Serrano et al. 2009 for in depth explaination. Edge
-iteration is done using an index based approach which takes into account
-coo properties to speed up the search.</p>
-<p>WARNING: this function might increase substantially the size of the
-dataframe (+33% or more); edges might be filtered directly to avoid this
-but it would mean recomputing all alpha values for each threshold to test.</p>
-<p>WARNING: the edge in a disconnected doublet always gets alpha = 1,
-therefore it will be subsequently filtered. This behaviour might not be
-the desired one and might be changed.</p>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="hicona.generation.sparsification.disparity_network_confidence">
-<span class="sig-prename descclassname"><span class="pre">hicona.generation.sparsification.</span></span><span class="sig-name descname"><span class="pre">disparity_network_confidence</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pix_df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hicona/generation/sparsification.html#disparity_network_confidence"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.generation.sparsification.disparity_network_confidence" title="Permalink to this definition"></a></dt>
-<dd><p>Add alpha column to dataframe (computed as per Serrano et al. 2009)</p>
-<p>Add a column to the dataframe containing the alpha values for the edges,
-meaning the confidence level of a weighted edge given local fluctuations
-in the network, see Serrano et al. 2009 for in depth explaination. A graph</p>
-<blockquote>
-<div><p>is built starting from the list of edges, then the procedure is iterated</p>
-</div></blockquote>
-<p>over the nodes; the resulting network is converted back to edge list and
-sorted, since graph traversal does not have inherent order.</p>
-<p>WARNING: this function might increase substantially the size of the
-dataframe (+33% or more); edges might be filtered directly to avoid this
-but it would mean recomputing all alpha values for each threshold to test.</p>
-<p>WARNING: the edge in a disconnected doublet always gets alpha = 1,
-therefore it will be subsequently filtered. This behaviour might not be
-the desired one and might be changed.</p>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="hicona.generation.sparsification.filter_network">
-<span class="sig-prename descclassname"><span class="pre">hicona.generation.sparsification.</span></span><span class="sig-name descname"><span class="pre">filter_network</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pix_df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cutoff</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.05</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha_col_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'alpha'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hicona/generation/sparsification.html#filter_network"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.generation.sparsification.filter_network" title="Permalink to this definition"></a></dt>
-<dd><p>Return a dataframe with edges filtered according to significance</p>
-<p>Retrieve only edges with a value less than, or equal to, the specificied
-cutoff in the specified column, then removes said column. Return a copy,
-this way multiple cutoff filters can be tested without recomputing the
-significance levels each time.</p>
-<p>Consider using sparsification.sparsify_network when testing for a single
-significance cutoff.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>pix_df</strong> (<em>pandas.DataFrame</em>) – Dataframe of edges in coo format and realtive alpha value, or other
-metric to filter on; rows are in the form (bin1, bin2, count, alpha)</p></li>
-<li><p><strong>cutoff</strong> (<em>float</em>) – Maximum accepted alpha value (default: 0.05)</p></li>
-<li><p><strong>pval_col_name</strong> (<em>str</em>) – Column to use when filtering (default: “alpha”)</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>Filtered pixel dataframe</p>
-</dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>pandas.DataFrame</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="hicona.generation.sparsification.round_half_up">
-<span class="sig-prename descclassname"><span class="pre">hicona.generation.sparsification.</span></span><span class="sig-name descname"><span class="pre">round_half_up</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">number</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">decimals</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hicona/generation/sparsification.html#round_half_up"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.generation.sparsification.round_half_up" title="Permalink to this definition"></a></dt>
-<dd><p>Return half way up rounded decimal number</p>
-<dl class="simple">
-<dt>Auxiliary function to round numbers since python default is not what it is</dt><dd><p>commonly expected rounding to be. Half way up rounding means “round to</p>
-</dd>
-</dl>
-<p>closest value, either up or down, and break ties returning upper value”.</p>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="hicona.generation.sparsification.sparsify_network">
-<span class="sig-prename descclassname"><span class="pre">hicona.generation.sparsification.</span></span><span class="sig-name descname"><span class="pre">sparsify_network</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pix_df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">modality</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'disparity-index'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cutoff</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.05</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hicona/generation/sparsification.html#sparsify_network"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.generation.sparsification.sparsify_network" title="Permalink to this definition"></a></dt>
-<dd><p>Return a dataframe of edges corresponding to the sparsified network</p>
-<p>Compute significance level of the weighted edges of a network using some
-modality, then filter them according to some cutoff.</p>
-<p>Wrapper for simpler use of the workflow sparsification.add_sparsity_alpha
-+ sparsification.filter_network when only one value of alpha is required.
-In order to test different values of alpha, loop filter_network directly,
-so to have only one sparsified network in memory at a time (or more if
-needed, though not suggested with very big networks).</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>pix_df</strong> (<em>pandas.DataFrame</em>) – Dataframe of edges in coo form (bin1, bin2, count)</p></li>
-<li><p><strong>modality</strong> (<em>str</em>) – How to compute alpha values (default: “disparity-index”)</p></li>
-<li><p><strong>cutoff</strong> (<em>float</em>) – Maximum accepted alpha value (default: 0.05)</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>Sparsified pixels DataFrame</p>
-</dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>pandas.DataFrame</p>
-</dd>
-</dl>
-</dd></dl>
-
+<section id="hicona-generation-sparsification-module">
+<h2>hicona.generation.sparsification module<a class="headerlink" href="#hicona-generation-sparsification-module" title="Permalink to this heading"></a></h2>
 </section>
-<section id="module-hicona.generation">
-<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-hicona.generation" title="Permalink to this heading"></a></h2>
+<section id="module-contents">
+<h2>Module contents<a class="headerlink" href="#module-contents" title="Permalink to this heading"></a></h2>
 </section>
 </section>
 
