@@ -10,7 +10,8 @@ from networkx import from_pandas_edgelist, to_pandas_edgelist
 from numpy import log2, where
 from pandas import concat, DataFrame
 
-from util import console_log, compute_alpha_val
+from utils import console_log, compute_alpha_val
+from iterators import ChunkBordersIterator, ChromTablesIterator
 
 __all__ = ["HiconaCooler"]
 
@@ -22,95 +23,6 @@ _DEFAULT_CHROM_RE = {"humanCanonical": "^chr([1-9]|[1][0-9]|[2][0-2]|[XY])$"}
 _GROUP_TEMPLATE = "countThr_{}_distThr_{}_stat_{}"
 
 
-class PixelChunksIterator:
-    """Iterator object of pixel chunk for a specified chromosome.
-
-    Return tuples of two integers to use to slice the full pixel table and
-    only retrieve a chunk of the desired size for the chromosome of interest.
-
-    Parameters
-    ----------
-    chrom_id: str
-        String identifier of the chromosome of interest
-    chunk_size: int
-        Number of pixels to span for each chunk
-    ids_dict: dict
-        Mapping of chromosome string identifiers into integer identifiers
-        (self._chromids in a standard cooler object)
-    h5_group: :py:class:`h5py.Group`
-        Open handle to the root of a cooler file
-
-    #TODO add examples
-    """
-
-    def __init__(self, chrom_id, chunk_size, ids_dict, h5_group):
-        # Retrieve ids of boundary bins
-        # TODO: Maybe test using chromosome extent
-        id_num = ids_dict[chrom_id]
-        min_bin = h5_group["indexes/chrom_offset"][id_num]
-        max_bin = h5_group["indexes/chrom_offset"][id_num + 1]
-
-        # Retrieve positions of boundary pixels
-        min_off = h5_group["indexes/bin1_offset"][min_bin]
-        max_off = h5_group["indexes/bin1_offset"][max_bin]
-
-        # Define number of iteration boundaries
-        self.curr_chunk = 0
-        self.num_chunks = -(-(max_off - min_off) // chunk_size)
-
-        # Define list of break-points
-        self.borders = [min_off + k * chunk_size for k in range(self.num_chunks)]
-        if self.borders[-1] < max_off:
-            self.borders.append(max_off)
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        if self.curr_chunk < self.num_chunks:
-            chunk_borders = self.borders[self.curr_chunk : self.curr_chunk + 2]
-            self.curr_chunk += 1
-            return chunk_borders
-
-        raise StopIteration
-
-
-class ChromTablesIterator:
-    """Placeholder
-
-    Placeholder
-    """
-
-    def __init__(self, store, root, uris):
-        self.store = store
-        self.root = root
-        self.uri_list = uris
-
-        self.uri_index = 0
-        self.max_uri = len(uris)
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        if self.uri_index < self.max_uri:
-            curr_uri = self.uri_list[self.uri_index]
-            self.uri_index += 1
-
-            with open_hdf5(self.store, mode="r") as h5_handle:
-                main_grp = h5_handle[self.root + "/chrom_tables"]
-                table_grp = main_grp[curr_uri]
-
-                attr_dict = dict(table_grp.parent.attrs.items())
-                attr_dict["chromosome"] = curr_uri.split("/")[-1]
-
-                table = DataFrame({f: table_grp[f] for f in table_grp.keys()})
-
-            return (table, attr_dict)
-
-        raise StopIteration
-
-
 class HiconaCooler(Cooler):
     """Placeholder
     Placeholder
@@ -119,18 +31,17 @@ class HiconaCooler(Cooler):
     def pixel_chunks(self, chrom_id: str, chunk_size: int):
         """Generator function yielding pixel chunks of specified size."""
 
-        with open_hdf5(self.store, mode="r") as h5_handle:
-            h5_grp = h5_handle[self.root]
-            borders = PixelChunksIterator(chrom_id, chunk_size, self._chromids, h5_grp)
-            for lower, upper in borders:
-                yield self.pixels()[lower:upper]
+        extent = self.extent(chrom_id)
+        borders = ChunkBordersIterator(self.store, self.root, extent, chunk_size)
+        for lower, upper in borders:
+            yield self.pixels()[lower:upper]
 
     def filter_pixels(
         self,
         pix_df: DataFrame,
         chrom_id: str,
         count_thr: int = 1,
-        dist_thr: int = int(2e6),
+        dist_thr: int = 10_000_000,
     ) -> None:
         """Filter out pixels non conformant to some condition.
 
@@ -245,7 +156,7 @@ class HiconaCooler(Cooler):
         graph.sort_values(["bin1_id", "bin2_id"], inplace=True)
         pix_df["spar_alpha"] = graph["spar_alpha"].values
 
-    def create_chrom_table(self, chrom_id: str, table_root: str) -> None:
+    def _create_chrom_table(self, chrom_id: str, table_root: str) -> None:
         """Create chromosome-level table given the set of parameters."""
 
         # Retrieve parameters from the parent group
@@ -268,7 +179,7 @@ class HiconaCooler(Cooler):
         else:
             print(f"WARNING: {chrom_id} already processed with these params, skipping.")
 
-    def chrom_regex_to_iter(self, chrom_selection):
+    def _chrom_regex_to_iter(self, chrom_selection):
         """Convert chromosome selection from regex to iterable object"""
 
         if isinstance(chrom_selection, str):
@@ -311,7 +222,7 @@ class HiconaCooler(Cooler):
         """
 
         # Convert chromosome selection to an iterable
-        chrom_selection = self.chrom_regex_to_iter(chrom_selection)
+        chrom_selection = self._chrom_regex_to_iter(chrom_selection)
 
         with open_hdf5(self.store, mode="a") as h5_handle:
             table_root = _GROUP_TEMPLATE.format(count_thr, dist_thr, decay_stat)
@@ -329,11 +240,22 @@ class HiconaCooler(Cooler):
             # Create chromosome-level groups and datasets
             for chrom_id in chrom_selection:
                 print(f"STARTING {chrom_id}")
-                self.create_chrom_table(chrom_id, table_grp)
+                self._create_chrom_table(chrom_id, table_grp)
 
-    def tables_params(self):
+    def tables_info(self):
         """Placeholder"""
-        ...
+
+        with open_hdf5(self.store, mode="r") as h5_handle:
+            tables_grp = h5_handle[self.root + "/chrom_tables"]
+            param_str = "PARAMETER SETS:"
+            for param_grp in tables_grp.values():
+                param_str += "\n" + "-" * 80
+                param_list = [f"\n-{k}: {v}" for k, v in param_grp.attrs.items()]
+                param_str += "".join(param_list)
+                param_str += "\n-chromosomes:"
+                param_str += "".join([f"\n\t--{k}" for k in param_grp.keys()])
+            param_str += "\n" + "-" * 80
+        print(param_str)
 
     def tables(
         self,
@@ -367,16 +289,14 @@ class HiconaCooler(Cooler):
             consider all tables regardless of the used statistic.
         """
 
-        # Modify inputs for regex use
-        chrom_selection = self.chrom_regex_to_iter(chrom_selection)
+        # Create valid groups regex according to input parameters
+        chrom_selection = self._chrom_regex_to_iter(chrom_selection)
         count_thr = r"\S+" if not count_thr else count_thr
         dist_thr = r"\S+" if not dist_thr else dist_thr
         decay_stat = r"\S+" if not decay_stat else decay_stat
-
-        # Valid groups according to input parameters
         grp_regex = re.compile(_GROUP_TEMPLATE.format(count_thr, dist_thr, decay_stat))
 
-        # Define a list of valid
+        # Define a list of partial URIs to valid tables
         with open_hdf5(self.store, mode="r") as h5_handle:
             tables_grp = h5_handle[self.root + "/chrom_tables"]
             valid_groups = [g for g in tables_grp if grp_regex.match(g)]
@@ -391,7 +311,6 @@ class HiconaCooler(Cooler):
 if __name__ == "__main__":
     COOL_PATH = "../test_files/small.mcool::resolutions/10000"
     hc = HiconaCooler(COOL_PATH)
-    big_net = concat(grp[0] for grp in hc.tables())
-    print(big_net)
+    hc.tables_info()
 
     # hc.create_tables(chrom_selection=["chr1", "chr2", "chr3", "chr4"])
