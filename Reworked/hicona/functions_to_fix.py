@@ -3,43 +3,6 @@ from pandas import DataFrame, get_dummies
 from numpy import nan
 
 
-def filter_network(
-    pix_df: DataFrame, cutoff: float = 0.05, alpha_col_name: str = "alpha"
-):
-    """Return a dataframe with edges filtered according to significance
-
-    Retrieve only edges with a value less than, or equal to, the specificied
-    cutoff in the specified column, then removes said column. Return a copy,
-    this way multiple cutoff filters can be tested without recomputing the
-    significance levels each time.
-
-    Consider using sparsification.sparsify_network when testing for a single
-    significance cutoff.
-
-    Parameters
-    ----------
-    pix_df : pandas.DataFrame
-        Dataframe of edges in coo format and realtive alpha value, or other
-        metric to filter on; rows are in the form (bin1, bin2, count, alpha)
-    cutoff : float
-        Maximum accepted alpha value (default: 0.05)
-    pval_col_name : str
-        Column to use when filtering (default: "alpha")
-
-    Returns
-    -------
-    pandas.DataFrame
-        Filtered pixel dataframe
-    """
-
-    # TODO: Directly work on the dataframe?
-
-    mask = pix_df[alpha_col_name] <= cutoff
-    filtered_df = pix_df[mask].drop(alpha_col_name, axis=1)
-
-    return filtered_df
-
-
 # TODO: fix, since from before being Cooler subclass
 def annotate_bins(
     self,
@@ -169,3 +132,30 @@ def encode_annotation(
             )
 
     self.bins = get_dummies(self.bins, columns=to_encode)
+
+
+# FOR LONG DISTANCE DECAY
+# from numpy import exp
+# def decay_function(x, a, b, c):
+#     return a * exp(-b * x) + c
+# decay_curve = group_counts.agg(stat).to_frame()
+# decay_curve.reset_index(inplace=True)
+# decay_curve.plot(x="bin_difference", y="count")
+# plt.show()
+
+# popt, _ = curve_fit(
+#     decay_function, decay_curve["bin_difference"], decay_curve["count"]
+# )
+# plt.plot(
+#     decay_curve["bin_difference"],
+#     decay_function(decay_curve["bin_difference"], *popt),
+# )
+
+# ALTERNATIVE WRAPPER
+# def integral_wrapper(*args, **kwargs):
+#     int_key = str(args) + str(kwargs)
+#     int_val = int_cache.get(int_key)
+#     if not int_val:
+#         int_val = func(*args, **kwargs)
+#         int_cache[int_key] = int_val
+#     return int_val
