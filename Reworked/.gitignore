@@ -1,3 +1,5 @@
 test_files/
 profiling/
 hicona/__pycache__
+hicona/functions_to_fix.py
+contrast_subgraph/

@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>hicona.hicona_cooler &mdash; HiCONA alpha documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/sphinx_highlight.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            HiCONA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">hicona</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">HiCONA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">hicona.hicona_cooler</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for hicona.hicona_cooler</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Placeholder</span>
+<span class="sd">Placeholder</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">re</span>
+
+<span class="kn">from</span> <span class="nn">cooler</span> <span class="kn">import</span> <span class="n">Cooler</span>
+<span class="kn">from</span> <span class="nn">cooler.util</span> <span class="kn">import</span> <span class="n">open_hdf5</span>
+<span class="kn">from</span> <span class="nn">networkx</span> <span class="kn">import</span> <span class="n">from_pandas_edgelist</span><span class="p">,</span> <span class="n">to_pandas_edgelist</span>
+<span class="kn">from</span> <span class="nn">numpy</span> <span class="kn">import</span> <span class="n">log2</span><span class="p">,</span> <span class="n">where</span>
+<span class="kn">from</span> <span class="nn">pandas</span> <span class="kn">import</span> <span class="n">concat</span><span class="p">,</span> <span class="n">DataFrame</span>
+
+<span class="kn">from</span> <span class="nn">.iterators</span> <span class="kn">import</span> <span class="n">ChunkBordersIterator</span><span class="p">,</span> <span class="n">ChromTablesIterator</span>
+<span class="kn">from</span> <span class="nn">.utils</span> <span class="kn">import</span> <span class="n">console_log</span><span class="p">,</span> <span class="n">compute_alpha_val</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;HiconaCooler&quot;</span><span class="p">]</span>
+
+
+<span class="c1"># Template to name groups inside chrom_tables group</span>
+<span class="n">_GROUP_TEMPLATE</span> <span class="o">=</span> <span class="s2">&quot;countThr_</span><span class="si">{}</span><span class="s2">_distThr_</span><span class="si">{}</span><span class="s2">_stat_</span><span class="si">{}</span><span class="s2">&quot;</span>
+<span class="c1"># Dictionary of standard regular expressions to simplify chromosome fetching</span>
+<span class="n">_DEFAULT_CHROM_RE</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;humanCanonical&quot;</span><span class="p">:</span> <span class="s2">&quot;^chr([1-9]|[1][0-9]|[2][0-2]|[XY])$&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;mouseCanonical&quot;</span><span class="p">:</span> <span class="s2">&quot;^chr([1-9]|[1][0-9]|[XY])$&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+
+
+<div class="viewcode-block" id="HiconaCooler"><a class="viewcode-back" href="../../hicona.html#hicona.hicona_cooler.HiconaCooler">[docs]</a><span class="k">class</span> <span class="nc">HiconaCooler</span><span class="p">(</span><span class="n">Cooler</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;An extension of Cooler objects to prepare data for network analysis.</span>
+
+<span class="sd">    :py:class:`HiconaCooler` inherits from :py:class`cooler.Cooler` and</span>
+<span class="sd">    extends it by adding new functionalities, mainly revolving around</span>
+<span class="sd">    the creation of chromosome-level processed tables to use for network</span>
+<span class="sd">    analyses. Tables are stored in a separate group (``chrom_tables``)</span>
+<span class="sd">    of the :py:class:`h5py.File` and no method or property of the</span>
+<span class="sd">    :py:class`Cooler` is overwritten, therefore a :py:class:`HiconaCooler`</span>
+<span class="sd">    object can always be used as a :py:class`Cooler` one.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    See :py:class:`cooler.Cooler` for class constructor parameters.</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    Chromosome tables are created using :py:meth:`create_tables` and can</span>
+<span class="sd">    be accessed through :py:meth:`tables`. To print to console the list</span>
+<span class="sd">    of available tables use :py:meth:`tables_info`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">_pixel_chunks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chrom_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">chunk_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generator function for pixel chunks of specified chromosome and size.&quot;&quot;&quot;</span>
+
+        <span class="n">extent</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">extent</span><span class="p">(</span><span class="n">chrom_id</span><span class="p">)</span>
+        <span class="n">borders</span> <span class="o">=</span> <span class="n">ChunkBordersIterator</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">store</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">,</span> <span class="n">extent</span><span class="p">,</span> <span class="n">chunk_size</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">lower</span><span class="p">,</span> <span class="n">upper</span> <span class="ow">in</span> <span class="n">borders</span><span class="p">:</span>
+            <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">pixels</span><span class="p">()[</span><span class="n">lower</span><span class="p">:</span><span class="n">upper</span><span class="p">]</span>
+
+<div class="viewcode-block" id="HiconaCooler.filter_pixels"><a class="viewcode-back" href="../../hicona.html#hicona.hicona_cooler.HiconaCooler.filter_pixels">[docs]</a>    <span class="k">def</span> <span class="nf">filter_pixels</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">pix_df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">,</span>
+        <span class="n">chrom_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">count_thr</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">dist_thr</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10_000_000</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Filter out pixels non conformant to some condition.</span>
+
+<span class="sd">        Remove all pixels that do NOT satisfy at least one of these filters:</span>
+<span class="sd">        - distance among the bins is below maximal genomic distance allowed</span>
+<span class="sd">        - number of counts of the interaction is above the minimal threshold</span>
+<span class="sd">        - the bins are distinc (non-self looping)</span>
+<span class="sd">        - the second bin does match the provided chromosome id</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        pix_df : :py:class:`DataFrame`</span>
+<span class="sd">            Dataframe of pixels to filter.</span>
+<span class="sd">        chrom_id : str</span>
+<span class="sd">            Id of the chromosome whose internal pixels should be kept.</span>
+<span class="sd">        count_thr : int, optional</span>
+<span class="sd">            Threshold for pixel count; only keep pixels with count greater</span>
+<span class="sd">            than this value. (default is 1)</span>
+<span class="sd">        dist_thr : int, optional</span>
+<span class="sd">            Threshold for genomic distance; only keep pixels whose bins are</span>
+<span class="sd">            closer to each other than this distance.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        It is assumed that the table to filter was obtained through</span>
+<span class="sd">        :py:meth:`Cool.pixels.fetch` and therefore that a) ``bin1_id`` field</span>
+<span class="sd">        always matches the chromosome of interest, b) there is no ``bin2_id``</span>
+<span class="sd">        lower than the smallest possible bin id for the specified chromosome.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">max_diff</span> <span class="o">=</span> <span class="o">-</span><span class="p">(</span><span class="o">-</span><span class="n">dist_thr</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">binsize</span><span class="p">)</span>
+        <span class="n">id_upper_bound</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">extent</span><span class="p">(</span><span class="n">chrom_id</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+
+        <span class="n">indexer</span> <span class="o">=</span> <span class="n">pix_df</span><span class="p">[</span>
+            <span class="p">(</span><span class="n">pix_df</span><span class="p">[</span><span class="s2">&quot;bin2_id&quot;</span><span class="p">]</span> <span class="o">-</span> <span class="n">pix_df</span><span class="p">[</span><span class="s2">&quot;bin1_id&quot;</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">max_diff</span><span class="p">)</span>
+            <span class="o">|</span> <span class="p">(</span><span class="n">pix_df</span><span class="p">[</span><span class="s2">&quot;count&quot;</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">count_thr</span><span class="p">)</span>
+            <span class="o">|</span> <span class="p">(</span><span class="n">pix_df</span><span class="p">[</span><span class="s2">&quot;bin1_id&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">pix_df</span><span class="p">[</span><span class="s2">&quot;bin2_id&quot;</span><span class="p">])</span>
+            <span class="o">|</span> <span class="p">(</span><span class="n">pix_df</span><span class="p">[</span><span class="s2">&quot;bin2_id&quot;</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">id_upper_bound</span><span class="p">)</span>
+        <span class="p">]</span><span class="o">.</span><span class="n">index</span>
+        <span class="n">pix_df</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">indexer</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">pix_df</span></div>
+
+    <span class="nd">@console_log</span>
+    <span class="k">def</span> <span class="nf">get_filtered_pixels</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chrom_id</span><span class="p">,</span> <span class="n">count_thr</span><span class="p">,</span> <span class="n">dist_thr</span><span class="p">,</span> <span class="n">chunk_size</span><span class="o">=</span><span class="mi">10_000_000</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Filter pixels in chunks and return a single dataframe.&quot;&quot;&quot;</span>
+
+        <span class="n">c_iter</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pixel_chunks</span><span class="p">(</span><span class="n">chrom_id</span><span class="p">,</span> <span class="n">chunk_size</span><span class="o">=</span><span class="n">chunk_size</span><span class="p">)</span>
+        <span class="n">pix_df</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">filter_pixels</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">chrom_id</span><span class="p">,</span> <span class="n">count_thr</span><span class="p">,</span> <span class="n">dist_thr</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">c_iter</span><span class="p">]</span>
+        <span class="n">pix_df</span> <span class="o">=</span> <span class="n">concat</span><span class="p">(</span><span class="n">pix_df</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">pix_df</span>
+
+    <span class="nd">@console_log</span>
+    <span class="k">def</span> <span class="nf">drop_duplicate_pixels</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pix_df</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;pandas.drop_duplicates wrapper for logging purposes.&quot;&quot;&quot;</span>
+        <span class="n">pix_df</span><span class="o">.</span><span class="n">drop_duplicates</span><span class="p">(</span><span class="n">subset</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;bin1_id&quot;</span><span class="p">,</span> <span class="s2">&quot;bin2_id&quot;</span><span class="p">],</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="nd">@console_log</span>
+    <span class="k">def</span> <span class="nf">compute_decay</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pix_df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">,</span> <span class="n">stat</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;median&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Add expected counts ratio column to the pixels dataframe.</span>
+
+<span class="sd">        For each pixel compute the expected counts ratio as log2(1 +</span>
+<span class="sd">        observed/expected), where the expected counts are computed as the</span>
+<span class="sd">        summary statistic of choice (usually median) of all pixels sharing</span>
+<span class="sd">        that distance among the two bins composing it.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">pix_df</span><span class="p">[</span><span class="s2">&quot;bin_difference&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pix_df</span><span class="p">[</span><span class="s2">&quot;bin2_id&quot;</span><span class="p">]</span> <span class="o">-</span> <span class="n">pix_df</span><span class="p">[</span><span class="s2">&quot;bin1_id&quot;</span><span class="p">]</span>
+        <span class="n">group_counts</span> <span class="o">=</span> <span class="n">pix_df</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s2">&quot;bin_difference&quot;</span><span class="p">)[</span><span class="s2">&quot;count&quot;</span><span class="p">]</span>
+        <span class="n">pix_df</span><span class="p">[</span><span class="s2">&quot;exp_ratio&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">log2</span><span class="p">(</span><span class="n">pix_df</span><span class="p">[</span><span class="s2">&quot;count&quot;</span><span class="p">]</span> <span class="o">/</span> <span class="n">group_counts</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">stat</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">pix_df</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="s2">&quot;bin_difference&quot;</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="nd">@console_log</span>
+    <span class="k">def</span> <span class="nf">add_sparsity_val</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pix_df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Add alpha value column to dataframe (computed as per Serrano et al. 2009).</span>
+
+<span class="sd">        Add a column to the dataframe containing the alpha values for the edges,</span>
+<span class="sd">        meaning the confidence level of a weighted edge given local fluctuations</span>
+<span class="sd">        in the network, see Serrano et al. 2009 for in depth explaination. A graph</span>
+<span class="sd">         is built starting from the list of edges, then the procedure is iterated</span>
+<span class="sd">        over the nodes; the resulting network is converted back to edge list and</span>
+<span class="sd">        sorted, since graph traversal does not have inherent order.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        The edge in a disconnected doublet (two nodes connected only to each other by</span>
+<span class="sd">        a single node) always gets alpha = 1, therefore it will be subsequently filtered.</span>
+<span class="sd">        In general the number of doublets is very low (at least 7 orders of magnitude</span>
+<span class="sd">        lower than the total number of edges).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Add default alpha value</span>
+        <span class="n">pix_df</span><span class="p">[</span><span class="s2">&quot;spar_alpha&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="n">graph</span> <span class="o">=</span> <span class="n">from_pandas_edgelist</span><span class="p">(</span>
+            <span class="n">pix_df</span><span class="p">,</span>
+            <span class="n">source</span><span class="o">=</span><span class="s2">&quot;bin1_id&quot;</span><span class="p">,</span>
+            <span class="n">target</span><span class="o">=</span><span class="s2">&quot;bin2_id&quot;</span><span class="p">,</span>
+            <span class="n">edge_attr</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;exp_ratio&quot;</span><span class="p">,</span> <span class="s2">&quot;spar_alpha&quot;</span><span class="p">],</span>
+        <span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">graph</span><span class="p">:</span>
+            <span class="n">num_neighbours</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">graph</span><span class="p">[</span><span class="n">node</span><span class="p">])</span>
+
+            <span class="c1"># The approach is not able to compute an alpha value if the number</span>
+            <span class="c1"># of neighbours is one, therefore assign the default alpha value</span>
+            <span class="k">if</span> <span class="n">num_neighbours</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="n">weigths_sum</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">graph</span><span class="p">[</span><span class="n">node</span><span class="p">][</span><span class="n">n</span><span class="p">][</span><span class="s2">&quot;exp_ratio&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">graph</span><span class="p">[</span><span class="n">node</span><span class="p">])</span>
+            <span class="k">for</span> <span class="n">neigh</span> <span class="ow">in</span> <span class="n">graph</span><span class="p">[</span><span class="n">node</span><span class="p">]:</span>
+                <span class="n">norm_weight</span> <span class="o">=</span> <span class="n">graph</span><span class="p">[</span><span class="n">node</span><span class="p">][</span><span class="n">neigh</span><span class="p">][</span><span class="s2">&quot;exp_ratio&quot;</span><span class="p">]</span> <span class="o">/</span> <span class="n">weigths_sum</span>
+                <span class="n">new_alpha</span> <span class="o">=</span> <span class="n">compute_alpha_val</span><span class="p">(</span><span class="n">num_neighbours</span><span class="p">,</span> <span class="n">norm_weight</span><span class="p">)</span>
+                <span class="n">old_aplha</span> <span class="o">=</span> <span class="n">graph</span><span class="p">[</span><span class="n">node</span><span class="p">][</span><span class="n">neigh</span><span class="p">][</span><span class="s2">&quot;spar_alpha&quot;</span><span class="p">]</span>
+                <span class="n">graph</span><span class="p">[</span><span class="n">node</span><span class="p">][</span><span class="n">neigh</span><span class="p">][</span><span class="s2">&quot;spar_alpha&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">old_aplha</span><span class="p">,</span> <span class="n">new_alpha</span><span class="p">)</span>
+
+        <span class="c1"># TODO: cannot find if to_pandas_edgelist is already sorted or not</span>
+        <span class="n">graph</span> <span class="o">=</span> <span class="n">to_pandas_edgelist</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="s2">&quot;bin1_id&quot;</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="s2">&quot;bin2_id&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Graph object does not preserve pair order</span>
+        <span class="c1"># TODO: test for performance since it does not feel great</span>
+        <span class="n">graph</span><span class="p">[</span><span class="s2">&quot;bin1_id&quot;</span><span class="p">],</span> <span class="n">graph</span><span class="p">[</span><span class="s2">&quot;bin2_id&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">where</span><span class="p">(</span>
+            <span class="n">graph</span><span class="p">[</span><span class="s2">&quot;bin1_id&quot;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">graph</span><span class="p">[</span><span class="s2">&quot;bin2_id&quot;</span><span class="p">],</span>
+            <span class="p">(</span><span class="n">graph</span><span class="p">[</span><span class="s2">&quot;bin1_id&quot;</span><span class="p">],</span> <span class="n">graph</span><span class="p">[</span><span class="s2">&quot;bin2_id&quot;</span><span class="p">]),</span>
+            <span class="p">(</span><span class="n">graph</span><span class="p">[</span><span class="s2">&quot;bin2_id&quot;</span><span class="p">],</span> <span class="n">graph</span><span class="p">[</span><span class="s2">&quot;bin1_id&quot;</span><span class="p">]),</span>
+        <span class="p">)</span>
+
+        <span class="c1"># TODO: Might be able to remove the sorting step</span>
+        <span class="n">graph</span><span class="o">.</span><span class="n">sort_values</span><span class="p">([</span><span class="s2">&quot;bin1_id&quot;</span><span class="p">,</span> <span class="s2">&quot;bin2_id&quot;</span><span class="p">],</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">pix_df</span><span class="p">[</span><span class="s2">&quot;spar_alpha&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">graph</span><span class="p">[</span><span class="s2">&quot;spar_alpha&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+
+    <span class="k">def</span> <span class="nf">_create_chrom_table</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chrom_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">table_root</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create chromosome-level table given the set of parameters.&quot;&quot;&quot;</span>
+
+        <span class="c1"># Retrieve parameters from the parent group</span>
+        <span class="n">count_thr</span> <span class="o">=</span> <span class="n">table_root</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;count-threshold&quot;</span><span class="p">]</span>
+        <span class="n">dist_thr</span> <span class="o">=</span> <span class="n">table_root</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;distance-threshold&quot;</span><span class="p">]</span>
+        <span class="n">decay_stat</span> <span class="o">=</span> <span class="n">table_root</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;decay-statistic&quot;</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">chrom_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">table_root</span><span class="p">:</span>
+            <span class="c1"># Process the chromosome pixels</span>
+            <span class="n">chrom_pix</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_filtered_pixels</span><span class="p">(</span><span class="n">chrom_id</span><span class="p">,</span> <span class="n">count_thr</span><span class="p">,</span> <span class="n">dist_thr</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">drop_duplicate_pixels</span><span class="p">(</span><span class="n">chrom_pix</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">compute_decay</span><span class="p">(</span><span class="n">chrom_pix</span><span class="p">,</span> <span class="n">decay_stat</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_sparsity_val</span><span class="p">(</span><span class="n">chrom_pix</span><span class="p">)</span>
+
+            <span class="c1"># Save the dataframe columns as individual 1D-arrays (for storage)</span>
+            <span class="n">chrom_table</span> <span class="o">=</span> <span class="n">table_root</span><span class="o">.</span><span class="n">create_group</span><span class="p">(</span><span class="n">chrom_id</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">column</span> <span class="ow">in</span> <span class="n">chrom_pix</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+                <span class="n">chrom_table</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span><span class="n">column</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">chrom_pix</span><span class="p">[</span><span class="n">column</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;WARNING: </span><span class="si">{</span><span class="n">chrom_id</span><span class="si">}</span><span class="s2"> already processed with these params, skipping.&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_chrom_regex_to_iter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chrom_selection</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Convert chromosome selection from regex/default string to iterable object.&quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">chrom_selection</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">_DEFAULT_CHROM_RE</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">chrom_selection</span><span class="p">):</span>
+                <span class="n">chrom_selection</span> <span class="o">=</span> <span class="n">_DEFAULT_CHROM_RE</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">chrom_selection</span><span class="p">)</span>
+            <span class="n">regex</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">chrom_selection</span><span class="p">)</span>
+            <span class="n">chrom_selection</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">chromnames</span> <span class="k">if</span> <span class="n">regex</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">c</span><span class="p">)]</span>
+
+        <span class="k">return</span> <span class="n">chrom_selection</span>
+
+<div class="viewcode-block" id="HiconaCooler.create_tables"><a class="viewcode-back" href="../../hicona.html#hicona.hicona_cooler.HiconaCooler.create_tables">[docs]</a>    <span class="k">def</span> <span class="nf">create_tables</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">chrom_selection</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;humanCanonical&quot;</span><span class="p">,</span>
+        <span class="n">count_thr</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">dist_thr</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2_000_000</span><span class="p">,</span>
+        <span class="n">decay_stat</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;median&quot;</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Process and create chromosome-level tables to use for network construction.</span>
+
+<span class="sd">        Given a set of chromosome and some parameters for the processing, create</span>
+<span class="sd">        individual groups, each one corresponding to a chromosome and containing</span>
+<span class="sd">        1D-arrays corresponding to the columns of the processed dataframe.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        chrom_selection: str or iterable, optional</span>
+<span class="sd">            Iterable of ids of the chromosome to process or regular expression to build</span>
+<span class="sd">            one. Some strings are also accepted as proxy for common regular espressions:</span>
+<span class="sd">            * humanCanonical: &quot;chr1&quot; to &quot;chr22&quot; plus &quot;chrX&quot; and &quot;chrY&quot; (default value)</span>
+<span class="sd">            * mouseCanonical: &quot;chr1&quot; to &quot;chr19&quot; plus &quot;chrX&quot; and &quot;chrY&quot;</span>
+<span class="sd">            * others to be defined</span>
+<span class="sd">        count_thr: int, optional</span>
+<span class="sd">            Remove pixels whose row count is not greater than this value. (default is 1)</span>
+<span class="sd">        dist_thr: int, optional</span>
+<span class="sd">            Remove pixels whose genomic distance among bins is greater or equal to this</span>
+<span class="sd">            value (in bp). (default is 2Mb)</span>
+<span class="sd">        decay_stat: str, optional</span>
+<span class="sd">            Statistic to use to summarize pixels with a certain distance while computing</span>
+<span class="sd">            the expected counts. Must be compatible with pandas.transform. (default is</span>
+<span class="sd">            &quot;median&quot;)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Convert chromosome selection to an iterable</span>
+        <span class="n">chrom_selection</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_chrom_regex_to_iter</span><span class="p">(</span><span class="n">chrom_selection</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="n">open_hdf5</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">store</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;a&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">h5_handle</span><span class="p">:</span>
+            <span class="n">table_root</span> <span class="o">=</span> <span class="n">_GROUP_TEMPLATE</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">count_thr</span><span class="p">,</span> <span class="n">dist_thr</span><span class="p">,</span> <span class="n">decay_stat</span><span class="p">)</span>
+            <span class="n">table_root</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">root</span> <span class="o">+</span> <span class="s2">&quot;/chrom_tables/&quot;</span> <span class="o">+</span> <span class="n">table_root</span>
+
+            <span class="c1"># Create container group if not already existent</span>
+            <span class="k">if</span> <span class="n">table_root</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">h5_handle</span><span class="p">:</span>
+                <span class="n">table_grp</span> <span class="o">=</span> <span class="n">h5_handle</span><span class="o">.</span><span class="n">create_group</span><span class="p">(</span><span class="n">table_root</span><span class="p">)</span>
+                <span class="n">table_grp</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;count-threshold&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">count_thr</span>
+                <span class="n">table_grp</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;distance-threshold&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">dist_thr</span>
+                <span class="n">table_grp</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;decay-statistic&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">decay_stat</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">table_grp</span> <span class="o">=</span> <span class="n">h5_handle</span><span class="p">[</span><span class="n">table_root</span><span class="p">]</span>
+
+            <span class="c1"># Create chromosome-level groups and datasets</span>
+            <span class="k">for</span> <span class="n">chrom_id</span> <span class="ow">in</span> <span class="n">chrom_selection</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;STARTING </span><span class="si">{</span><span class="n">chrom_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_create_chrom_table</span><span class="p">(</span><span class="n">chrom_id</span><span class="p">,</span> <span class="n">table_grp</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="HiconaCooler.tables_info"><a class="viewcode-back" href="../../hicona.html#hicona.hicona_cooler.HiconaCooler.tables_info">[docs]</a>    <span class="k">def</span> <span class="nf">tables_info</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Print available chromosome tables for each set of parameters.&quot;&quot;&quot;</span>
+
+        <span class="k">with</span> <span class="n">open_hdf5</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">store</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">h5_handle</span><span class="p">:</span>
+            <span class="n">tables_grp</span> <span class="o">=</span> <span class="n">h5_handle</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">root</span> <span class="o">+</span> <span class="s2">&quot;/chrom_tables&quot;</span><span class="p">]</span>
+            <span class="n">param_str</span> <span class="o">=</span> <span class="s2">&quot;PARAMETER SETS:&quot;</span>
+            <span class="k">for</span> <span class="n">param_grp</span> <span class="ow">in</span> <span class="n">tables_grp</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+                <span class="n">param_str</span> <span class="o">+=</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="s2">&quot;-&quot;</span> <span class="o">*</span> <span class="mi">80</span>
+                <span class="n">param_list</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">-</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">v</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">param_grp</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">items</span><span class="p">()]</span>
+                <span class="n">param_str</span> <span class="o">+=</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">param_list</span><span class="p">)</span>
+                <span class="n">param_str</span> <span class="o">+=</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">-chromosomes:&quot;</span>
+                <span class="n">param_str</span> <span class="o">+=</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n\t</span><span class="s2">--</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">param_grp</span><span class="o">.</span><span class="n">keys</span><span class="p">()])</span>
+            <span class="n">param_str</span> <span class="o">+=</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="s2">&quot;-&quot;</span> <span class="o">*</span> <span class="mi">80</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">param_str</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="HiconaCooler.tables"><a class="viewcode-back" href="../../hicona.html#hicona.hicona_cooler.HiconaCooler.tables">[docs]</a>    <span class="k">def</span> <span class="nf">tables</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">chrom_selection</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;humanCanonical&quot;</span><span class="p">,</span>
+        <span class="n">count_thr</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">dist_thr</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">decay_stat</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ChromTablesIterator</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return an iterator of selected tables and respective information.</span>
+
+<span class="sd">        Use the input parameters to define a list of partial URIs strings</span>
+<span class="sd">        corresponding to the groups where the column tables are stored, then</span>
+<span class="sd">        return an iterator object where each item is a tuple in the form</span>
+<span class="sd">        (corresponding pandas Dataframe, dictionary of dataframe information).</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        chrom_selection: str or iterable, optional</span>
+<span class="sd">            Iterable of ids of the chromosome to fetch or regular expression to build</span>
+<span class="sd">            one. Some strings are also accepted as proxy for common regular espressions:</span>
+<span class="sd">            * humanCanonical: &quot;chr1&quot; to &quot;chr22&quot; plus &quot;chrX&quot; and &quot;chrY&quot; (default value)</span>
+<span class="sd">            * other to be defined</span>
+<span class="sd">        count_thr: int, optional</span>
+<span class="sd">            Fetch tables created using this value as count threshold. If None, consider</span>
+<span class="sd">            all tables regardless of the used value.</span>
+<span class="sd">        dist_thr: int, optional</span>
+<span class="sd">            Fetch tables created using this value as distance threshold. If None, consider</span>
+<span class="sd">            all tables regardless of the used value.</span>
+<span class="sd">        decay_stat: str, optional</span>
+<span class="sd">            Fetch tables created using this statistic to compute count decay. If None,</span>
+<span class="sd">            consider all tables regardless of the used statistic.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        :py:class:`ChromTablesIterator` :</span>
+<span class="sd">            Iterator of tuples in the form (chromsome table, information dictionary).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Create valid groups regex according to input parameters</span>
+        <span class="n">chrom_selection</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_chrom_regex_to_iter</span><span class="p">(</span><span class="n">chrom_selection</span><span class="p">)</span>
+        <span class="n">count_thr</span> <span class="o">=</span> <span class="sa">r</span><span class="s2">&quot;\S+&quot;</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">count_thr</span> <span class="k">else</span> <span class="n">count_thr</span>
+        <span class="n">dist_thr</span> <span class="o">=</span> <span class="sa">r</span><span class="s2">&quot;\S+&quot;</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">dist_thr</span> <span class="k">else</span> <span class="n">dist_thr</span>
+        <span class="n">decay_stat</span> <span class="o">=</span> <span class="sa">r</span><span class="s2">&quot;\S+&quot;</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">decay_stat</span> <span class="k">else</span> <span class="n">decay_stat</span>
+        <span class="n">grp_regex</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">_GROUP_TEMPLATE</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">count_thr</span><span class="p">,</span> <span class="n">dist_thr</span><span class="p">,</span> <span class="n">decay_stat</span><span class="p">))</span>
+
+        <span class="c1"># Define a list of partial URIs to valid tables</span>
+        <span class="k">with</span> <span class="n">open_hdf5</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">store</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">h5_handle</span><span class="p">:</span>
+            <span class="n">tables_grp</span> <span class="o">=</span> <span class="n">h5_handle</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">root</span> <span class="o">+</span> <span class="s2">&quot;/chrom_tables&quot;</span><span class="p">]</span>
+            <span class="n">valid_groups</span> <span class="o">=</span> <span class="p">[</span><span class="n">g</span> <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">tables_grp</span> <span class="k">if</span> <span class="n">grp_regex</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">g</span><span class="p">)]</span>
+            <span class="n">valid_tables</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">grp</span> <span class="ow">in</span> <span class="n">valid_groups</span><span class="p">:</span>
+                <span class="n">tabs</span> <span class="o">=</span> <span class="p">[</span><span class="n">grp</span> <span class="o">+</span> <span class="s2">&quot;/&quot;</span> <span class="o">+</span> <span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">tables_grp</span><span class="p">[</span><span class="n">grp</span><span class="p">]</span> <span class="k">if</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">chrom_selection</span><span class="p">]</span>
+                <span class="n">valid_tables</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">tabs</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">ChromTablesIterator</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">store</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">,</span> <span class="n">valid_tables</span><span class="p">)</span></div></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Stefano Cretti, Leonardo Morelli.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

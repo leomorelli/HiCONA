@@ -5,11 +5,13 @@ Placeholder
 from math import floor
 from time import time
 
+import numpy as np
+from pandas import DataFrame
 from scipy import integrate
 
 
 def console_log(func):
-    """A simple decorator to log information to the console"""
+    """A simple decorator to log information to the console."""
     # TODO: Make decorator toggleable
 
     def console_log_wrapper(*args, **kwargs):
@@ -25,10 +27,10 @@ def console_log(func):
 
 
 def round_half_up(number: float, decimals: int = 0):
-    """Return half way up rounded decimal number
+    """Return half way up rounded decimal number.
 
     Auxiliary function to round numbers since python default is not what it is
-     commonly expected rounding to be. Half way up rounding means "round to
+    commonly expected rounding to be. Half way up rounding means "round to
     closest value, either up or down, and break ties returning upper value".
     """
     multiplier = 10**decimals
@@ -36,7 +38,8 @@ def round_half_up(number: float, decimals: int = 0):
 
 
 def integration_cache(func):
-    """Decorator to memoize alpha value integrals"""
+    """Decorator to memoize alpha value integrals."""
+    # TODO: make decorator toggleable
     int_cache = {}
 
     def integral_wrapper(*args, **kwargs):
@@ -49,36 +52,29 @@ def integration_cache(func):
 
 
 @integration_cache
-def compute_alpha_val(k, weight):
-    """Compute alpha value according to Serrano et al. 2009"""
-
+def compute_alpha_val(k: int, weight: float):
+    """Compute alpha value according to Serrano et al. 2009."""
     int_func = lambda x, nn=k - 2: (1 - x) ** (nn)
     new_alpha = 1 - (k - 1) * integrate.quad(int_func, 0, weight)[0]
+
     return round_half_up(new_alpha, 4)
 
 
-# FOR LONG DISTANCE DECAY
-# from numpy import exp
-# def decay_function(x, a, b, c):
-#     return a * exp(-b * x) + c
-# decay_curve = group_counts.agg(stat).to_frame()
-# decay_curve.reset_index(inplace=True)
-# decay_curve.plot(x="bin_difference", y="count")
-# plt.show()
+def from_df_to_sarrays(data: DataFrame):
+    """Return each column of a dataframe as a numpy structured array.
 
-# popt, _ = curve_fit(
-#     decay_function, decay_curve["bin_difference"], decay_curve["count"]
-# )
-# plt.plot(
-#     decay_curve["bin_difference"],
-#     decay_function(decay_curve["bin_difference"], *popt),
-# )
+    Transform the columns of a dataframe into numpy structured array and
+    define the numpy datatype most appropriate for storage in HDF5 (especially
+    minimum required string fixed length for categorical annotations).
+    """
+    dtypes = data.dtypes
+    for col_name, dtype in zip(data, dtypes):
+        if dtype == "object":
+            str_len = int(data[col_name].str.len().max())
+            str_len = str_len if str_len > 3 else 3
+            dtype = np.dtype(f"S{str_len}")
 
-# ALTERNATIVE WRAPPER
-# def integral_wrapper(*args, **kwargs):
-#     int_key = str(args) + str(kwargs)
-#     int_val = int_cache.get(int_key)
-#     if not int_val:
-#         int_val = func(*args, **kwargs)
-#         int_cache[int_key] = int_val
-#     return int_val
+        new_col = np.zeros(len(data), dtype)
+        new_col[:] = data[col_name].values
+
+        yield (col_name, new_col, dtype)

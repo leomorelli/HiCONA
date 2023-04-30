@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>hicona.functions_to_fix &mdash; HiCONA alpha documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/sphinx_highlight.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            HiCONA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">hicona</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">HiCONA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">hicona.functions_to_fix</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for hicona.functions_to_fix</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">pybedtools</span> <span class="kn">import</span> <span class="n">BedTool</span>
+<span class="kn">from</span> <span class="nn">pandas</span> <span class="kn">import</span> <span class="n">DataFrame</span><span class="p">,</span> <span class="n">get_dummies</span>
+<span class="kn">from</span> <span class="nn">numpy</span> <span class="kn">import</span> <span class="n">nan</span>
+
+
+<div class="viewcode-block" id="filter_network"><a class="viewcode-back" href="../../hicona.html#hicona.functions_to_fix.filter_network">[docs]</a><span class="k">def</span> <span class="nf">filter_network</span><span class="p">(</span>
+    <span class="n">pix_df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">,</span> <span class="n">cutoff</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.05</span><span class="p">,</span> <span class="n">alpha_col_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;alpha&quot;</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return a dataframe with edges filtered according to significance</span>
+
+<span class="sd">    Retrieve only edges with a value less than, or equal to, the specificied</span>
+<span class="sd">    cutoff in the specified column, then removes said column. Return a copy,</span>
+<span class="sd">    this way multiple cutoff filters can be tested without recomputing the</span>
+<span class="sd">    significance levels each time.</span>
+
+<span class="sd">    Consider using sparsification.sparsify_network when testing for a single</span>
+<span class="sd">    significance cutoff.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    pix_df : pandas.DataFrame</span>
+<span class="sd">        Dataframe of edges in coo format and realtive alpha value, or other</span>
+<span class="sd">        metric to filter on; rows are in the form (bin1, bin2, count, alpha)</span>
+<span class="sd">    cutoff : float</span>
+<span class="sd">        Maximum accepted alpha value (default: 0.05)</span>
+<span class="sd">    pval_col_name : str</span>
+<span class="sd">        Column to use when filtering (default: &quot;alpha&quot;)</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    pandas.DataFrame</span>
+<span class="sd">        Filtered pixel dataframe</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># TODO: Directly work on the dataframe?</span>
+
+    <span class="n">mask</span> <span class="o">=</span> <span class="n">pix_df</span><span class="p">[</span><span class="n">alpha_col_name</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">cutoff</span>
+    <span class="n">filtered_df</span> <span class="o">=</span> <span class="n">pix_df</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">alpha_col_name</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">filtered_df</span></div>
+
+
+<span class="c1"># TODO: fix, since from before being Cooler subclass</span>
+<div class="viewcode-block" id="annotate_bins"><a class="viewcode-back" href="../../hicona.html#hicona.functions_to_fix.annotate_bins">[docs]</a><span class="k">def</span> <span class="nf">annotate_bins</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span>
+    <span class="n">annot_bed</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">in_file_annot_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">other_annot_names</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Annotate bins using a bed-like file.</span>
+
+<span class="sd">    Add one or more annotation columns; one can add:</span>
+<span class="sd">    - 0/1 column representing the presence of the bin in the bed-like file</span>
+<span class="sd">    - any number of columns from the bed-like file (regardless of type)</span>
+<span class="sd">    NOTE: annotation can drastically increase matrix size, especially for</span>
+<span class="sd">    non-numerical annotations; limit categorical annotations (names...).</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    annot_bed : str</span>
+<span class="sd">        Path to the bed-like file (chrom, start, end, annot1, ..., annotN)</span>
+<span class="sd">        to use for the annotation in string format.</span>
+<span class="sd">    in_file_annot_name : str, optional</span>
+<span class="sd">        If not None, create a 0/1 annotation column (using this string as</span>
+<span class="sd">        name) with 1 if the bin has (at least) one intersection in the</span>
+<span class="sd">        bed-like file, 0 otherwise. (default is None)</span>
+<span class="sd">    other_annot_names : list, optional</span>
+<span class="sd">        If not None, use the elements of this list (or iterable) as names</span>
+<span class="sd">        for the annotation columns in the bed-like file to add to the bins</span>
+<span class="sd">        dataframe. Names are assigned from left to right (ignoring the</span>
+<span class="sd">        first 3 columns), and any column that received a name is kept.</span>
+<span class="sd">        Any column without a name (number of names is less than the number</span>
+<span class="sd">        of columns in the bed-like - 3), or to which None was given, is</span>
+<span class="sd">        discarded. Excess names are discarded. (default is None)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># TODO: check new colname is valid</span>
+    <span class="c1"># TODO: check it is a bed file (with file_type?)</span>
+    <span class="c1"># TODO: check no provided colnames are identical to previous ones</span>
+    <span class="c1"># TODO: annotation info?</span>
+
+    <span class="c1"># Save starting column names and define positions for new column names</span>
+    <span class="n">initial_col_names</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bins</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+    <span class="n">initial_num_cols</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">initial_col_names</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">in_file_annot_name</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">in_file_annot_name</span> <span class="ow">in</span> <span class="n">initial_col_names</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;&#39;in file&#39; annotation name already exists.&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">other_annot_names</span><span class="p">:</span>
+        <span class="n">annot_pos_start</span> <span class="o">=</span> <span class="n">initial_num_cols</span> <span class="o">+</span> <span class="mi">3</span>
+        <span class="n">annot_pos_stop</span> <span class="o">=</span> <span class="n">annot_pos_start</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">other_annot_names</span><span class="p">)</span>
+
+    <span class="c1"># NOTE: suppressed error due to pybedtools wrapper implementation</span>
+    <span class="c1"># pylint: disable=unexpected-keyword-arg, too-many-function-args</span>
+    <span class="n">bin_bedtool</span> <span class="o">=</span> <span class="n">BedTool</span><span class="o">.</span><span class="n">from_dataframe</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bins</span><span class="p">)</span>
+    <span class="n">annot_bedtool</span> <span class="o">=</span> <span class="n">BedTool</span><span class="p">(</span><span class="n">annot_bed</span><span class="p">)</span>
+    <span class="n">bin_bedtool</span> <span class="o">=</span> <span class="n">bin_bedtool</span><span class="o">.</span><span class="n">intersect</span><span class="p">(</span><span class="n">annot_bedtool</span><span class="p">,</span> <span class="n">loj</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="c1"># pylint: enable=unexpected-keyword-arg, too-many-function-args</span>
+
+    <span class="c1"># Convert result to pandas, rename and remove columns</span>
+    <span class="n">annotated_bins</span> <span class="o">=</span> <span class="n">bin_bedtool</span><span class="o">.</span><span class="n">to_dataframe</span><span class="p">()</span>
+    <span class="n">final_names</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">annotated_bins</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span>
+    <span class="n">final_names</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">initial_num_cols</span><span class="p">]</span> <span class="o">=</span> <span class="n">initial_col_names</span>
+    <span class="k">if</span> <span class="n">in_file_annot_name</span><span class="p">:</span>
+        <span class="n">final_names</span><span class="p">[</span><span class="n">initial_num_cols</span> <span class="o">+</span> <span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">in_file_annot_name</span>
+    <span class="k">if</span> <span class="n">other_annot_names</span><span class="p">:</span>
+        <span class="n">final_names</span><span class="p">[</span><span class="n">annot_pos_start</span><span class="p">:</span><span class="n">annot_pos_stop</span><span class="p">]</span> <span class="o">=</span> <span class="n">other_annot_names</span>
+    <span class="n">annotated_bins</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="n">final_names</span>
+    <span class="n">annotated_bins</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">labels</span><span class="o">=</span><span class="p">[</span><span class="kc">None</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="c1"># Convert in_file column to 0/1</span>
+    <span class="k">if</span> <span class="n">in_file_annot_name</span><span class="p">:</span>
+        <span class="n">annotated_bins</span><span class="p">[</span><span class="n">in_file_annot_name</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="mi">1</span> <span class="k">if</span> <span class="n">cell</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span> <span class="k">else</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">cell</span> <span class="ow">in</span> <span class="n">annotated_bins</span><span class="p">[</span><span class="n">in_file_annot_name</span><span class="p">]</span>
+        <span class="p">]</span>
+
+    <span class="c1"># Replace all cells containing only a dot with NaNs</span>
+    <span class="c1"># &quot;.&quot; is default for bedtools loj in non-matching non-positional columns</span>
+    <span class="n">annotated_bins</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;^\.$&quot;</span><span class="p">,</span> <span class="n">nan</span><span class="p">,</span> <span class="n">regex</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">bins</span> <span class="o">=</span> <span class="n">annotated_bins</span></div>
+
+
+<span class="c1"># TODO: fix, since from before being Cooler subclass</span>
+<div class="viewcode-block" id="encode_annotation"><a class="viewcode-back" href="../../hicona.html#hicona.functions_to_fix.encode_annotation">[docs]</a><span class="k">def</span> <span class="nf">encode_annotation</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span>
+    <span class="n">to_encode</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">force_annotation</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert bin annotation column(s) to one hot encoding form</span>
+
+<span class="sd">    Given a list of column names, replace each of those columns with N</span>
+<span class="sd">    other columns (where N is the number of modalities for that column)</span>
+<span class="sd">    each of which in one hot encoding form (1 if modality matches, 0</span>
+<span class="sd">    otherwise). Ignore not-found columns.</span>
+
+<span class="sd">    to_encode : list, optional</span>
+<span class="sd">        List (or iterable) of names of the annotations to split using</span>
+<span class="sd">        one-hot encoding. The original column is dropped and the derived</span>
+<span class="sd">        ones are named using {original name}_{modality}. (default is None)</span>
+<span class="sd">    force_annotation : bool, optional</span>
+<span class="sd">        Trying to perform one-hot encoding on annotations with many</span>
+<span class="sd">        modalities will issue and error in order to prevent huge file</span>
+<span class="sd">        bloating. To suppress the error and split anyway change to True.</span>
+<span class="sd">        (dafault is False)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">max_num_modalities</span> <span class="o">=</span> <span class="mi">10</span>  <span class="c1"># Critical number of allowed modalities</span>
+
+    <span class="c1"># Remove all elements not present in the new column annotations</span>
+    <span class="n">to_encode</span> <span class="o">=</span> <span class="p">[</span><span class="n">ann</span> <span class="k">for</span> <span class="n">ann</span> <span class="ow">in</span> <span class="n">to_encode</span> <span class="k">if</span> <span class="n">ann</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bins</span><span class="o">.</span><span class="n">columns</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">to_encode</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;WARNING: No valid annotation to encode.&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">force_annotation</span><span class="p">:</span>
+        <span class="n">too_many_vals</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">col_name</span>
+            <span class="k">for</span> <span class="n">col_name</span> <span class="ow">in</span> <span class="n">to_encode</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">bins</span><span class="p">[</span><span class="n">col_name</span><span class="p">]</span><span class="o">.</span><span class="n">nunique</span><span class="p">()</span> <span class="o">&gt;</span> <span class="n">max_num_modalities</span>
+        <span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">too_many_vals</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;The variable(s) </span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">too_many_vals</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;has/have more than the maximum number of modalities &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;allowed (</span><span class="si">{</span><span class="n">max_num_modalities</span><span class="si">}</span><span class="s2">). This could lead to &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;massive inflation of the matrix. If you wish to proceed&quot;</span>
+                <span class="sa">f</span><span class="s2">&quot; rerun the function with force_annotation=True&quot;</span>
+            <span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">bins</span> <span class="o">=</span> <span class="n">get_dummies</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bins</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="n">to_encode</span><span class="p">)</span></div>
+
+
+<span class="c1"># FOR LONG DISTANCE DECAY</span>
+<span class="c1"># from numpy import exp</span>
+<span class="c1"># def decay_function(x, a, b, c):</span>
+<span class="c1">#     return a * exp(-b * x) + c</span>
+<span class="c1"># decay_curve = group_counts.agg(stat).to_frame()</span>
+<span class="c1"># decay_curve.reset_index(inplace=True)</span>
+<span class="c1"># decay_curve.plot(x=&quot;bin_difference&quot;, y=&quot;count&quot;)</span>
+<span class="c1"># plt.show()</span>
+
+<span class="c1"># popt, _ = curve_fit(</span>
+<span class="c1">#     decay_function, decay_curve[&quot;bin_difference&quot;], decay_curve[&quot;count&quot;]</span>
+<span class="c1"># )</span>
+<span class="c1"># plt.plot(</span>
+<span class="c1">#     decay_curve[&quot;bin_difference&quot;],</span>
+<span class="c1">#     decay_function(decay_curve[&quot;bin_difference&quot;], *popt),</span>
+<span class="c1"># )</span>
+
+<span class="c1"># ALTERNATIVE WRAPPER</span>
+<span class="c1"># def integral_wrapper(*args, **kwargs):</span>
+<span class="c1">#     int_key = str(args) + str(kwargs)</span>
+<span class="c1">#     int_val = int_cache.get(int_key)</span>
+<span class="c1">#     if not int_val:</span>
+<span class="c1">#         int_val = func(*args, **kwargs)</span>
+<span class="c1">#         int_cache[int_key] = int_val</span>
+<span class="c1">#     return int_val</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Stefano Cretti, Leonardo Morelli.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

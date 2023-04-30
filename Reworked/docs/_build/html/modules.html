@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>hicona &mdash; HiCONA pre-alpha documentation</title>
+  <title>hicona &mdash; HiCONA alpha documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
@@ -42,13 +42,10 @@
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul class="current">
-<li class="toctree-l1 current"><a class="current reference internal" href="#">hicona</a><ul class="simple">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">hicona</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="hicona.html">hicona package</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="hicona.html">hicona package</a></li>
-<li class="toctree-l1"><a class="reference internal" href="hicona.annotation.html">hicona.annotation package</a></li>
-<li class="toctree-l1"><a class="reference internal" href="hicona.generation.html">hicona.generation package</a></li>
-<li class="toctree-l1"><a class="reference internal" href="hicona.utils.html">hicona.utils package</a></li>
 </ul>
 
         </div>
@@ -78,6 +75,45 @@
   <section id="hicona">
 <h1>hicona<a class="headerlink" href="#hicona" title="Permalink to this heading"></a></h1>
 <div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="hicona.html">hicona package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="hicona.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.html#module-hicona.functions_to_fix">hicona.functions_to_fix module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="hicona.html#hicona.functions_to_fix.annotate_bins"><code class="docutils literal notranslate"><span class="pre">annotate_bins()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="hicona.html#hicona.functions_to_fix.encode_annotation"><code class="docutils literal notranslate"><span class="pre">encode_annotation()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="hicona.html#hicona.functions_to_fix.filter_network"><code class="docutils literal notranslate"><span class="pre">filter_network()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.html#module-hicona.hicona_cooler">hicona.hicona_cooler module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="hicona.html#hicona.hicona_cooler.HiconaCooler"><code class="docutils literal notranslate"><span class="pre">HiconaCooler</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="hicona.html#hicona.hicona_cooler.HiconaCooler.add_sparsity_val"><code class="docutils literal notranslate"><span class="pre">HiconaCooler.add_sparsity_val()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="hicona.html#hicona.hicona_cooler.HiconaCooler.compute_decay"><code class="docutils literal notranslate"><span class="pre">HiconaCooler.compute_decay()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="hicona.html#hicona.hicona_cooler.HiconaCooler.create_tables"><code class="docutils literal notranslate"><span class="pre">HiconaCooler.create_tables()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="hicona.html#hicona.hicona_cooler.HiconaCooler.drop_duplicate_pixels"><code class="docutils literal notranslate"><span class="pre">HiconaCooler.drop_duplicate_pixels()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="hicona.html#hicona.hicona_cooler.HiconaCooler.filter_pixels"><code class="docutils literal notranslate"><span class="pre">HiconaCooler.filter_pixels()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="hicona.html#hicona.hicona_cooler.HiconaCooler.get_filtered_pixels"><code class="docutils literal notranslate"><span class="pre">HiconaCooler.get_filtered_pixels()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="hicona.html#hicona.hicona_cooler.HiconaCooler.tables"><code class="docutils literal notranslate"><span class="pre">HiconaCooler.tables()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="hicona.html#hicona.hicona_cooler.HiconaCooler.tables_info"><code class="docutils literal notranslate"><span class="pre">HiconaCooler.tables_info()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.html#module-hicona.iterators">hicona.iterators module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="hicona.html#hicona.iterators.ChromTablesIterator"><code class="docutils literal notranslate"><span class="pre">ChromTablesIterator</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="hicona.html#hicona.iterators.ChunkBordersIterator"><code class="docutils literal notranslate"><span class="pre">ChunkBordersIterator</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.html#module-hicona.utils">hicona.utils module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="hicona.html#hicona.utils.compute_alpha_val"><code class="docutils literal notranslate"><span class="pre">compute_alpha_val()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="hicona.html#hicona.utils.console_log"><code class="docutils literal notranslate"><span class="pre">console_log()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="hicona.html#hicona.utils.integration_cache"><code class="docutils literal notranslate"><span class="pre">integration_cache()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="hicona.html#hicona.utils.round_half_up"><code class="docutils literal notranslate"><span class="pre">round_half_up()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.html#module-hicona">Module contents</a></li>
+</ul>
+</li>
+</ul>
 </div>
 </section>
 
@@ -92,7 +128,7 @@
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; Copyright 2023, Leonardo Morelli, Stefano Cretti.</p>
+    <p>&#169; Copyright 2023, Stefano Cretti, Leonardo Morelli.</p>
   </div>
 
   Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
