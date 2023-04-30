@@ -3,16 +3,17 @@ Placeholder
 """
 
 import re
-from typing import Generator
 
 from cooler import Cooler, annotate
+from cooler.core import delete
 from cooler.util import open_hdf5
 from networkx import from_pandas_edgelist, to_pandas_edgelist
 from numpy import log2, where
-from pandas import concat, DataFrame
+from pandas import concat, DataFrame, get_dummies
+from pybedtools import BedTool
 
 from .iterators import ChunkBordersIterator, ChromTablesIterator
-from .utils import console_log, compute_alpha_val
+from .utils import console_log, compute_alpha_val, from_df_to_sarrays
 
 __all__ = ["HiconaCooler"]
 
@@ -294,7 +295,7 @@ class HiconaCooler(Cooler):
             param_str += "\n" + "-" * 80
         print(param_str)
 
-    def available_annotations(self, show: bool = True) -> tuple[str]:
+    def available_annotations(self, show: bool = False) -> tuple[str]:
         """Return list of available annotation column names.
 
         Return a list of all available annotation column names aside from the
@@ -303,8 +304,9 @@ class HiconaCooler(Cooler):
 
         Parameters
         ----------
-        show : bool = True
+        show : bool
             If True, print the list of available annotation columns to console.
+            (default is True)
 
         Returns
         -------
@@ -428,5 +430,156 @@ class HiconaCooler(Cooler):
 
             yield (table, info)
 
-    def add_bin_annotation(self):
-        ...
+    def add_bin_annotation(
+        self,
+        bed_path: str,
+        in_file_col: str = None,
+        to_keep_cols: list[str] = None,
+    ) -> None:
+        """Add bin annotation using a bed-like file.
+
+        Add one or more annotation columns to the bins dataframe. One can add:
+        - 0/1 column representing the presence of the bin in the bed-like file
+        - any number of columns from the bed-like file (regardless of type)
+
+        Parameters
+        ----------
+        bed_path : str
+            Path to the bed-like file (chrom, start, end, annot1, ..., annotN)
+            to use for the annotation.
+        in_file_col : str, optional
+            If not None, create a 0/1 annotation column (using this string as
+            name) with 1 if the bin has (at least) one intersection in the
+            bed-like file, 0 otherwise. (default is None)
+        to_keep_cols : list[str], optional
+            If not None, use the elements of this list as names
+            for the annotation columns in the bed-like file to add to the bins
+            dataframe. Names are assigned from left to right (ignoring the
+            first 3 columns), and any column that receives a name is kept.
+            Any column without a name, or to which None was given, is discarded.
+            Excess names are ignored. (default is None)
+
+        Notes
+        -----
+        Adding annotation can drastically increase file size, especially for
+        non-numerical annotations; limit categorical annotations (names...).
+        """
+
+        # Check for no overlap in old and new annotations
+        ann_cols = self.available_annotations()
+        if in_file_col:
+            if in_file_col in ann_cols:
+                raise ValueError("'in file' annotation name already exists.")
+        if to_keep_cols:
+            if set(ann_cols) & set(to_keep_cols):
+                raise ValueError("Overlap of old and new annotations, stopping.")
+
+        # Remove old annotations from the intersection, so the new ones have
+        # predictable position (in file: column 5, others: columns 6 and onward)
+        bin_bedtool = self.bins()[:].drop(ann_cols, axis=1)
+
+        # NOTE: suppressed error due to pybedtools wrapper implementation
+        # pylint: disable=unexpected-keyword-arg, too-many-function-args
+        bin_bedtool = BedTool.from_dataframe(bin_bedtool)
+        ann_bedtool = BedTool(bed_path)
+        bin_bedtool = bin_bedtool.intersect(ann_bedtool, loj=True)
+        # pylint: enable=unexpected-keyword-arg, too-many-function-args
+
+        # Convert result to pandas, rename and remove columns
+        ann_bins = bin_bedtool.to_dataframe()
+        col_names = [None] * ann_bins.shape[1]
+        if in_file_col:
+            col_names[5] = in_file_col
+        if to_keep_cols:
+            col_names[6 : 6 + len(to_keep_cols)] = to_keep_cols
+        ann_bins.columns = col_names
+        ann_bins.drop(labels=[None], axis=1, inplace=True)
+
+        # Free memory space
+        del bin_bedtool, ann_bedtool
+
+        # Replace all cells containing only a dot with NaNs, since "." is
+        # default for bedtools loj in non-matching non-positional columns
+        if in_file_col:
+            ann_bins[in_file_col] = [1 if c != -1 else 0 for c in ann_bins[in_file_col]]
+        if to_keep_cols:
+            ann_bins.replace(r"^\.$", "NaN", regex=True, inplace=True)
+
+        # Create the new bin datasets
+        with open_hdf5(self.store, mode="a") as h5_handle:
+            grp = h5_handle[self.root + "/bins"]
+            for name, vals, dtype in from_df_to_sarrays(ann_bins):
+                grp.create_dataset(name, data=vals, dtype=dtype, compression="gzip")
+        # TODO: Check cooler.core.put, which should be better for storage efficiency,
+        # but currently gives a ValueError for some reason
+
+    def encode_annotation(
+        self,
+        to_encode: list = None,
+        remove_nan_mod: bool = True,
+        force_annotation: bool = False,
+    ) -> None:
+        """Convert bin annotation column(s) to one hot encoding form
+
+        Given a list of bin annotations, replace each of those columns with N
+        other columns (where N is the number of modalities for that column)
+        each of which in one hot encoding form (1 if modality matches, 0
+        otherwise).
+
+        Parameters
+        ----------
+        to_encode : list, optional
+            List (or iterable) of annotations names to split using
+            one-hot encoding. The original column is dropped and the derived
+            ones are named using {original name}_{modality}. (default is None)
+        remove_nan_mod : bool, optional
+            Remove nan modality columns resulting from one hot encoding (if any).
+            (default is True)
+        force_annotation : bool, optional
+            Trying to perform one-hot encoding on annotations with many
+            modalities will issue and error in order to prevent huge file
+            bloating. To suppress the error and split anyway change to True.
+            (dafault is False)
+
+        Notes
+        -----
+        Not found annotation columns are skipped.
+        "chrom", "start", "end" columns cannot be removed.
+        Removed columns still take space, after this process you might want
+        to repack the file (see h5repack tool).
+        """
+
+        max_mods = 10  # Critical number of allowed modalities
+
+        # Remove all elements not present in the new column annotations
+        to_encode = [ann for ann in to_encode if ann in self.available_annotations()]
+
+        if not to_encode:
+            print("WARNING: No valid annotation to encode.")
+
+        # If force, skip modalities number check
+        if not force_annotation:
+            bins = self.bins()[to_encode]
+            too_many_vals = [c for c in to_encode if bins[c][:].nunique() > max_mods]
+
+            if too_many_vals:
+                raise ValueError(
+                    f"The variable(s) {', '.join(too_many_vals)}"
+                    f"has/have more than the maximum number of modalities "
+                    f"allowed ({max_mods}). \nThis could lead to "
+                    f"massive inflation of the matrix. \nIf you wish to proceed"
+                    f" rerun the function with force_annotation=True"
+                )
+
+        with open_hdf5(self.store, mode="a") as h5_handle:
+            # Create the new bin datasets
+            bin_grp = h5_handle[self.root + "/bins"]
+            new_bins = get_dummies(self.bins()[to_encode][:], columns=to_encode)
+            for name, vals, dtype in from_df_to_sarrays(new_bins):
+                bin_grp.create_dataset(name, data=vals, dtype=dtype, compression="gzip")
+            # TODO: change to put, see add_bin_annotation
+
+            # Remove those not needed anymore
+            if remove_nan_mod:
+                to_encode += [c + "_NaN" for c in to_encode if c + "_NaN" in new_bins]
+            delete(bin_grp, to_encode)

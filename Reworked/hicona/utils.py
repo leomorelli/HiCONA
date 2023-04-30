@@ -5,6 +5,8 @@ Placeholder
 from math import floor
 from time import time
 
+import numpy as np
+from pandas import DataFrame
 from scipy import integrate
 
 
@@ -56,3 +58,23 @@ def compute_alpha_val(k: int, weight: float):
     new_alpha = 1 - (k - 1) * integrate.quad(int_func, 0, weight)[0]
 
     return round_half_up(new_alpha, 4)
+
+
+def from_df_to_sarrays(data: DataFrame):
+    """Return each column of a dataframe as a numpy structured array.
+
+    Transform the columns of a dataframe into numpy structured array and
+    define the numpy datatype most appropriate for storage in HDF5 (especially
+    minimum required string fixed length for categorical annotations).
+    """
+    dtypes = data.dtypes
+    for col_name, dtype in zip(data, dtypes):
+        if dtype == "object":
+            str_len = int(data[col_name].str.len().max())
+            str_len = str_len if str_len > 3 else 3
+            dtype = np.dtype(f"S{str_len}")
+
+        new_col = np.zeros(len(data), dtype)
+        new_col[:] = data[col_name].values
+
+        yield (col_name, new_col, dtype)
