@@ -6,32 +6,24 @@ from cooler.util import open_hdf5
 from pandas import DataFrame
 
 
+# TODO: Use Abstract base class?
 class ChunkBordersIterator:
-    """Iterator object of pixel chunk for a specified chromosome.
+    """Iterator object of pixel chunk borders of consistent size.
 
-    Return tuples of two integers to use to slice the full pixel table and
-    only retrieve a chunk of the desired size for the chromosome of interest.
+    Return tuples of two integers to use to slice a pixel table
+    and retrieve a chunk of the desired size (or as big as possible).
 
     Parameters
     ----------
-    store : str
-        Path to the cool/mcool file
-    root : str
-        URI string to resolution of interest
-    extent : tuple
-        String identifier of the chromosome of interest
+    bounds : tuple
+        Upper and lower indexes bounds for table selection
     chunk_size : int
         Number of pixels to span for each chunk
     """
 
-    def __init__(self, store, root, extent, chunk_size):
-        # Retrieve positions of boundary pixels
-        with open_hdf5(store, mode="r") as h5_handle:
-            h5_grp = h5_handle[root]
-            min_off = h5_grp["indexes/bin1_offset"][extent[0]]
-            max_off = h5_grp["indexes/bin1_offset"][extent[1]]
-
+    def __init__(self, bounds, chunk_size):
         # Define number of iterations
+        min_off, max_off = bounds
         self.curr_chunk = 0
         self.num_chunks = -(-(max_off - min_off) // chunk_size)
 
