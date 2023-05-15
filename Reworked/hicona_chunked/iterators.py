@@ -7,7 +7,7 @@ from pandas import DataFrame
 
 
 # TODO: Use Abstract base class?
-class ChunkBordersIterator:
+class FixedSizeIterator:
     """Iterator object of pixel chunk borders of consistent size.
 
     Return tuples of two integers to use to slice a pixel table

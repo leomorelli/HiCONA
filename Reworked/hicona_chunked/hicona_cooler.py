@@ -12,7 +12,7 @@ from numpy import full, log2, where
 from pandas import concat, DataFrame, get_dummies, Series
 from pybedtools import BedTool
 
-from .iterators import ChunkBordersIterator, ChromTablesIterator
+from .iterators import FixedSizeIterator, ChromTablesIterator
 from .utils import console_log, compute_alpha_val, from_df_to_sarrays
 
 __all__ = ["HiconaCooler"]
@@ -66,9 +66,8 @@ class HiconaCooler(Cooler):
     # /////// Class constructor, setter, getters and similar functions ///////
     # ////////////////////////////////////////////////////////////////////////
 
-    def __init__(self, *args, chunk_size: int = 10_000_000, **kwargs):
+    def __init__(self, *args, chunk_size: int = 1_000_000, **kwargs):
         """Extend Cooler class constructor to include processing defaults."""
-
         super().__init__(*args, **kwargs)
         self._chunk_size = chunk_size
 
@@ -97,45 +96,69 @@ class HiconaCooler(Cooler):
             max_ind = h5_grp["indexes/bin1_offset"][extent[1]]
         return (min_ind, max_ind)
 
+    def _ids_chunk_size(self, chrom_id: str):
+        """Define number of bin ids to keep per chunk.
+
+        The number of ids is a constant computed from the proportion
+        chunk_size : num_pix = ids_chunk : num_ind
+        Constant number of ids does NOT lead to constant number of pixels;
+        due to matrix sorting, the number of pixels per chunk decreases.
+        """
+        # TODO: experiment with size check but it is probably slow
+
+        ind_bounds = self.extent(chrom_id)
+        pix_bounds = self._pix_bound_ids(ind_bounds)
+        num_ind = ind_bounds[1] - ind_bounds[0]
+        num_pix = pix_bounds[1] - pix_bounds[0]
+        return max(self._chunk_size * num_ind // num_pix, _MIN_CHUNK_IDS)
+
     def _full_pix_chunks(self, chrom_id: str):
         """Generator function for fixed-size pixel chunks of a chromosome."""
         # TODO: Maybe substitute entirely with chunking by bin1_id
 
         extent = self.extent(chrom_id)
         bound_ids = self._pix_bound_ids(extent)
-        bounds = ChunkBordersIterator(bound_ids, self._chunk_size)
+        bounds = FixedSizeIterator(bound_ids, self._chunk_size)
         for lower, upper in bounds:
             yield self.pixels()[lower:upper]
 
     def _bin1_id_chunks(self, chrom_id: str):
         """Generator function for pixel chunks split by range of bin1_ids."""
 
-        # Define number of bin ids to keep per chunk using:
-        # chunk_size : num_chrom_pix = ids_chunk : num_span_ids
-        # Optimal conditions would assume uniform number of pixels per bin.
-        # In reality and due to sorting, chunk size is decreasing over time.
-        # TODO: experiment with size check but it is probably slow
-        lo_ind, hi_ind = self.extent(chrom_id)
-        num_span_ids = hi_ind - lo_ind
-        lo_pos, hi_pos = self._pix_bound_ids((lo_ind, hi_ind))
-        num_chrom_pix = hi_pos - lo_pos
-        ids_chunk = self._chunk_size * num_span_ids // num_chrom_pix
-        ids_chunk = max(ids_chunk, _MIN_CHUNK_IDS)
-
-        bin1_id_pairs = ChunkBordersIterator((lo_ind, hi_ind), ids_chunk)
+        ind_bounds = self.extent(chrom_id)
+        number_ids = self._ids_chunk_size(chrom_id)
+        bin1_id_pairs = FixedSizeIterator(ind_bounds, number_ids)
         for id_pair in bin1_id_pairs:
             lower, upper = self._pix_bound_ids(id_pair)
             yield self.pixels()[lower:upper]
 
-    def _chrom_pix_chunks(self, table_uri: str):
+    def _filtered_chunks(self, chrom_id: str, indexer: Series):
+        """Placeholder"""
+
+        lo_pix = 0
+        for chunk_df in self._full_pix_chunks(chrom_id):
+            hi_pix = lo_pix + chunk_df.shape[0]
+            filtered_df = chunk_df[indexer[lo_pix:hi_pix].values]
+            lo_pix = hi_pix
+            yield filtered_df
+
+    def _table_chunks(self, table_grp: str, cols_to_get: list[str] = None):
         """Generator function for chromosome table chunks of selected size."""
 
-        min_off = 0
-        max_off = ...  # TODO: way to define table size
-
-        bounds = ChunkBordersIterator((min_off, max_off), self._chunk_size)
+        num_pixels = table_grp.attrs["size"]
+        bounds = FixedSizeIterator((0, num_pixels), self._chunk_size)
         for lower, upper in bounds:
-            yield ...  # TODO: something like self.pixels()[lower:upper]
+            data_dict = {c: table_grp[c][lower:upper] for c in cols_to_get}
+            chunk_df = DataFrame(data_dict)
+            yield chunk_df
+
+    def _distances_chunks(self, table_grp: str):
+        """Placeholder"""
+
+        id_columns = ["bin1_id", "bin2_id"]
+        for chunk_df in self._table_chunks(table_grp, id_columns):
+            chunk_dist = chunk_df[id_columns[1]] - chunk_df[id_columns[0]]
+            yield chunk_dist.to_frame(name="dist_bin")
 
     # ////////////////////////////////////////////////////////////////////////
     # /////////////////////// PRE-PROCESSING FUNCTIONS ///////////////////////
@@ -143,7 +166,7 @@ class HiconaCooler(Cooler):
     # ////////////////////////////////////////////////////////////////////////
 
     @console_log
-    def _index_filter(self, chrom_id: str, count_thr: int, dist_thr: int) -> None:
+    def _index_filter(self, chrom_id: str, count_thr: int, dist_thr: int):
         """Filter out pixels non conformant to some condition.
 
         Remove all pixels that do NOT satisfy at least one of these filters:
@@ -181,17 +204,17 @@ class HiconaCooler(Cooler):
 
         indexer = Series(full(index_length, False), index=range(lower, upper))
         chunks_iter = self._full_pix_chunks(chrom_id)
-        lo_pos = 0
+        lo_pix = 0
 
         for chunk_df in chunks_iter:
-            hi_pos = lo_pos + chunk_df.shape[0]
-            indexer[lo_pos:hi_pos] = (
+            hi_pix = lo_pix + chunk_df.shape[0]
+            indexer[lo_pix:hi_pix] = ~(
                 (chunk_df["bin2_id"] - chunk_df["bin1_id"] >= max_bin_diff)
                 | (chunk_df["count"] <= count_thr)
                 | (chunk_df["bin1_id"] == chunk_df["bin2_id"])
                 | (chunk_df["bin2_id"] >= upper_bin_id)
             )
-            lo_pos = hi_pos
+            lo_pix = hi_pix
 
         return indexer
 
@@ -202,14 +225,14 @@ class HiconaCooler(Cooler):
 
         chunks_iter = self._bin1_id_chunks(chrom_id)
         tot_dups = 0
-        lo_pos = 0
+        lo_pix = 0
 
         for chunk_df in chunks_iter:
-            hi_pos = lo_pos + chunk_df.shape[0]
+            hi_pix = lo_pix + chunk_df.shape[0]
             is_duplicate = chunk_df.duplicated(subset=["bin1_id", "bin2_id"])
             tot_dups += sum(is_duplicate)
-            indexer[lo_pos:hi_pos] = indexer[lo_pos:hi_pos] | is_duplicate
-            lo_pos = hi_pos
+            indexer[lo_pix:hi_pix] = indexer[lo_pix:hi_pix] & (~is_duplicate)
+            lo_pix = hi_pix
 
         if tot_dups != 0:
             print(f"Warning, {tot_dups} duplicate (unfiltered) pixels found.")
@@ -224,10 +247,85 @@ class HiconaCooler(Cooler):
         for col_name, col_type in _TABLE_COLS.items():
             chrom_table.create_dataset(col_name, (table_size,), dtype=col_type)
 
-    def _save_to_table(self, table_grp: str):
+        return chrom_table
+
+    def _save_to_table(
+        self,
+        chrom_table: str,
+        chunks_generator,
+        cols_to_save: list[str] = None,
+    ):
         """Placeholder"""
         # TODO: change typing of table_grp since it is not really a string
-        ...
+        # TODO: Find a way to add typing to generator
+        lo_pix = 0
+        for chunk_df in chunks_generator:
+            hi_pix = lo_pix + chunk_df.shape[0]
+
+            # If no columns are specified, default to all of them
+            if not cols_to_save:
+                cols_to_save = chunk_df.columns.tolist()
+
+            # Save df columns to the appropriate datasets
+            for col_name in cols_to_save:
+                table_col = chrom_table[col_name]
+                table_col[lo_pix:hi_pix] = chunk_df[col_name]
+
+            lo_pix = hi_pix
+
+    def _add_bin_dist(self, chrom_table):
+        """Placeholder"""
+
+        dist_chunks = self._distances_chunks(chrom_table)
+        self._save_to_table(chrom_table, dist_chunks)
+
+    def _add_norm_dist(self, chrom_table):
+        """Placeholder"""
+
+        cols_of_int = ["dist_bin", "count"]
+        # Create the chunks
+        # TODO: "count" column is retrieved only to be able to use
+        # the .count() method, find a more elegant way?
+        dist_chunks = self._table_chunks(chrom_table, cols_of_int)
+        dist_chunks = [c.groupby("dist_bin").count() for c in dist_chunks]
+
+        # Aggregate them
+        # TODO: .add() casts int to float, which should not be an issue
+        # (df way smaller than chunks), but maybe check for alternative
+        cum_sum = dist_chunks[0]
+        for chunk_num in range(1, len(dist_chunks)):
+            cum_sum = cum_sum.add(dist_chunks[chunk_num], fill_value=0)
+        cum_sum = cum_sum.cumsum()
+        del dist_chunks
+        print(cum_sum)
+
+        num_chunks = -(-chrom_table.attrs["size"] // self._chunk_size)
+        cutoffs = [self._chunk_size * (k + 1) for k in range(num_chunks)]
+        cutoffs = [cum_sum[cum_sum["count"] <= c].index[-1] for c in cutoffs]
+        cutoffs = [0] + [int(c) for c in cutoffs]
+        print(cutoffs)
+
+        # TODO: create arbitrary size chunks or something
+        decay_curve = Series(full(len(cum_sum), 0), index=cum_sum.index)
+        for ind in range(num_chunks):
+            print(f"Decay at beginning of chunk {ind}")
+            print(decay_curve)
+            container = DataFrame(full((self._chunk_size, 2), 0), columns=cols_of_int)
+            lo_bin, hi_bin = cutoffs[ind : ind + 2]
+            lo_pos = 0
+            for chunk in self._table_chunks(chrom_table, cols_of_int):
+                print(chunk)
+                index = (chunk["dist_bin"] > lo_bin) & (chunk["dist_bin"] <= hi_bin)
+                print(chunk[index])
+                hi_pos = lo_pos + sum(index)
+                print(lo_pos, hi_pos)
+                print(chunk[index].set_index("dist_bin"))
+                container[lo_pos:hi_pos] = chunk[index].set_index(
+                    "dist_bin", inplace=True
+                )
+                lo_pos = hi_pos
+
+            print(container.groupby("dist_bin")["count"].median())
 
     @console_log
     def compute_decay(self, pix_df: DataFrame, stat: str = "median") -> None:
@@ -272,8 +370,6 @@ class HiconaCooler(Cooler):
             edge_attr=["exp_ratio", "spar_alpha"],
         )
 
-        print(pix_df.shape)
-
         for node in graph:
             num_neighbours = len(graph[node])
 
@@ -285,7 +381,7 @@ class HiconaCooler(Cooler):
             weigths_sum = sum(graph[node][n]["exp_ratio"] for n in graph[node])
             for neigh in graph[node]:
                 norm_weight = graph[node][neigh]["exp_ratio"] / weigths_sum
-                new_alpha, cache = compute_alpha_val(num_neighbours, norm_weight)
+                new_alpha = compute_alpha_val(num_neighbours, norm_weight)
                 old_aplha = graph[node][neigh]["spar_alpha"]
                 graph[node][neigh]["spar_alpha"] = min(old_aplha, new_alpha)
 
@@ -308,8 +404,6 @@ class HiconaCooler(Cooler):
         chrom_id: str,
         table_root: str,
         remove_dups: bool,
-        chunk_size: int,
-        split_factor: int,
     ) -> None:
         """Create chromosome-level table given the set of parameters."""
 
@@ -321,27 +415,27 @@ class HiconaCooler(Cooler):
         # If the table does not already exist
         if chrom_id not in table_root:
             # Create indexer of the rows to keep (optionally flag duplicate pixels)
-            to_remove_ind = self._index_filter(chrom_id, count_thr, dist_thr)
+            ind_to_keep = self._index_filter(chrom_id, count_thr, dist_thr)
             if remove_dups:
-                self._deduplicate_index(to_remove_ind, chrom_id)
+                self._deduplicate_index(ind_to_keep, chrom_id)
 
-            # Create container
-            table_size = to_remove_ind.shape[0] - sum(to_remove_ind)
-            self._initialize_table(chrom_id, table_root, table_size)
-            self._save_filt_pixels(
-                table_root[chrom_id],
-                chrom_id,
-                table_root,
-            )
+            # Create table
+            table_size = sum(ind_to_keep)
+            print(ind_to_keep.shape[0], sum(ind_to_keep))
+            chrom_table = self._initialize_table(chrom_id, table_root, table_size)
 
-            # Process the chromosome pixels
-            self.compute_decay(chrom_pix, decay_stat)
-            self.add_sparsity_val(chrom_pix)
+            # Save chunks to table
+            chunks_generator = self._filtered_chunks(chrom_id, ind_to_keep)
+            self._save_to_table(chrom_table, chunks_generator)
 
-            # Save the dataframe columns as individual 1D-arrays (for storage)
-            chrom_table = table_root.create_group(chrom_id)
-            for column in chrom_pix.columns:
-                chrom_table.create_dataset(column, data=chrom_pix[column])
+            # Compute decay statistic
+            self._add_bin_dist(chrom_table)
+            self._add_norm_dist(chrom_table)
+
+            # # Process the chromosome pixels
+            # self.compute_decay(chrom_pix, decay_stat)
+            # self.add_sparsity_val(chrom_pix)
+
         else:
             print(f"WARNING: {chrom_id} already processed with these params, skipping.")
 
@@ -363,8 +457,6 @@ class HiconaCooler(Cooler):
         dist_thr: int = 200_000_000,
         decay_stat: str = "median",
         remove_dups: bool = True,
-        chunk_size: int = 10_000_000,
-        split_factor: int = 5,
     ) -> None:
         """Process and create chromosome-level tables to use for network construction.
 
@@ -410,9 +502,7 @@ class HiconaCooler(Cooler):
             # Create chromosome-level groups and datasets
             for chrom_id in chrom_selection:
                 print(f"STARTING {chrom_id}")
-                self._create_chrom_table(
-                    chrom_id, table_grp, remove_dups, chunk_size, split_factor
-                )
+                self._create_chrom_table(chrom_id, table_grp, remove_dups)
 
     def tables_info(self) -> None:
         """Print available chromosome tables for each set of parameters."""
@@ -563,6 +653,11 @@ class HiconaCooler(Cooler):
                 table = annotate(table, bin_table, replace)
 
             yield (table, info)
+
+    # ////////////////////////////////////////////////////////////////////////
+    # ///////////////////////// ANNOTATION FUNCTIONS /////////////////////////
+    # ////////////////// Add/process bin annotation columns //////////////////
+    # ////////////////////////////////////////////////////////////////////////
 
     def add_bin_annotation(
         self,

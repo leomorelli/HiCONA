@@ -46,7 +46,7 @@ def integration_cache(func):
         int_key = str(args) + str(kwargs)
         if int_key not in int_cache:
             int_cache[int_key] = func(*args, **kwargs)
-        return int_cache[int_key], int_cache
+        return int_cache[int_key]
 
     return integral_wrapper
 
