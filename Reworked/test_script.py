@@ -2,13 +2,9 @@
 
 from hicona import HiconaCooler
 
-COOL_PATH = "test_files/small.mcool::resolutions/10000"
+COOL_PATH = "test_files/copy_lieberman.mcool::resolutions/10000"
+CHROM = "chr17"
 hc = HiconaCooler(COOL_PATH)
-hc.available_annotations(show=True)
-hc.add_bin_annotation(
-    "test_files/promoter_with_info.bed",
-    to_keep_cols=[None, "strand"],
-)
-print(hc.bins()[1:10])
-hc.encode_annotation(["strand"])
-print(hc.bins()[1:10])
+hc.create_tables(dist_thr=200_000_000)
+# for table in hc.tables([CHROM]):
+#     print(table)
