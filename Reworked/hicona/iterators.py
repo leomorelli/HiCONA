@@ -7,7 +7,7 @@ from pandas import DataFrame
 
 
 class ChunkBordersIterator:
-    """Iterator object of pixel chunk for a specified chromosome.
+    """Iterator object of pixel chunks for a specified chromosome.
 
     Return tuples of two integers to use to slice the full pixel table and
     only retrieve a chunk of the desired size for the chromosome of interest.

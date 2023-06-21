@@ -78,3 +78,10 @@ def from_df_to_sarrays(data: DataFrame):
         new_col[:] = data[col_name].values
 
         yield (col_name, new_col, dtype)
+
+
+def pd_to_gt_dtype(pd_dtype: str):
+    """Convert pandas-like datatypes to graph-tools datatypes"""
+    gt_dtype = "int"
+
+    return gt_dtype

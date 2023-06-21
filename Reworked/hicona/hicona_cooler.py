@@ -1,7 +1,17 @@
-"""Placeholder
-Placeholder
+"""Main I/O handling object extending Cooler functionality and format.
+
+Main object to handle .cool/.mcool files and extending them into .hico
+format (strict extension, base functionality and structure preserved).
+
+Perform all the pre-processing required to obtain chromosome level
+tables which can be stored in the "/chrom_tables" group and retrieved 
+(as iterator of table matching a criterion).
+
+TODO: Currently loading full chromosome in memory, working on side 
+branch that performs operations in chunks to limit memory usage.
 """
 
+from collections.abc import Generator
 import re
 
 from cooler import Cooler, annotate
@@ -9,7 +19,7 @@ from cooler.core import delete
 from cooler.util import open_hdf5
 from networkx import from_pandas_edgelist, to_pandas_edgelist
 from numpy import log2, where
-from pandas import concat, DataFrame, get_dummies
+import pandas as pd
 from pybedtools import BedTool
 
 from .iterators import ChunkBordersIterator, ChromTablesIterator
@@ -49,7 +59,9 @@ class HiconaCooler(Cooler):
     of available tables use :py:meth:`tables_info`.
     """
 
-    def _pixel_chunks(self, chrom_id: str, chunk_size: int):
+    def _pixel_chunks(
+        self, chrom_id: str, chunk_size: int
+    ) -> Generator[pd.DataFrame, None, None]:
         """Generator function for pixel chunks of specified chromosome and size."""
 
         extent = self.extent(chrom_id)
@@ -57,13 +69,13 @@ class HiconaCooler(Cooler):
         for lower, upper in borders:
             yield self.pixels()[lower:upper]
 
-    def filter_pixels(
+    def _filter_pixels(
         self,
-        pix_df: DataFrame,
+        pix_df: pd.DataFrame,
         chrom_id: str,
         count_thr: int,
         dist_thr: int,
-    ) -> None:
+    ) -> pd.DataFrame:
         """Filter out pixels non conformant to some condition.
 
         Remove all pixels that do NOT satisfy at least one of these filters:
@@ -74,7 +86,7 @@ class HiconaCooler(Cooler):
 
         Parameters
         ----------
-        pix_df : :py:class:`DataFrame`
+        pix_df : :py:class:`pd.DataFrame`
             Dataframe of pixels to filter.
         chrom_id : str
             Id of the chromosome whose internal pixels should be kept.
@@ -107,30 +119,29 @@ class HiconaCooler(Cooler):
         return pix_df
 
     @console_log
-    def get_filtered_pixels(self, chrom_id, count_thr, dist_thr, chunk_size=10_000_000):
+    def _get_filtered_pixels(
+        self, chrom_id: str, count_thr: int, dist_thr: int, chunk_size: int = 10_000_000
+    ) -> pd.DataFrame:
         """Filter pixels in chunks and return a single dataframe."""
 
         c_iter = self._pixel_chunks(chrom_id, chunk_size=chunk_size)
-        pix_df = [self.filter_pixels(c, chrom_id, count_thr, dist_thr) for c in c_iter]
-        pix_df = concat(pix_df, axis=0)
+        pix_df = [self._filter_pixels(c, chrom_id, count_thr, dist_thr) for c in c_iter]
+        pix_df = pd.concat(pix_df, axis=0)
 
         return pix_df
 
     @console_log
-    def drop_duplicate_pixels(self, pix_df):
+    def _drop_duplicate_pixels(self, pix_df: pd.DataFrame) -> pd.DataFrame:
         """pandas.drop_duplicates wrapper for logging purposes."""
 
         start_size = pix_df.shape[0]
-        pix_df[pix_df[["bin1_id", "bin2_id"]].duplicated(keep=False)].to_csv(
-            "duplicated2.csv"
-        )
         pix_df.drop_duplicates(subset=["bin1_id", "bin2_id"], inplace=True)
         size_diff = start_size - pix_df.shape[0]
         if size_diff != 0:
             print(f"Warning, {size_diff} duplicate rows were dropped.")
 
     @console_log
-    def compute_decay(self, pix_df: DataFrame, stat: str = "median") -> None:
+    def _compute_decay(self, pix_df: pd.DataFrame, stat: str) -> None:
         """Add expected counts ratio column to the pixels dataframe.
 
         For each pixel compute the expected counts ratio as log2(1 +
@@ -145,7 +156,7 @@ class HiconaCooler(Cooler):
         pix_df.drop("bin_difference", axis=1, inplace=True)
 
     @console_log
-    def add_sparsity_val(self, pix_df: DataFrame) -> None:
+    def _add_sparsity_val(self, pix_df: pd.DataFrame) -> None:
         """Add alpha value column to dataframe (computed as per Serrano et al. 2009).
 
         Add a column to the dataframe containing the alpha values for the edges,
@@ -183,14 +194,10 @@ class HiconaCooler(Cooler):
             weigths_sum = sum(graph[node][n]["exp_ratio"] for n in graph[node])
             for neigh in graph[node]:
                 norm_weight = graph[node][neigh]["exp_ratio"] / weigths_sum
-                new_alpha, cache = compute_alpha_val(num_neighbours, norm_weight)
+                new_alpha, _ = compute_alpha_val(num_neighbours, norm_weight)
                 old_aplha = graph[node][neigh]["spar_alpha"]
                 graph[node][neigh]["spar_alpha"] = min(old_aplha, new_alpha)
 
-        import pandas as pd
-
-        cache_df = pd.DataFrame.from_dict(cache, orient="index")
-        cache_df.to_csv("cache_chr1.csv")
         # TODO: cannot find if to_pandas_edgelist is already sorted or not
         graph = to_pandas_edgelist(graph, source="bin1_id", target="bin2_id")
 
@@ -216,10 +223,10 @@ class HiconaCooler(Cooler):
 
         if chrom_id not in table_root:
             # Process the chromosome pixels
-            chrom_pix = self.get_filtered_pixels(chrom_id, count_thr, dist_thr)
-            self.drop_duplicate_pixels(chrom_pix)
-            self.compute_decay(chrom_pix, decay_stat)
-            self.add_sparsity_val(chrom_pix)
+            chrom_pix = self._get_filtered_pixels(chrom_id, count_thr, dist_thr)
+            self._drop_duplicate_pixels(chrom_pix)
+            self._compute_decay(chrom_pix, decay_stat)
+            self._add_sparsity_val(chrom_pix)
 
             # Save the dataframe columns as individual 1D-arrays (for storage)
             chrom_table = table_root.create_group(chrom_id)
@@ -586,7 +593,7 @@ class HiconaCooler(Cooler):
         with open_hdf5(self.store, mode="a") as h5_handle:
             # Create the new bin datasets
             bin_grp = h5_handle[self.root + "/bins"]
-            new_bins = get_dummies(self.bins()[to_encode][:], columns=to_encode)
+            new_bins = pd.get_dummies(self.bins()[to_encode][:], columns=to_encode)
             for name, vals, dtype in from_df_to_sarrays(new_bins):
                 bin_grp.create_dataset(name, data=vals, dtype=dtype, compression="gzip")
             # TODO: change to put, see add_bin_annotation
