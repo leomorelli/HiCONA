@@ -3,14 +3,12 @@ Placeholder
 """
 
 from collections.abc import Iterable
-from itertools import combinations
 
 import numpy as np
 import pandas as pd
 import graph_tool.all as gt
-from matplotlib import pyplot as plt
 
-from .utils import pd_to_gt_dtype, console_log
+from .utils import pd_to_gt_dtype, annotation_combinations
 
 __all__ = ["HiconaGraph"]
 
@@ -57,16 +55,16 @@ class HiconaGraph(gt.Graph):
         super().__init__(dataf.values, eprops=eprops)
 
         # Reduce annotation dataframe to only the nodes in the network
-        ann_df = ann_df.filter(items=vids, axis=0)
-        ann_df.reset_index(inplace=True)
-        ann_df.rename(columns={"index": "bin_id"}, inplace=True)
-        assert len(vids) == len(ann_df)
+        filt_ann = ann_df.filter(items=vids, axis=0)
+        filt_ann.reset_index(inplace=True)
+        filt_ann.rename(columns={"index": "bin_id"}, inplace=True)
+        assert len(vids) == len(filt_ann)
 
         # Add node annotations via bin dataframe
         # TODO: Typing is manually fixed for now, have to define exact conversion
-        vprops = [(p, pd_to_gt_dtype(ann_df[p].dtype.name)) for p in ann_df]
+        vprops = [(p, pd_to_gt_dtype(filt_ann[p].dtype.name)) for p in filt_ann]
         for name, dtype in vprops:
-            vprop = self.new_vertex_property(dtype, ann_df[name])
+            vprop = self.new_vertex_property(dtype, filt_ann[name])
             self.vp[name] = vprop
 
     def _node_statistics(self, stat, mask):
@@ -87,79 +85,96 @@ class HiconaGraph(gt.Graph):
 
         return stats_list
 
-    def _perm_diff(self, stats_list, attr_ohe, rng):
-        """Compute average difference of the statistic for a single permutation."""
-        # TODO: Remove self or redefine in inner scope?
-        perm_ohe = attr_ohe[:, rng.permutation(attr_ohe.shape[1])]
-        diff = -np.diff((perm_ohe * stats_list).sum(axis=1) / perm_ohe.sum(axis=1))[0]
-        return diff
+    def _create_ann_ohe(self, attr_list):
+        """Placeholder"""
+        ohe = np.vstack([self.vp[a].get_array() for a in attr_list if a is not None])
+        ohe = np.vstack([ohe, np.ones(self.num_vertices())]) if len(ohe) == 1 else ohe
+        return ohe
 
-    def _attr_permutation(self, attr1, attr2, stat, num_trials, seed, save_path=None):
-        """Placeholder
-        Placeholder
-        """
+    def _compute_perms(
+        self,
+        annot_ohe: np.array,
+        node_vals: np.array,
+        num_perms: int,
+        rand_seed: int,
+    ):
+        """Return p-value for H1: stat(annA) - stat(annB) > 0"""
+        # TODO: Try multiple permutations at one to speed up (memory cost?)
 
-        # Retrieve indices of the two annotations (each column is a node)
-        arr1 = self.vp[attr1].get_array()
-        arr2 = self.vp[attr2].get_array() if attr2 else np.ones(self.num_vertices())
-        ohe = np.vstack((arr1, arr2))
-        del arr1, arr2
+        def _perm_diff(values, ohe, rng=None):
+            """Compute average stat difference for a single permutation."""
+            ohe = ohe if rng is None else ohe[:, rng.permutation(ohe.shape[1])]
+            res = -np.diff((ohe * values).sum(axis=1) / ohe.sum(axis=1))[0]
+            return res
 
-        # Compute the statistic only for the nodes of interest
-        perm_mask = ohe.sum(axis=0) != 0  # Node has at least one annotation
-        stat_vals = self._node_statistics(stat, perm_mask)
-        ohe = ohe[:, perm_mask]
+        # Filter only for nodes with at least one of the annotations
+        perm_mask = annot_ohe.sum(axis=0) != 0
+        stat_vals = node_vals[perm_mask]
+        annot_ohe = annot_ohe[:, perm_mask]
+        del perm_mask
 
-        # Return NaNs instead of p-values if one of the two OHE is zero across the
-        # entire board, meaning that no node has that annotation
-        abundance_a, abundance_b = ohe.sum(axis=1)
-        if abundance_a * abundance_b == 0:
-            return {"a != b": np.nan, "a > b": np.nan, "a < b": np.nan}
+        # Return none if at least one of the annotation is fully zero
+        if np.prod(annot_ohe.sum(axis=1)) == 0:
+            return np.nan
 
-        # Compute average difference of the statistic for the original annotation...
-        # ... then for all permutation and compute p-value
-        rng = np.random.default_rng(seed)
-        original = -np.diff((ohe * stat_vals).sum(axis=1) / ohe.sum(axis=1))[0]
-        permuted = [self._perm_diff(stat_vals, ohe, rng) for _ in range(num_trials)]
-        result = {
-            "a != b": ((abs(original) < abs(np.array(permuted))).sum() / num_trials),
-            "a > b": ((original < permuted).sum() / num_trials),
-            "a < b": ((original > permuted).sum() / num_trials),
-        }
-
-        # Plot statistic difference distribution
-        if save_path:
-            plt_lim = max(abs(min(permuted)), abs(max(permuted)))
-            plt_lim = plt_lim if plt_lim else 1
-            plt.hist(permuted, range=(-plt_lim, plt_lim), bins=20)
-            plt.axvline(original, color="#eb7a34")
-            plt.savefig(save_path)
-            plt.clf()
+        # Compute p-value by comparing original value and generated histogram
+        rng = np.random.default_rng(rand_seed)
+        original = _perm_diff(stat_vals, annot_ohe)
+        permuted = [_perm_diff(stat_vals, annot_ohe, rng) for _ in range(num_perms)]
+        result = ((original < permuted).sum() + 1) / (num_perms + 1)
 
         return result
 
-    # @console_log
-    def permute_attributes(
+    def permute_annotations(
         self,
-        attributes: str | Iterable[str],
+        ann_list: str | Iterable[str],
         statistic: str,
-        num_trials: int = 1000,
-        pval_correction: str = "Bonferroni",
+        num_perms: int = 1000,
         seed: int = 94206,
-        plot_path: str = None,
     ):
-        """Placeholder
-        Placeholder
+        """Compute p-values for node label permutations.
+
+        Given a subset of node annotations of the graph, first compute all
+        combinations of one (annA vs universe, e.i. all nodes in the graph) or
+        two annotations (annA vs annB), then for each of them compute the
+        p-value for the test H1: stat(annA) - stat(annB) > 0 using node label
+        permutations (randomly permute the attributes among nodes without
+        changing graph structure).
+
+        Parameters
+        ----------
+        ann_list : str | Iterable[str]
+            List of annotations (or single annotation) to permute.
+        statistic : str
+            Node-level statistic to use in the test.
+        num_perms : int = 1000
+            Number of label permutation iterations to perform.
+        seed : int = 94206
+            Rng seed for the label permutations.
         """
-        # TODO: check that the attributes are in OHE
+        # TODO: Add pvalue correction
+        ann_list = [ann_list, None] if isinstance(ann_list, str) else ann_list
 
-        # If the attribute is a string, convert it to list with one element
-        attributes = [attributes] if isinstance(attributes, str) else attributes
-        attributes = [*attributes, None] if len(attributes) == 1 else attributes
+        # Compute the statistic only for the nodes of interest (when possible)
+        # full_mask = self._create_ann_ohe(ann_list).sum(axis=0) != 0
+        # node_vals = np.zeros(self.num_vertices())
+        # node_vals[full_mask] = self._node_statistics(statistic, full_mask)
+        # del full_mask
+        node_vals = self._node_statistics(statistic, np.ones(self.num_vertices()))
 
-        pvals = []
-        for comb in combinations(attributes, 2):
-            res = self._attr_permutation(*comb, statistic, num_trials, seed, plot_path)
-            pvals.append(res)
+        # Compute pvalues for all 1 and 2 annotation pairs
+        res_dicts = []
+        for pair in annotation_combinations(ann_list):
+            pair_ohe = self._create_ann_ohe(pair)
+            pval = self._compute_perms(pair_ohe, node_vals, num_perms, seed)
+            res_dicts.append(
+                {
+                    "a": pair[0],
+                    "b": pair[1] if len(pair) == 2 else "universe",
+                    "pval": pval,
+                    "num_perms": num_perms,
+                    "statistic": statistic,
+                }
+            )
 
-        return pvals
+        return res_dicts

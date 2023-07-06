@@ -2,6 +2,7 @@
 Placeholder 
 """
 
+from itertools import chain, combinations
 from math import floor
 from time import time
 
@@ -13,6 +14,7 @@ from scipy import integrate
 # Store conversion dict since there is no automatic way to pass from ...
 # ... pandas/numpy dtypes to graph-tool dtypes.
 DTYPE_CONVERSION_DICT = {
+    "int32": "int",
     "int64": "long",
     "float64": "long double",
     "object": "string",
@@ -92,3 +94,10 @@ def from_df_to_sarrays(data: DataFrame):
 def pd_to_gt_dtype(pd_dtype: str):
     """Convert pandas-like datatypes to graph-tools datatypes"""
     return DTYPE_CONVERSION_DICT[pd_dtype]
+
+
+def annotation_combinations(iterable, k_vals=(1, 2)):
+    """Return iterable of all combinations for all k_vals"""
+
+    comb = [combinations(iterable, k) for k in k_vals]
+    return list(chain.from_iterable(comb))

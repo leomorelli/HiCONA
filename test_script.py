@@ -1,68 +1,134 @@
-import os
+"""Script to try out functions during development"""
 
-import pandas as pd
+import csv
+from datetime import datetime
 
-from hicona import HiconaGraph
+from hicona import HiconaCooler, HiconaGraph
+from hicona.utils import annotation_combinations
 
-FOLDERS = [
-    # "test_files/Rao_2014_HUVEC_top_500000",
-    # "test_files/Rao_2014_IMR90_top_500000",
-    # "test_files/Rao_2014_HUVEC_full",
-    "test_files/Rao_2014_IMR90_full",
-]
-PERMS = [["1_TssA", "Bound"], ["1_TssA"], ["7_Enh", "Bound"], ["7_Enh"]]
+IN_FOLDER = "test_files"
+OUT_FOLDER = "results"
+BIN_SIZES = [10_000]  # 5_000]
+
 """
-PERMS = [
-    ["H3K27ac"],
-    ["H3K27me3"],
-    ["H3K4me1"],
-    ["H3K4me3"],
-    ["H3K9me3"],
-    ["H3K27ac", "H3K27me3"],
-    ["H3K27ac", "H3K9me3"],
-    ["H3K4me3", "H3K27me3"],
-    ["H3K4me3", "H3K9me3"],
+FILES = [
+    {
+        "name": "Rao_2014_HUVEC_MboI_4DNFIRMZ7QTE.mcool",
+        "alpha_threshold": 0.21,
+    },
+    {
+        "name": "Rao_2014_HMEC_MboI_4DNFIGUIV5KO.mcool",
+        "alpha_threshold": 0.2,
+    },
+    {
+        "name": "Rao_2014_IMR90_MboI_4DNFIJTOIGOI.mcool",
+        "alpha_threshold": 0.16,
+    },
+    {
+        "name": "Rao_2014_GM_MboI_4DNFIXP4QG5B.mcool",
+        "alpha_threshold": 0.15,
+    },
 ]
 """
+
+FILES = [
+    {
+        "name": "Rao_2014_HUVEC_MboI_4DNFIRMZ7QTE.mcool",
+        "alpha_threshold": 0.05,
+    },
+    {
+        "name": "Rao_2014_HUVEC_MboI_4DNFIRMZ7QTE.mcool",
+        "alpha_threshold": 0.10,
+    },
+    {
+        "name": "Rao_2014_HUVEC_MboI_4DNFIRMZ7QTE.mcool",
+        "alpha_threshold": 0.15,
+    },
+    {
+        "name": "Rao_2014_HUVEC_MboI_4DNFIRMZ7QTE.mcool",
+        "alpha_threshold": 0.20,
+    },
+    {
+        "name": "Rao_2014_HUVEC_MboI_4DNFIRMZ7QTE.mcool",
+        "alpha_threshold": 0.25,
+    },
+    {
+        "name": "Rao_2014_HUVEC_MboI_4DNFIRMZ7QTE.mcool",
+        "alpha_threshold": 0.30,
+    },
+    {
+        "name": "Rao_2014_HUVEC_MboI_4DNFIRMZ7QTE.mcool",
+        "alpha_threshold": 0.35,
+    },
+    {
+        "name": "Rao_2014_HUVEC_MboI_4DNFIRMZ7QTE.mcool",
+        "alpha_threshold": 0.40,
+    },
+]
+
+ANNOTS = [
+    "heterochromatin",
+    "enhancer",
+    "polycomb",
+    "promoter",
+]  # "Bound"]
+STAT = "ave_degree"  # "ave_degree"
 NUM_PERMS = 1_000
-STATS = ["betweenness", "ave_degree"]  # "betweenness"]
-ANN_FILE = "bin_annotation.csv"
-ALPHA_THR = 0.15
-OUT_FOLDER = f"permutation_results_{ALPHA_THR}_OPT"
 
-for folder in FOLDERS:
-    for stat in STATS:
-        fold_name = folder.split("/")[-1]
-        print(f"Working on folder: {fold_name}")
-        out_dir = os.path.join(OUT_FOLDER, f"plots_{fold_name}_{stat}")
-        os.makedirs(out_dir)
-        p_vals = []
-        annot_df = pd.read_csv(os.path.join(folder, ANN_FILE), index_col=0)
-        chroms = [f for f in os.listdir(folder) if f.startswith("chr")]
-        for file in chroms:
-            print(f"--Working on chromosome: {file}")
-            chr_df = pd.read_csv(os.path.join(folder, file), index_col=0)
-            chr_df = chr_df[chr_df["spar_alpha"] < ALPHA_THR]
-            network = HiconaGraph(chr_df, ann_df=annot_df)
-            for perm in PERMS:
-                print(f"----Working on permutation: {perm}")
-                col_a = perm[0]
-                col_b = perm[1] if len(perm) == 2 else "universe"
-                test = f"{col_a}_vs_{col_b}"
-                plt_path = f"{file.split('.')[0]}_{stat}_{test}_{NUM_PERMS}.png"
-                plt_path = os.path.join(out_dir, plt_path)
-                perm_res = network.permute_attributes(
-                    perm,
-                    stat,
-                    NUM_PERMS,
-                    plot_path=plt_path,
-                )
-                print(f"----Got {perm_res}")
-                perm_res = perm_res[0]
-                perm_res["chr"] = file[3:-4]
-                perm_res["a"] = col_a
-                perm_res["b"] = col_b
-                p_vals.append(perm_res)
+# Create output file
+res_path = f"permutation_results_{datetime.now().strftime('%Y%m%d_%H:%M:%S')}"
+res_path = f"{OUT_FOLDER}/{res_path}"
+with open(res_path, "w", encoding="utf-8") as out_file:
+    writer = csv.writer(out_file)
+    writer.writerow(
+        [
+            "file_name",
+            "bin_size",
+            "chrom",
+            "alpha_threshold",
+            "a",
+            "b",
+            "pval",
+            "num_perms",
+            "statistic",
+        ]
+    )
 
-        pvals_df = pd.DataFrame(p_vals)
-        pvals_df.to_csv(os.path.join(out_dir, f"pvals_{stat}.csv"))
+# Pocess the files
+for bin_size in BIN_SIZES:
+    print(f"Working of statistic: {STAT}")
+    print(f"Working of bin size: {bin_size}")
+
+    for file_dict in FILES:
+        print(f"-- Working on file: {file_dict['name']}")
+        print(f"-- Working with alpha_threshold: {file_dict['alpha_threshold']}")
+
+        file_path = f"{IN_FOLDER}/{file_dict['name']}::resolutions/{bin_size}"
+        handle = HiconaCooler(file_path)
+        ann_df = handle.bins()[:][ANNOTS]
+        tables_iterator = handle.tables(dist_thr=200_000_000)
+        assert len(tables_iterator) == 24
+
+        for table, info in tables_iterator:
+            print(f"---- Working on table: {info['chromosome']}")
+
+            table = table[table["spar_alpha"] < file_dict["alpha_threshold"]]
+            chrom_graph = HiconaGraph(table, ann_df=ann_df)
+            perm_res = chrom_graph.permute_annotations(ANNOTS, STAT, NUM_PERMS)
+
+            with open(res_path, "a", encoding="utf-8") as out_file:
+                writer = csv.writer(out_file)
+                for res in perm_res:
+                    writer.writerow(
+                        [
+                            file_dict["name"],
+                            bin_size,
+                            info["chromosome"],
+                            file_dict["alpha_threshold"],
+                            res["a"],
+                            res["b"],
+                            res["pval"],
+                            res["num_perms"],
+                            res["statistic"],
+                        ]
+                    )

@@ -79,6 +79,9 @@ class ChromTablesIterator:
         self.uri_index = 0
         self.max_uri = len(uris)
 
+    def __len__(self):
+        return self.max_uri
+
     def __iter__(self):
         return self
 
