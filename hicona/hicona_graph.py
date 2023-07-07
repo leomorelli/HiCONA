@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import graph_tool.all as gt
 
-from .utils import pd_to_gt_dtype, annotation_combinations
+from .utils import pd_to_gt_dtype, annotation_combinations, console_log
 
 __all__ = ["HiconaGraph"]
 
@@ -79,7 +79,9 @@ class HiconaGraph(gt.Graph):
         elif stat == "betweenness":
             weight_map = self.ep["exp_ratio"]
             stats_list, _ = gt.betweenness(self, weight=weight_map)
-            stats_list = stats_list.get_array()[mask.nonzero()[0]]
+        elif stat == "clustering_coeff":
+            weight_map = self.ep["exp_ratio"]
+            stats_list = gt.local_clustering(self, weight=weight_map).get_array()
         else:
             raise ValueError(f"{stat} is not among the supported statistics.")
 
@@ -155,11 +157,6 @@ class HiconaGraph(gt.Graph):
         # TODO: Add pvalue correction
         ann_list = [ann_list, None] if isinstance(ann_list, str) else ann_list
 
-        # Compute the statistic only for the nodes of interest (when possible)
-        # full_mask = self._create_ann_ohe(ann_list).sum(axis=0) != 0
-        # node_vals = np.zeros(self.num_vertices())
-        # node_vals[full_mask] = self._node_statistics(statistic, full_mask)
-        # del full_mask
         node_vals = self._node_statistics(statistic, np.ones(self.num_vertices()))
 
         # Compute pvalues for all 1 and 2 annotation pairs

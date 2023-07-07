@@ -11,10 +11,10 @@ TODO: Currently loading full chromosome in memory, working on side
 branch that performs operations in chunks to limit memory usage.
 """
 
-from collections.abc import Generator
+from collections.abc import Generator, Iterable
 import re
 
-from cooler import Cooler, annotate
+from cooler import Cooler, annotate, create_cooler
 from cooler.core import delete
 from cooler.util import open_hdf5
 from networkx import from_pandas_edgelist, to_pandas_edgelist
@@ -350,7 +350,6 @@ class HiconaCooler(Cooler):
         count_thr: int = None,
         dist_thr: int = None,
         decay_stat: str = None,
-        alpha_thr: float = None,
     ) -> ChromTablesIterator:
         """Return an iterator of selected tables and respective information.
 
@@ -395,60 +394,10 @@ class HiconaCooler(Cooler):
             valid_groups = [g for g in tables_grp if grp_regex.match(g)]
             valid_tables = []
             for grp in valid_groups:
-                tabs = [grp + "/" + c for c in tables_grp[grp] if c in chrom_selection]
+                tabs = [grp + "/" + c for c in chrom_selection if c in tables_grp[grp]]
                 valid_tables.extend(tabs)
 
-        return ChromTablesIterator(self.store, self.root, valid_tables, alpha_thr)
-
-    def filter_alpha_tables(
-        self,
-        tables: ChromTablesIterator,
-        alpha_filter: int,
-        annot_cols: bool | list[str] = False,
-        replace: bool = False,
-    ):
-        """Return an iterator of filtered (accoring to alpha value) and annotated tables.
-
-        Given an iterator of tables (table, information dictionary), return a new one in
-        the same form but with the tables filtered according to some sparsification alpha
-        value cutoff (only keep pixels with alpha below the given threshold). If specified,
-        annotate the pixels with BED-like coordinates and other informations.
-
-        Parameters
-        ----------
-        tables : :py:class:`ChromTablesIterator`
-            Iterator of chromosome-level tables in the form (table, information dictionary).
-        alpha_filter : int
-            Sparsification alpha value cutoff (keep pixels with alpha below value).
-        annot_cols : bool | list[str] = False
-            Columns to use to annotate the pixels in the table. If True annotate only using
-            BED-like coordinates columns ("chrom", "start", "end"), if list of strings
-            also include those columns.
-        replace : False
-            If True remove original bin id columns from the table.
-
-        Returns
-        -------
-        Iterator of (table, information dictionary) tuples.
-        """
-
-        for table, info in tables:
-            indexer = table[table["spar_alpha"] >= alpha_filter].index
-            table.drop(indexer, inplace=True)
-            table.drop(["count", "spar_alpha"], axis=1, inplace=True)
-            info["alpha-filter"] = alpha_filter
-
-            if annot_cols:
-                keep_cols = ["chrom", "start", "end"]
-                if isinstance(annot_cols, list):
-                    keep_cols.extend(annot_cols)
-                lower, upper = self.extent(info["chromosome"])
-                bin_table = self.bins()[lower:upper]
-                rm_cols = [c for c in bin_table if c not in keep_cols]
-                bin_table.drop(rm_cols, axis=1, inplace=True)
-                table = annotate(table, bin_table, replace)
-
-            yield (table, info)
+        return ChromTablesIterator(self.store, self.root, valid_tables)
 
     def add_bin_annotation(
         self,
@@ -603,3 +552,31 @@ class HiconaCooler(Cooler):
             if remove_nan_mod:
                 to_encode += [c + "_NaN" for c in to_encode if c + "_NaN" in new_bins]
             delete(bin_grp, to_encode)
+
+    def gen_sparsified_cooler(
+        self,
+        mcool_uri: str,
+        chr_tables: ChromTablesIterator,
+        alpha_thr: str | float | Iterable[float],
+    ):
+        """Placeholder
+        Placeholder
+        """
+        # TODO: Add alpha lenght check
+        # TODO: Check the same chromosome was not given twice
+
+        def _filter_alpha_tables(tables, alphas):
+            """Filter iterable of tables according to an iterable of alphas"""
+            for (table, _), alpha in zip(tables, alphas):
+                table = table[table["spar_alpha"] < alpha]
+                yield table[["bin1_id", "bin2_id", "count"]]
+
+        if isinstance(alpha_thr, str):
+            pass  # TODO: compute optimal values
+        elif isinstance(alpha_thr, float):
+            alpha_thr = [alpha_thr] * len(chr_tables)
+
+        bare_bins = self.bins()[["chrom", "start", "end"]][:]
+        filt_pix = _filter_alpha_tables(chr_tables, alpha_thr)
+
+        create_cooler(mcool_uri, bins=bare_bins, pixels=filt_pix)

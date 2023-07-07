@@ -70,11 +70,10 @@ class ChromTablesIterator:
         List of URI strings to the table groups of interest.
     """
 
-    def __init__(self, store, root, uris, alpha_thr=None):
+    def __init__(self, store, root, uris):
         self.store = store
         self.root = root
         self.uri_list = uris
-        self.alpha_thr = alpha_thr
 
         self.uri_index = 0
         self.max_uri = len(uris)
@@ -99,7 +98,5 @@ class ChromTablesIterator:
             attr_dict = dict(table_grp.parent.attrs.items())
             attr_dict["chromosome"] = curr_uri.split("/")[-1]
             table = DataFrame({f: table_grp[f] for f in table_grp.keys()})
-            if self.alpha_thr:
-                table = table[table["spar_alpha"] < self.alpha_thr]
 
         return (table, attr_dict)

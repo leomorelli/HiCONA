@@ -4,13 +4,13 @@ import csv
 from datetime import datetime
 
 from hicona import HiconaCooler, HiconaGraph
-from hicona.utils import annotation_combinations
+
 
 IN_FOLDER = "test_files"
 OUT_FOLDER = "results"
 BIN_SIZES = [10_000]  # 5_000]
 
-"""
+
 FILES = [
     {
         "name": "Rao_2014_HUVEC_MboI_4DNFIRMZ7QTE.mcool",
@@ -29,8 +29,9 @@ FILES = [
         "alpha_threshold": 0.15,
     },
 ]
-"""
 
+
+"""
 FILES = [
     {
         "name": "Rao_2014_HUVEC_MboI_4DNFIRMZ7QTE.mcool",
@@ -65,14 +66,14 @@ FILES = [
         "alpha_threshold": 0.40,
     },
 ]
-
+"""
 ANNOTS = [
     "heterochromatin",
     "enhancer",
     "polycomb",
     "promoter",
 ]  # "Bound"]
-STAT = "ave_degree"  # "ave_degree"
+STAT = "clustering_coeff"  # "ave_degree"
 NUM_PERMS = 1_000
 
 # Create output file
@@ -94,7 +95,7 @@ with open(res_path, "w", encoding="utf-8") as out_file:
         ]
     )
 
-# Pocess the files
+# Process the files
 for bin_size in BIN_SIZES:
     print(f"Working of statistic: {STAT}")
     print(f"Working of bin size: {bin_size}")
@@ -106,8 +107,14 @@ for bin_size in BIN_SIZES:
         file_path = f"{IN_FOLDER}/{file_dict['name']}::resolutions/{bin_size}"
         handle = HiconaCooler(file_path)
         ann_df = handle.bins()[:][ANNOTS]
+        handle.gen_sparsified_cooler(
+            "test_cool.mcool::resolutions/10000",
+            handle.tables(dist_thr=200_000_000),
+            0.05,
+        )
+
         tables_iterator = handle.tables(dist_thr=200_000_000)
-        assert len(tables_iterator) == 24
+        assert len(tables_iterator) == 25
 
         for table, info in tables_iterator:
             print(f"---- Working on table: {info['chromosome']}")
