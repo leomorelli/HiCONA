@@ -90,8 +90,9 @@ def optimal_alpha_chrom(cool_file,chrom):
 def optimal_alpha(cool_file,modality):
     if modality=='global':
         alpha, df=optimal_alpha_chrom(cool_file,'humanCanonical')
+        df['optimal_alpha']=[alpha for i in range(df.shape[0])]
     else:
-        chroms=[x for x in list(set(cool_file.bins()[:]['chrom'])) if len(x)<=5]
+	chroms=[x for x in list(set(cool_file.bins()[:]['chrom'])) if len(x)<=5]
         chroms=[x for x in chroms if x != 'chrM']
         df=pd.DataFrame()
         for chrom in chroms:
@@ -102,6 +103,7 @@ def optimal_alpha(cool_file,modality):
             df=pd.concat([df_c,df])
         df.index=[x for x in range(df.shape[0])]
     return df
+
 
 
 # Plotting function?
