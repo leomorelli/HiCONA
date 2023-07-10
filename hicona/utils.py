@@ -18,6 +18,7 @@ DTYPE_CONVERSION_DICT = {
     "int64": "long",
     "float64": "long double",
     "object": "string",
+    "bool": "bool",
 }
 
 
@@ -78,6 +79,9 @@ def from_df_to_sarrays(data: DataFrame):
     define the numpy datatype most appropriate for storage in HDF5 (especially
     minimum required string fixed length for categorical annotations).
     """
+
+    # TODO: Currently only discriminating string/non string, improve
+
     dtypes = data.dtypes
     for col_name, dtype in zip(data, dtypes):
         if dtype == "object":
@@ -89,6 +93,11 @@ def from_df_to_sarrays(data: DataFrame):
         new_col[:] = data[col_name].values
 
         yield (col_name, new_col, dtype)
+
+
+def pd_to_h5_dtype(pd_dtype: str):
+    """"""
+    pass
 
 
 def pd_to_gt_dtype(pd_dtype: str):

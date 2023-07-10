@@ -46,3 +46,23 @@
 # node_vals = np.zeros(self.num_vertices())
 # node_vals[full_mask] = self._node_statistics(statistic, full_mask)
 # del full_mask
+
+# ////////////////////////////////////////////////////////////////////////
+# //////////////////////// BASIC OBJECT FUNCTIONS ////////////////////////
+# /////// Class constructor, setter, getters and similar functions ///////
+# ////////////////////////////////////////////////////////////////////////
+
+# def __init__(self, *args, **kwargs):
+#    super().__init__(*args, **kwargs)
+#
+#    with open_hdf5(self.store, mode="r") as h5_handle:
+#        bins_grp = h5_handle[self.root + "/bins"]
+#        ann_list = tuple(bins_grp.keys())
+#    ann_list = [k for k in ann_list if k not in ["chrom", "start", "end"]]
+#    self._annotations_list = ann_list
+
+# @property
+# def available_annotations(self):
+#    """Alphabetically sorted list of available bin annotations"""
+#    self._annotations_list.sort()
+#    return self._annotations_list

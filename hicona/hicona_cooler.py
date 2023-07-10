@@ -11,18 +11,18 @@ TODO: Currently loading full chromosome in memory, working on side
 branch that performs operations in chunks to limit memory usage.
 """
 
-from collections.abc import Generator, Iterable
+from collections.abc import Iterable
 import re
 
-from cooler import Cooler, annotate, create_cooler
-from cooler.core import delete
+from cooler import Cooler, create_cooler
+from cooler.core import delete, put
 from cooler.util import open_hdf5
 from networkx import from_pandas_edgelist, to_pandas_edgelist
 from numpy import log2, where
 import pandas as pd
 from pybedtools import BedTool
 
-from .iterators import ChunkBordersIterator, ChromTablesIterator
+from .iterators import ChromTablesIterator, ChunkBordersIterator
 from .utils import console_log, compute_alpha_val, from_df_to_sarrays
 
 __all__ = ["HiconaCooler"]
@@ -30,6 +30,8 @@ __all__ = ["HiconaCooler"]
 
 # Template to name groups inside chrom_tables group
 _GROUP_TEMPLATE = "countThr_{}_distThr_{}_stat_{}"
+# Maximum number of allowed modalities when transforming an annotation to ohe
+_MAX_MODS = 10
 # Dictionary of standard regular expressions to simplify chromosome fetching
 _DEFAULT_CHROM_RE = {
     "humanCanonical": "^chr([1-9]|[1][0-9]|[2][0-2]|[XY])$",
@@ -59,10 +61,26 @@ class HiconaCooler(Cooler):
     of available tables use :py:meth:`tables_info`.
     """
 
-    def _pixel_chunks(
-        self, chrom_id: str, chunk_size: int
-    ) -> Generator[pd.DataFrame, None, None]:
-        """Generator function for pixel chunks of specified chromosome and size."""
+    # ////////////////////////////////////////////////////////////////////////
+    # /////////////////////// PRE-PROCESSING FUNCTIONS ///////////////////////
+    # // Functions to pass from full-pixel table to chromosome-level tables //
+    # ////////////////////////////////////////////////////////////////////////
+
+    def _create_table(self, grp_path, dataf):
+        """Save the dataframe columns as 1D arrays in the specified group"""
+
+        with open_hdf5(self.store, mode="a") as h5_handle:
+            grp = h5_handle[self.root + "/" + grp_path]
+            for name, vals, dtype in from_df_to_sarrays(dataf):
+                grp.create_dataset(
+                    name,
+                    data=vals,
+                    dtype=dtype,
+                    compression="gzip",
+                )
+
+    def _pixel_chunks(self, chrom_id: str, chunk_size: int):
+        """Generator of pixel chunks of specified chromosome and size."""
 
         extent = self.extent(chrom_id)
         borders = ChunkBordersIterator(self.store, self.root, extent, chunk_size)
@@ -120,7 +138,11 @@ class HiconaCooler(Cooler):
 
     @console_log
     def _get_filtered_pixels(
-        self, chrom_id: str, count_thr: int, dist_thr: int, chunk_size: int = 10_000_000
+        self,
+        chrom_id: str,
+        count_thr: int,
+        dist_thr: int,
+        chunk_size: int = 10_000_000,
     ) -> pd.DataFrame:
         """Filter pixels in chunks and return a single dataframe."""
 
@@ -314,36 +336,6 @@ class HiconaCooler(Cooler):
             param_str += "\n" + "-" * 80
         print(param_str)
 
-    def available_annotations(self, show: bool = False) -> tuple[str]:
-        """Return list of available annotation column names.
-
-        Return a list of all available annotation column names aside from the
-        default ones ("chrom", "start", "end") in alphabetical order.
-        If show is True, also print them.
-
-        Parameters
-        ----------
-        show : bool
-            If True, print the list of available annotation columns to console.
-            (default is True)
-
-        Returns
-        -------
-        list[str]:
-            list of available annotation column names in alphabetical order.
-        """
-
-        with open_hdf5(self.store, mode="r") as h5_handle:
-            bins_grp = h5_handle[self.root + "/bins"]
-            ann_list = tuple(bins_grp.keys())
-            ann_list = [k for k in ann_list if k not in ["chrom", "start", "end"]]
-            ann_list.sort()
-
-        if show:
-            print(f"Available annotation columns: {', '.join(ann_list)}")
-
-        return ann_list
-
     def tables(
         self,
         chrom_selection: str = "humanCanonical",
@@ -399,16 +391,41 @@ class HiconaCooler(Cooler):
 
         return ChromTablesIterator(self.store, self.root, valid_tables)
 
+    # ////////////////////////////////////////////////////////////////////////
+    # ///////////////////////// ANNOTATION FUNCTIONS /////////////////////////
+    # ////////////////// Add/process bin annotation columns //////////////////
+    # ////////////////////////////////////////////////////////////////////////
+
+    def annotations_list(self) -> list[str]:
+        """Return a list of available bin annotation columns
+
+        Return a list of all available bin annotation columns (that is, all
+        columns in the bins group besides "chrom", "start", and "end") sorted
+        alphabetically.
+
+        Returns
+        -------
+        ann_list : list[str]
+        """
+
+        with open_hdf5(self.store, mode="r") as h5_handle:
+            bins_grp = h5_handle[self.root + "/bins"]
+            ann_list = tuple(bins_grp.keys())
+        ann_list = [k for k in ann_list if k not in ["chrom", "start", "end"]]
+        ann_list.sort()
+
+        return ann_list
+
     def add_bin_annotation(
         self,
         bed_path: str,
-        in_file_col: str = None,
-        to_keep_cols: list[str] = None,
+        in_file: str = None,
+        to_keep: Iterable[str | None] = None,
     ) -> None:
-        """Add bin annotation using a bed-like file.
+        """Add bin annotation(s) using a bed-like file.
 
         Add one or more annotation columns to the bins dataframe. One can add:
-        - 0/1 column representing the presence of the bin in the bed-like file
+        - 0/1 column representing an overlap of the bin in the bed-like file
         - any number of columns from the bed-like file (regardless of type)
 
         Parameters
@@ -416,17 +433,16 @@ class HiconaCooler(Cooler):
         bed_path : str
             Path to the bed-like file (chrom, start, end, annot1, ..., annotN)
             to use for the annotation.
-        in_file_col : str, optional
-            If not None, create a 0/1 annotation column (using this string as
-            name) with 1 if the bin has (at least) one intersection in the
-            bed-like file, 0 otherwise. (default is None)
-        to_keep_cols : list[str], optional
-            If not None, use the elements of this list as names
-            for the annotation columns in the bed-like file to add to the bins
+        in_file : str, optional
+            Name of the 0/1 annotation column, containing 1 if the bin has at
+            least one overlap with any interval in the bed-file, 0 otherwise.
+            If None, no such column is created. (default is None)
+        to_keep : Iterable[str], optional
+            Names for the columns of the bed-like file to add to the bins
             dataframe. Names are assigned from left to right (ignoring the
             first 3 columns), and any column that receives a name is kept.
-            Any column without a name, or to which None was given, is discarded.
-            Excess names are ignored. (default is None)
+            Any column without a name is discarded. To skip a column place a
+            None in its position. Excess names are ignored. (default is None)
 
         Notes
         -----
@@ -435,17 +451,15 @@ class HiconaCooler(Cooler):
         """
 
         # Check for no overlap in old and new annotations
-        ann_cols = self.available_annotations()
-        if in_file_col:
-            if in_file_col in ann_cols:
-                raise ValueError("'in file' annotation name already exists.")
-        if to_keep_cols:
-            if set(ann_cols) & set(to_keep_cols):
-                raise ValueError("Overlap of old and new annotations, stopping.")
+        if in_file in self.annotations_list():
+            raise ValueError("'in file' annotation name already exists.")
+        if to_keep:
+            if set(to_keep) & set(self.annotations_list()):
+                raise ValueError("Overlap with old annotations, stopping.")
 
-        # Remove old annotations from the intersection, so the new ones have
-        # predictable position (in file: column 5, others: columns 6 and onward)
-        bin_bedtool = self.bins()[:].drop(ann_cols, axis=1)
+        # Retrieve only base bins so that the intersection columns will...
+        # ... always be in column 5 and onward
+        bin_bedtool = self.bins()[["chrom", "start", "end"]][:]
 
         # NOTE: suppressed error due to pybedtools wrapper implementation
         # pylint: disable=unexpected-keyword-arg, too-many-function-args
@@ -454,104 +468,96 @@ class HiconaCooler(Cooler):
         bin_bedtool = bin_bedtool.intersect(ann_bedtool, loj=True)
         # pylint: enable=unexpected-keyword-arg, too-many-function-args
 
-        # Convert result to pandas, rename and remove columns
+        # Convert back to pandas, rename and remove unwanted columns
         ann_bins = bin_bedtool.to_dataframe()
+        del ann_bedtool, bin_bedtool  # TODO: Test if needed
+
         col_names = [None] * ann_bins.shape[1]
-        if in_file_col:
-            col_names[5] = in_file_col
-        if to_keep_cols:
-            col_names[6 : 6 + len(to_keep_cols)] = to_keep_cols
+        col_names[5] = in_file
+        if to_keep:
+            col_names[6 : 6 + len(to_keep)] = to_keep
         ann_bins.columns = col_names
         ann_bins.drop(labels=[None], axis=1, inplace=True)
 
-        # Free memory space
-        del bin_bedtool, ann_bedtool
-
         # Replace all cells containing only a dot with NaNs, since "." is
         # default for bedtools loj in non-matching non-positional columns
-        if in_file_col:
-            ann_bins[in_file_col] = [1 if c != -1 else 0 for c in ann_bins[in_file_col]]
-        if to_keep_cols:
+        if in_file:
+            ohe_col = [1 if c != -1 else 0 for c in ann_bins[in_file]]
+            ann_bins[in_file] = ohe_col
+        if to_keep:
             ann_bins.replace(r"^\.$", "NaN", regex=True, inplace=True)
+        # TODO: check whether to use np.nan instead of "NaN" and fill value
 
-        # Create the new bin datasets
-        with open_hdf5(self.store, mode="a") as h5_handle:
-            grp = h5_handle[self.root + "/bins"]
-            for name, vals, dtype in from_df_to_sarrays(ann_bins):
-                grp.create_dataset(name, data=vals, dtype=dtype, compression="gzip")
-        # TODO: Check cooler.core.put, which should be better for storage efficiency,
-        # but currently gives a ValueError for some reason
+        self._create_table("bins", ann_bins)
 
-    def encode_annotation(
+    def annotation_to_ohe(
         self,
-        to_encode: list = None,
+        to_ohe: Iterable[str],
+        remove_original: bool = False,
         remove_nan_mod: bool = True,
         force_annotation: bool = False,
     ) -> None:
         """Convert bin annotation column(s) to one hot encoding form
 
-        Given a list of bin annotations, replace each of those columns with N
-        other columns (where N is the number of modalities for that column)
-        each of which in one hot encoding form (1 if modality matches, 0
-        otherwise).
+        Given a list of bin annotations, create for each of those columns N
+        other columns (where N is the number of modalities, or unique values,
+        for that column) each of which in one hot encoding form (1 if modality
+        matches, 0 otherwise). If specified, remove the original column.
 
         Parameters
         ----------
-        to_encode : list, optional
-            List (or iterable) of annotations names to split using
-            one-hot encoding. The original column is dropped and the derived
-            ones are named using {original name}_{modality}. (default is None)
+        to_ohe : Iterable[str]
+            Iterable of annotations names to perform one-hot encoding on.
+            Generated columns are named using {original name}_{modality}.
+        remove_original : bool, optional
+            Whether to remove the original annotation columns on which ohe is
+            performed on. (default is False)
         remove_nan_mod : bool, optional
-            Remove nan modality columns resulting from one hot encoding (if any).
-            (default is True)
+            Whether to remove columns originated from ohe of the NaN modality,
+            meaning {original name}_NaN, if any. (default is True)
         force_annotation : bool, optional
-            Trying to perform one-hot encoding on annotations with many
-            modalities will issue and error in order to prevent huge file
-            bloating. To suppress the error and split anyway change to True.
-            (dafault is False)
+            Force ohe even though the number of modalities of one or more
+            columns would exceed the default maximum, potentially leading to
+            a huge file size increase. (default is False)
 
         Notes
         -----
-        Not found annotation columns are skipped.
-        "chrom", "start", "end" columns cannot be removed.
+        Non-existent annotations are skipped without raising warning/errors.
         Removed columns still take space, after this process you might want
         to repack the file (see h5repack tool).
         """
 
-        max_mods = 10  # Critical number of allowed modalities
-
-        # Remove all elements not present in the new column annotations
-        to_encode = [ann for ann in to_encode if ann in self.available_annotations()]
-
-        if not to_encode:
-            print("WARNING: No valid annotation to encode.")
+        # Select and retrieve needed annotation columns
+        to_ohe = [ann for ann in to_ohe if ann in self.annotations_list()]
+        ann_df = self.bins()[to_ohe][:]
 
         # If force, skip modalities number check
         if not force_annotation:
-            bins = self.bins()[to_encode]
-            too_many_vals = [c for c in to_encode if bins[c][:].nunique() > max_mods]
-
-            if too_many_vals:
+            too_many = [c for c in to_ohe if ann_df[c].nunique() > _MAX_MODS]
+            if too_many:
                 raise ValueError(
-                    f"The variable(s) {', '.join(too_many_vals)}"
-                    f"has/have more than the maximum number of modalities "
-                    f"allowed ({max_mods}). \nThis could lead to "
-                    f"massive inflation of the matrix. \nIf you wish to proceed"
-                    f" rerun the function with force_annotation=True"
+                    f"The variable(s) {', '.join(too_many)} has/have more "
+                    f"than the default max number of modalities ({_MAX_MODS})"
+                    f".\nThis could lead to a huge file size increase. To "
+                    f"proceed anyway, rerun with force_annotation=True."
                 )
 
-        with open_hdf5(self.store, mode="a") as h5_handle:
-            # Create the new bin datasets
-            bin_grp = h5_handle[self.root + "/bins"]
-            new_bins = pd.get_dummies(self.bins()[to_encode][:], columns=to_encode)
-            for name, vals, dtype in from_df_to_sarrays(new_bins):
-                bin_grp.create_dataset(name, data=vals, dtype=dtype, compression="gzip")
-            # TODO: change to put, see add_bin_annotation
+        # Generate ohe df and save to h5
+        ohe_df = pd.get_dummies(ann_df, columns=to_ohe)
+        if remove_nan_mod:
+            one_df = one_df[[c for c in ohe_df if not c.endswith("_NaN")]]
+        self._create_table("bins", one_df)
 
-            # Remove those not needed anymore
-            if remove_nan_mod:
-                to_encode += [c + "_NaN" for c in to_encode if c + "_NaN" in new_bins]
-            delete(bin_grp, to_encode)
+        # Remove original columns if selected
+        if remove_original:
+            with open_hdf5(self.store, mode="a") as h5_handle:
+                bin_grp = h5_handle[self.root + "/bins"]
+                delete(bin_grp, to_ohe)
+
+    # ////////////////////////////////////////////////////////////////////////
+    # ////////////////////// MCOOL GENERATION FUNCTIONS //////////////////////
+    # //////////////////// Create new .cool/.mcool files  ////////////////////
+    # ////////////////////////////////////////////////////////////////////////
 
     def gen_sparsified_cooler(
         self,
@@ -559,7 +565,8 @@ class HiconaCooler(Cooler):
         chr_tables: ChromTablesIterator,
         alpha_thr: str | float | Iterable[float],
     ):
-        """Placeholder
+        """Create a .mcool file with pixels passing some sparsification filter
+
         Placeholder
         """
         # TODO: Add alpha lenght check
