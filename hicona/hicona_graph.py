@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import graph_tool.all as gt
 
-from .utils import pd_to_gt_dtype, annotation_combinations, console_log
+from .utils import pd_to_gt_dtype, annotation_combinations
 
 __all__ = ["HiconaGraph"]
 
@@ -52,7 +52,7 @@ class HiconaGraph(gt.Graph):
 
         # Initialize the object with edge properties
         eprops = [(p, pd_to_gt_dtype(dataf[p].dtype.name)) for p in to_keep]
-        super().__init__(dataf.values, eprops=eprops)
+        super().__init__(dataf.values, directed=False, eprops=eprops)
 
         # Reduce annotation dataframe to only the nodes in the network
         filt_ann = ann_df.filter(items=vids, axis=0)
@@ -75,10 +75,11 @@ class HiconaGraph(gt.Graph):
 
         if stat == "ave_degree":
             vlist = mask.nonzero()[0]
-            stats_list = self.get_out_degrees(vlist)
+            stats_list = self.get_total_degrees(vlist)
         elif stat == "betweenness":
             weight_map = self.ep["exp_ratio"]
             stats_list, _ = gt.betweenness(self, weight=weight_map)
+            stats_list = stats_list.get_array()
         elif stat == "clustering_coeff":
             weight_map = self.ep["exp_ratio"]
             stats_list = gt.local_clustering(self, weight=weight_map).get_array()
@@ -103,11 +104,11 @@ class HiconaGraph(gt.Graph):
         """Return p-value for H1: stat(annA) - stat(annB) > 0"""
         # TODO: Try multiple permutations at one to speed up (memory cost?)
 
-        def _perm_diff(values, ohe, rng=None):
-            """Compute average stat difference for a single permutation."""
-            ohe = ohe if rng is None else ohe[:, rng.permutation(ohe.shape[1])]
-            res = -np.diff((ohe * values).sum(axis=1) / ohe.sum(axis=1))[0]
-            return res
+        def _perm_fc(values, ohe, rng=None):
+            """Compute statistic fold change for a single permutation."""
+            ohe = ohe[:, rng.permutation(ohe.shape[1])] if rng else ohe
+            val_a, val_b = (ohe * values).sum(axis=1) / ohe.sum(axis=1)
+            return np.log2(val_a / val_b)
 
         # Filter only for nodes with at least one of the annotations
         perm_mask = annot_ohe.sum(axis=0) != 0
@@ -121,8 +122,8 @@ class HiconaGraph(gt.Graph):
 
         # Compute p-value by comparing original value and generated histogram
         rng = np.random.default_rng(rand_seed)
-        original = _perm_diff(stat_vals, annot_ohe)
-        permuted = [_perm_diff(stat_vals, annot_ohe, rng) for _ in range(num_perms)]
+        original = _perm_fc(stat_vals, annot_ohe)
+        permuted = [_perm_fc(stat_vals, annot_ohe, rng) for _ in range(num_perms)]
         result = ((original < permuted).sum() + 1) / (num_perms + 1)
 
         return result
