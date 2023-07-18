@@ -15,7 +15,7 @@ from collections.abc import Iterable
 import re
 
 from cooler import Cooler, create_cooler
-from cooler.core import delete, put
+from cooler.core import delete
 from cooler.util import open_hdf5
 from networkx import from_pandas_edgelist, to_pandas_edgelist
 from numpy import log2, where
@@ -79,11 +79,11 @@ class HiconaCooler(Cooler):
                     compression="gzip",
                 )
 
-    def _pixel_chunks(self, chrom_id: str, chunk_size: int):
+    def _pixel_chunks(self, chrom_id: str, size: int):
         """Generator of pixel chunks of specified chromosome and size."""
 
         extent = self.extent(chrom_id)
-        borders = ChunkBordersIterator(self.store, self.root, extent, chunk_size)
+        borders = ChunkBordersIterator(self.store, self.root, extent, size)
         for lower, upper in borders:
             yield self.pixels()[lower:upper]
 
@@ -146,7 +146,7 @@ class HiconaCooler(Cooler):
     ) -> pd.DataFrame:
         """Filter pixels in chunks and return a single dataframe."""
 
-        c_iter = self._pixel_chunks(chrom_id, chunk_size=chunk_size)
+        c_iter = self._pixel_chunks(chrom_id, size=chunk_size)
         pix_df = [self._filter_pixels(c, chrom_id, count_thr, dist_thr) for c in c_iter]
         pix_df = pd.concat(pix_df, axis=0)
 
@@ -447,8 +447,12 @@ class HiconaCooler(Cooler):
         Notes
         -----
         Adding annotation can drastically increase file size, especially for
-        non-numerical annotations; limit categorical annotations (names...).
+        non-numerical annotations; limit categorical annotations with many
+        distinct values (names, ids, ...).
         """
+
+        # Convert to_keep to None if all elements are None
+        to_keep = to_keep if any(to_keep) else None
 
         # Check for no overlap in old and new annotations
         if in_file in self.annotations_list():
@@ -457,38 +461,48 @@ class HiconaCooler(Cooler):
             if set(to_keep) & set(self.annotations_list()):
                 raise ValueError("Overlap with old annotations, stopping.")
 
-        # Retrieve only base bins so that the intersection columns will...
-        # ... always be in column 5 and onward
-        bin_bedtool = self.bins()[["chrom", "start", "end"]][:]
+        # Create the two bin df
+        bin_df = self.bins()[["chrom", "start", "end"]][:]
+        ann_df = pd.read_csv(bed_path, sep="\t", comment="#", header=None)
+
+        assert len(ann_df.columns) >= 3, ".bed file has less than 3 columns"
 
         # NOTE: suppressed error due to pybedtools wrapper implementation
         # pylint: disable=unexpected-keyword-arg, too-many-function-args
-        bin_bedtool = BedTool.from_dataframe(bin_bedtool)
-        ann_bedtool = BedTool(bed_path)
+        bin_bedtool = BedTool.from_dataframe(bin_df)
+        ann_bedtool = BedTool.from_dataframe(ann_df.iloc[:, :3])
         bin_bedtool = bin_bedtool.intersect(ann_bedtool, loj=True)
+        bin_df = bin_bedtool.to_dataframe()
+        del ann_bedtool, bin_bedtool  # TODO: Test if needed
         # pylint: enable=unexpected-keyword-arg, too-many-function-args
 
-        # Convert back to pandas, rename and remove unwanted columns
-        ann_bins = bin_bedtool.to_dataframe()
-        del ann_bedtool, bin_bedtool  # TODO: Test if needed
+        assert len(bin_df) == self.info["nbins"], (
+            "mismatch in the number of annotated bins and cooler bins,"
+            "probably multiple entries of the bed match the same bin"
+        )
 
-        col_names = [None] * ann_bins.shape[1]
-        col_names[5] = in_file
-        if to_keep:
-            col_names[6 : 6 + len(to_keep)] = to_keep
-        ann_bins.columns = col_names
-        ann_bins.drop(labels=[None], axis=1, inplace=True)
-
-        # Replace all cells containing only a dot with NaNs, since "." is
-        # default for bedtools loj in non-matching non-positional columns
+        # Create OHE column where 1 = "intersection with annotation"
         if in_file:
-            ohe_col = [1 if c != -1 else 0 for c in ann_bins[in_file]]
-            ann_bins[in_file] = ohe_col
-        if to_keep:
-            ann_bins.replace(r"^\.$", "NaN", regex=True, inplace=True)
-        # TODO: check whether to use np.nan instead of "NaN" and fill value
+            in_file_df = [1 if c != -1 else 0 for c in bin_df.iloc[:, 5]]
+            in_file_df = pd.DataFrame(in_file_df, columns=[in_file])
+            self._create_table("bins", in_file_df)
 
-        self._create_table("bins", ann_bins)
+        # Crate any other specified annotation columns
+        if to_keep:
+            # Bedtools automatically assigns these values
+            to_intersect_on = ["name", "score", "strand"]
+
+            # Rename columns for merge and pad with None
+            ann_cols = to_intersect_on + list(to_keep)
+            if (pad := len(ann_df.columns) - len(ann_cols)) > 0:
+                ann_cols = ann_cols + [None] * pad
+            ann_df.columns = ann_cols
+
+            # Merge and save only required columns
+            ann_df = bin_df.merge(ann_df, how="left", on=to_intersect_on)
+            ann_df.drop(labels=[None], axis=1, inplace=True)
+            self._create_table("bins", ann_df.iloc[:, 6:])
+            # Columns 0-5 are "chrom" "start" "end" "name" "score" "strand"
 
     def annotation_to_ohe(
         self,
