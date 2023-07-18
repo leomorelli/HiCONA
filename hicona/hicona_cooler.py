@@ -4,10 +4,10 @@ Main object to handle .cool/.mcool files and extending them into .hico
 format (strict extension, base functionality and structure preserved).
 
 Perform all the pre-processing required to obtain chromosome level
-tables which can be stored in the "/chrom_tables" group and retrieved 
+tables which can be stored in the "/chrom_tables" group and retrieved
 (as iterator of table matching a criterion).
 
-TODO: Currently loading full chromosome in memory, working on side 
+TODO: Currently loading full chromosome in memory, working on side
 branch that performs operations in chunks to limit memory usage.
 """
 
@@ -29,7 +29,7 @@ __all__ = ["HiconaCooler"]
 
 
 # Template to name groups inside chrom_tables group
-_GROUP_TEMPLATE = "countThr_{}_distThr_{}_stat_{}"
+_GRP_TEMPLATE = "countThr_{}_distThr_{}_stat_{}"
 # Maximum number of allowed modalities when transforming an annotation to ohe
 _MAX_MODS = 10
 # Dictionary of standard regular expressions to simplify chromosome fetching
@@ -137,7 +137,7 @@ class HiconaCooler(Cooler):
         return pix_df
 
     @console_log
-    def _get_filtered_pixels(
+    def _get_filtered_pix(
         self,
         chrom_id: str,
         count_thr: int,
@@ -146,8 +146,9 @@ class HiconaCooler(Cooler):
     ) -> pd.DataFrame:
         """Filter pixels in chunks and return a single dataframe."""
 
+        filt_param = [chrom_id, count_thr, dist_thr]
         c_iter = self._pixel_chunks(chrom_id, size=chunk_size)
-        pix_df = [self._filter_pixels(c, chrom_id, count_thr, dist_thr) for c in c_iter]
+        pix_df = [self._filter_pixels(c, *filt_param) for c in c_iter]
         pix_df = pd.concat(pix_df, axis=0)
 
         return pix_df
@@ -173,31 +174,32 @@ class HiconaCooler(Cooler):
         """
 
         pix_df["bin_difference"] = pix_df["bin2_id"] - pix_df["bin1_id"]
-        group_counts = pix_df.groupby("bin_difference")["count"]
-        pix_df["exp_ratio"] = log2(pix_df["count"] / group_counts.transform(stat) + 1)
+        grp_df = pix_df.groupby("bin_difference")["count"].transform(stat)
+        pix_df["exp_ratio"] = log2(pix_df["count"] / grp_df + 1)
         pix_df.drop("bin_difference", axis=1, inplace=True)
 
     @console_log
     def _add_sparsity_val(self, pix_df: pd.DataFrame) -> None:
-        """Add alpha value column to dataframe (computed as per Serrano et al. 2009).
+        """Add alpha value to dataframe (computed as per Serrano et al. 2009).
 
-        Add a column to the dataframe containing the alpha values for the edges,
-        meaning the confidence level of a weighted edge given local fluctuations
-        in the network, see Serrano et al. 2009 for in depth explaination. A graph
-         is built starting from the list of edges, then the procedure is iterated
-        over the nodes; the resulting network is converted back to edge list and
-        sorted, since graph traversal does not have inherent order.
+        Add a column to the dataframe containing the alpha values for the
+        edges, meaning the confidence level of a weighted edge given local
+        fluctuations in the network, see Serrano et al. 2009 for in depth
+        explanation. A graph is built starting from the list of edges, then
+        the procedure is iterated over the nodes; the resulting network is
+        converted back to edge list and sorted, since graph traversal does
+        not have inherent order.
 
         Notes
         -----
-        The edge in a disconnected doublet (two nodes connected only to each other by
-        a single node) always gets alpha = 1, therefore it will be subsequently filtered.
-        In general the number of doublets is very low (at least 7 orders of magnitude
-        lower than the total number of edges).
+        The edge in a disconnected doublet (two nodes connected only to each
+        other by a single node) always gets alpha = 1, therefore it will be
+        subsequently filtered. In general the number of doublets is very low
+        (at least 7 orders of magnitude lower than the total number of edges).
         """
 
         # Add default alpha value
-        pix_df["spar_alpha"] = 1
+        pix_df["spar_alpha"] = -1  # TODO:reverto to 1
         graph = from_pandas_edgelist(
             pix_df,
             source="bin1_id",
@@ -206,19 +208,22 @@ class HiconaCooler(Cooler):
         )
 
         for node in graph:
-            num_neighbours = len(graph[node])
+            num_neigh = len(graph[node])
 
-            # The approach is not able to compute an alpha value if the number
-            # of neighbours is one, therefore assign the default alpha value
-            if num_neighbours == 1:
+            # Cannot compute an alpha value if the number of neighbours
+            # is one, therefore assign the default alpha value
+            if num_neigh == 1:
+                for neigh in graph[node]:  # TODO: Remove
+                    graph[node][neigh]["spar_alpha"] = 1  # TODO: Remove
                 continue
 
-            weigths_sum = sum(graph[node][n]["exp_ratio"] for n in graph[node])
+            weight_sum = sum(graph[node][n]["exp_ratio"] for n in graph[node])
             for neigh in graph[node]:
-                norm_weight = graph[node][neigh]["exp_ratio"] / weigths_sum
-                new_alpha, _ = compute_alpha_val(num_neighbours, norm_weight)
+                norm_weight = graph[node][neigh]["exp_ratio"] / weight_sum
+                new_alpha, _ = compute_alpha_val(num_neigh, norm_weight)
                 old_aplha = graph[node][neigh]["spar_alpha"]
-                graph[node][neigh]["spar_alpha"] = min(old_aplha, new_alpha)
+                # TODO: change back to minimum or create a split function
+                graph[node][neigh]["spar_alpha"] = max(old_aplha, new_alpha)
 
         # TODO: cannot find if to_pandas_edgelist is already sorted or not
         graph = to_pandas_edgelist(graph, source="bin1_id", target="bin2_id")
@@ -245,20 +250,20 @@ class HiconaCooler(Cooler):
 
         if chrom_id not in table_root:
             # Process the chromosome pixels
-            chrom_pix = self._get_filtered_pixels(chrom_id, count_thr, dist_thr)
+            chrom_pix = self._get_filtered_pix(chrom_id, count_thr, dist_thr)
             self._drop_duplicate_pixels(chrom_pix)
             self._compute_decay(chrom_pix, decay_stat)
             self._add_sparsity_val(chrom_pix)
 
-            # Save the dataframe columns as individual 1D-arrays (for storage)
+            # Save the dataframe columns as individual 1D-arrays
             chrom_table = table_root.create_group(chrom_id)
             for column in chrom_pix.columns:
                 chrom_table.create_dataset(column, data=chrom_pix[column])
         else:
-            print(f"WARNING: {chrom_id} already processed with these params, skipping.")
+            print(f"W: {chrom_id} already processed with these params, skip.")
 
     def _chrom_regex_to_iter(self, chrom_selection):
-        """Convert chromosome selection from regex/default string to iterable object."""
+        """Convert chromosome selection from regex/default str to iterable."""
 
         if isinstance(chrom_selection, str):
             if _DEFAULT_CHROM_RE.get(chrom_selection):
@@ -275,36 +280,40 @@ class HiconaCooler(Cooler):
         dist_thr: int = 200_000_000,
         decay_stat: str = "median",
     ) -> None:
-        """Process and create chromosome-level tables to use for network construction.
+        """Create chromosome-level tables to use for network construction.
 
-        Given a set of chromosome and some parameters for the processing, create
-        individual groups, each one corresponding to a chromosome and containing
-        1D-arrays corresponding to the columns of the processed dataframe.
+        Given a set of chromosome and some parameters for the processing,
+        create individual groups, each one corresponding to a chromosome
+        and containing 1D-arrays corresponding to the columns of the
+        processed dataframe.
 
         Parameters
         ----------
         chrom_selection: str or iterable, optional
-            Iterable of ids of the chromosome to process or regular expression to build
-            one. Some strings are also accepted as proxy for common regular espressions:
-            * humanCanonical: "chr1" to "chr22" plus "chrX" and "chrY" (default value)
+            Iterable of ids of the chromosome to process or regular expression
+            to build one. Some strings are also accepted as proxy for common
+            regular espressions:
+            * humanCanonical: "chr1" to "chr22" plus "chrX" and "chrY"
             * mouseCanonical: "chr1" to "chr19" plus "chrX" and "chrY"
             * others to be defined
+            (default is "humanCanonical")
         count_thr: int, optional
-            Remove pixels whose row count is not greater than this value. (default is 1)
+            Remove pixels whose row count is not greater than this value.
+            (default is 1)
         dist_thr: int, optional
-            Remove pixels whose genomic distance among bins is greater or equal to this
-            value (in bp). (default is 2Mb)
+            Remove pixels whose genomic distance among bins is greater or
+            equal to this value (in bp). (default is 2Mb)
         decay_stat: str, optional
-            Statistic to use to summarize pixels with a certain distance while computing
-            the expected counts. Must be compatible with pandas.transform. (default is
-            "median")
+            Statistic used to summarize pixels with a certain distance while
+            computing the expected counts. Must be compatible with
+            pandas.transform. (default is "median")
         """
 
         # Convert chromosome selection to an iterable
         chrom_selection = self._chrom_regex_to_iter(chrom_selection)
 
         with open_hdf5(self.store, mode="a") as h5_handle:
-            table_root = _GROUP_TEMPLATE.format(count_thr, dist_thr, decay_stat)
+            table_root = _GRP_TEMPLATE.format(count_thr, dist_thr, decay_stat)
             table_root = self.root + "/chrom_tables/" + table_root
 
             # Create container group if not already existent
@@ -326,15 +335,15 @@ class HiconaCooler(Cooler):
 
         with open_hdf5(self.store, mode="r") as h5_handle:
             tables_grp = h5_handle[self.root + "/chrom_tables"]
-            param_str = "PARAMETER SETS:"
-            for param_grp in tables_grp.values():
-                param_str += "\n" + "-" * 80
-                param_list = [f"\n-{k}: {v}" for k, v in param_grp.attrs.items()]
-                param_str += "".join(param_list)
-                param_str += "\n-chromosomes:"
-                param_str += "".join([f"\n\t--{k}" for k in param_grp.keys()])
-            param_str += "\n" + "-" * 80
-        print(param_str)
+            par_str = "PARAMETER SETS:"
+            for par_grp in tables_grp.values():
+                par_str += "\n" + "-" * 80
+                par_lst = [f"\n-{k}: {v}" for k, v in par_grp.attrs.items()]
+                par_str += "".join(par_lst)
+                par_str += "\n-chromosomes:"
+                par_str += "".join([f"\n\t--{k}" for k in par_grp.keys()])
+            par_str += "\n" + "-" * 80
+        print(par_str)
 
     def tables(
         self,
@@ -353,32 +362,36 @@ class HiconaCooler(Cooler):
         Parameters
         ----------
         chrom_selection: str or iterable, optional
-            Iterable of ids of the chromosome to fetch or regular expression to build
-            one. Some strings are also accepted as proxy for common regular espressions:
-            * humanCanonical: "chr1" to "chr22" plus "chrX" and "chrY" (default value)
+            Iterable of ids of the chromosome to fetch or regular expression
+            to build one. Some strings are also accepted as proxy for common
+            regular espressions:
+            * humanCanonical: "chr1" to "chr22" plus "chrX" and "chrY"
+            * mouseCanonical: "chr1" to "chr19" plus "chrX" and "chrY"
             * other to be defined
+            (default is "humanCanonical")
         count_thr: int, optional
-            Fetch tables created using this value as count threshold. If None, consider
-            all tables regardless of the used value.
+            Fetch tables created using this value as count threshold.
+            If None, consider all tables regardless of the used value.
         dist_thr: int, optional
-            Fetch tables created using this value as distance threshold. If None, consider
-            all tables regardless of the used value.
+            Fetch tables created using this value as distance threshold.
+            If None, consider all tables regardless of the used value.
         decay_stat: str, optional
-            Fetch tables created using this statistic to compute count decay. If None,
-            consider all tables regardless of the used statistic.
+            Fetch tables created using this statistic to compute count decay.
+            If None, consider all tables regardless of the used statistic.
 
         Returns
         -------
         :py:class:`ChromTablesIterator` :
-            Iterator of tuples in the form (chromsome table, information dictionary).
+            Iterator of tuples in the form (chrom table, information dict).
         """
 
         # Create valid groups regex according to input parameters
-        chrom_selection = self._chrom_regex_to_iter(chrom_selection)
+        chroms = self._chrom_regex_to_iter(chrom_selection)
         count_thr = r"\S+" if not count_thr else count_thr
         dist_thr = r"\S+" if not dist_thr else dist_thr
         decay_stat = r"\S+" if not decay_stat else decay_stat
-        grp_regex = re.compile(_GROUP_TEMPLATE.format(count_thr, dist_thr, decay_stat))
+        filt_stats = [count_thr, dist_thr, decay_stat]
+        grp_regex = re.compile(_GRP_TEMPLATE.format(*filt_stats))
 
         # Define a list of partial URIs to valid tables
         with open_hdf5(self.store, mode="r") as h5_handle:
@@ -386,7 +399,7 @@ class HiconaCooler(Cooler):
             valid_groups = [g for g in tables_grp if grp_regex.match(g)]
             valid_tables = []
             for grp in valid_groups:
-                tabs = [grp + "/" + c for c in chrom_selection if c in tables_grp[grp]]
+                tabs = [grp + "/" + c for c in chroms if c in tables_grp[grp]]
                 valid_tables.extend(tabs)
 
         return ChromTablesIterator(self.store, self.root, valid_tables)
@@ -463,7 +476,14 @@ class HiconaCooler(Cooler):
 
         # Create the two bin df
         bin_df = self.bins()[["chrom", "start", "end"]][:]
-        ann_df = pd.read_csv(bed_path, sep="\t", comment="#", header=None)
+        h_rows = 0
+        with open(bed_path, "r+") as bed_file:
+            for line in bed_file:
+                if line.startswith("#"):
+                    h_rows += 1
+                else:
+                    break
+        ann_df = pd.read_csv(bed_path, sep="\t", header=None, skiprows=h_rows)
 
         assert len(ann_df.columns) >= 3, ".bed file has less than 3 columns"
 
@@ -559,8 +579,8 @@ class HiconaCooler(Cooler):
         # Generate ohe df and save to h5
         ohe_df = pd.get_dummies(ann_df, columns=to_ohe)
         if remove_nan_mod:
-            one_df = one_df[[c for c in ohe_df if not c.endswith("_NaN")]]
-        self._create_table("bins", one_df)
+            ohe_df = ohe_df[[c for c in ohe_df if not c.endswith("_NaN")]]
+        self._create_table("bins", ohe_df)
 
         # Remove original columns if selected
         if remove_original:
