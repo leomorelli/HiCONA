@@ -7,7 +7,7 @@ from math import floor
 from time import time
 
 import numpy as np
-from pandas import DataFrame
+import pandas as pd
 from scipy import integrate
 
 
@@ -72,7 +72,7 @@ def compute_alpha_val(k: int, weight: float):
     return round_half_up(new_alpha, 4)
 
 
-def from_df_to_sarrays(data: DataFrame):
+def from_df_to_sarrays(data: pd.DataFrame):
     """Return each column of a dataframe as a numpy structured array.
 
     Transform the columns of a dataframe into numpy structured array and
@@ -110,3 +110,25 @@ def annotation_combinations(iterable, k_vals=(1, 2)):
 
     comb = [combinations(iterable, k) for k in k_vals]
     return list(chain.from_iterable(comb))
+
+
+def pd_from_bed(bed_path: str):
+    """Return a pandas DataFrame form a .bed file (to skip # header)"""
+
+    # Peek top rows to define presence of header lines (starting with #)
+    h_rows = 0
+    with open(bed_path, "r", encoding="UTF-8") as bed_file:
+        for line in bed_file:
+            if line.startswith("#"):
+                h_rows += 1
+            else:
+                break
+
+    # Load DataFrame
+    bed_df = pd.read_csv(bed_path, sep="\t", header=None, skiprows=h_rows)
+
+    # Check at least minimum number of rows
+    if (n_cols := len(bed_df.columns)) >= 3:
+        raise ValueError(f"Min 3 columns required for .bed (found {n_cols})")
+
+    return bed_df

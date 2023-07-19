@@ -23,7 +23,12 @@ import pandas as pd
 from pybedtools import BedTool
 
 from .iterators import ChromTablesIterator, ChunkBordersIterator
-from .utils import console_log, compute_alpha_val, from_df_to_sarrays
+from .utils import (
+    console_log,
+    compute_alpha_val,
+    from_df_to_sarrays,
+    pd_from_bed,
+)
 
 __all__ = ["HiconaCooler"]
 
@@ -69,7 +74,7 @@ class HiconaCooler(Cooler):
     def _create_table(self, grp_path, dataf):
         """Save the dataframe columns as 1D arrays in the specified group"""
 
-        with open_hdf5(self.store, mode="a") as h5_handle:
+        with open_hdf5(self.store, mode="r+") as h5_handle:
             grp = h5_handle[self.root + "/" + grp_path]
             for name, vals, dtype in from_df_to_sarrays(dataf):
                 grp.create_dataset(
@@ -409,6 +414,15 @@ class HiconaCooler(Cooler):
     # ////////////////// Add/process bin annotation columns //////////////////
     # ////////////////////////////////////////////////////////////////////////
 
+    def _valid_bin_annotations(self, names: str | Iterable[str]):
+        """Return only valid bin annotation names as iterable of strings"""
+
+        names = [] if not names else names
+        names = [names] if isinstance(names, str) else names
+        names = [n for n in names if n in self.annotations_list()]
+
+        return names
+
     def annotations_list(self) -> list[str]:
         """Return a list of available bin annotation columns
 
@@ -464,6 +478,17 @@ class HiconaCooler(Cooler):
         distinct values (names, ids, ...).
         """
 
+        def _intersect_dataframes(df_a, df_b):
+            """Return dataframe intersection using bedtools intersect -loj"""
+
+            # Suppress linting error due to pybedtools wrapper implementation
+            # pylint: disable=unexpected-keyword-arg, too-many-function-args
+            bed_a = BedTool.from_dataframe(df_a)
+            bed_b = BedTool.from_dataframe(df_b)
+            bed_a = bed_a.intersect(bed_b, loj=True)
+            # pylint: enable=unexpected-keyword-arg, too-many-function-args
+            return bed_a.to_dataframe()
+
         # Convert to_keep to None if all elements are None
         to_keep = to_keep if any(to_keep) else None
 
@@ -474,32 +499,10 @@ class HiconaCooler(Cooler):
             if set(to_keep) & set(self.annotations_list()):
                 raise ValueError("Overlap with old annotations, stopping.")
 
-        # Create the two bin df
+        # Create the two bin df and merge on default bed columns
         bin_df = self.bins()[["chrom", "start", "end"]][:]
-        h_rows = 0
-        with open(bed_path, "r+") as bed_file:
-            for line in bed_file:
-                if line.startswith("#"):
-                    h_rows += 1
-                else:
-                    break
-        ann_df = pd.read_csv(bed_path, sep="\t", header=None, skiprows=h_rows)
-
-        assert len(ann_df.columns) >= 3, ".bed file has less than 3 columns"
-
-        # NOTE: suppressed error due to pybedtools wrapper implementation
-        # pylint: disable=unexpected-keyword-arg, too-many-function-args
-        bin_bedtool = BedTool.from_dataframe(bin_df)
-        ann_bedtool = BedTool.from_dataframe(ann_df.iloc[:, :3])
-        bin_bedtool = bin_bedtool.intersect(ann_bedtool, loj=True)
-        bin_df = bin_bedtool.to_dataframe()
-        del ann_bedtool, bin_bedtool  # TODO: Test if needed
-        # pylint: enable=unexpected-keyword-arg, too-many-function-args
-
-        assert len(bin_df) == self.info["nbins"], (
-            "mismatch in the number of annotated bins and cooler bins,"
-            "probably multiple entries of the bed match the same bin"
-        )
+        ann_df = pd_from_bed(bed_path)
+        bin_df = _intersect_dataframes(bin_df, ann_df.iloc[:, :3])
 
         # Create OHE column where 1 = "intersection with annotation"
         if in_file:
@@ -523,6 +526,26 @@ class HiconaCooler(Cooler):
             ann_df.drop(labels=[None], axis=1, inplace=True)
             self._create_table("bins", ann_df.iloc[:, 6:])
             # Columns 0-5 are "chrom" "start" "end" "name" "score" "strand"
+
+    def del_bin_annotation(self, to_del: str | Iterable[str]) -> None:
+        """Remove bin annotation columns.
+
+        Given one or more bin annotation names, remove those columns from the
+        bins table. Non-existent annotations or default bin columns ("chrom",
+        "start", "end") are skipped without raising warning/errors. Removed
+        columns still take space, after this process you might want to repack
+        the file (see h5repack tool).
+
+        Parameters
+        ----------
+        to_del : str | Iterable[str]
+            String or iterable of them representing bin annotations to remove.
+        """
+
+        to_del = self._valid_bin_annotations(to_del)
+        with open_hdf5(self.store, mode="r+") as h5_handle:
+            bin_grp = h5_handle[self.root + "/bins"]
+            delete(bin_grp, to_del)
 
     def annotation_to_ohe(
         self,
@@ -562,7 +585,7 @@ class HiconaCooler(Cooler):
         """
 
         # Select and retrieve needed annotation columns
-        to_ohe = [ann for ann in to_ohe if ann in self.annotations_list()]
+        to_ohe = self._valid_bin_annotations(to_ohe)
         ann_df = self.bins()[to_ohe][:]
 
         # If force, skip modalities number check
@@ -584,9 +607,7 @@ class HiconaCooler(Cooler):
 
         # Remove original columns if selected
         if remove_original:
-            with open_hdf5(self.store, mode="a") as h5_handle:
-                bin_grp = h5_handle[self.root + "/bins"]
-                delete(bin_grp, to_ohe)
+            self.del_bin_annotation(to_ohe)
 
     # ////////////////////////////////////////////////////////////////////////
     # ////////////////////// MCOOL GENERATION FUNCTIONS //////////////////////
