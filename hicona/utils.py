@@ -128,7 +128,7 @@ def pd_from_bed(bed_path: str):
     bed_df = pd.read_csv(bed_path, sep="\t", header=None, skiprows=h_rows)
 
     # Check at least minimum number of rows
-    if (n_cols := len(bed_df.columns)) >= 3:
+    if (n_cols := len(bed_df.columns)) < 3:
         raise ValueError(f"Min 3 columns required for .bed (found {n_cols})")
 
     return bed_df
