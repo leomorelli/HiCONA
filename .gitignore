@@ -1,8 +1,11 @@
+# Ignore tmp files
+*/.ipynb_checkpoints/
+*/__pycache__
+
+# Ignore manual testing files
+results/
 test_files/
-hicona/__pycache__
-hicona_reworked/__pycache__
-.ipynb_checkpoints/
-TODO
-results
 test_script.py
-test_script_2.py
+
+# Ignore test files
+*/.coverage
