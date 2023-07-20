@@ -18,7 +18,7 @@ from cooler import Cooler, create_cooler
 from cooler.core import delete
 from cooler.util import open_hdf5
 from networkx import from_pandas_edgelist, to_pandas_edgelist
-from numpy import log2, where
+import numpy as np
 import pandas as pd
 from pybedtools import BedTool
 
@@ -180,7 +180,7 @@ class HiconaCooler(Cooler):
 
         pix_df["bin_difference"] = pix_df["bin2_id"] - pix_df["bin1_id"]
         grp_df = pix_df.groupby("bin_difference")["count"].transform(stat)
-        pix_df["exp_ratio"] = log2(pix_df["count"] / grp_df + 1)
+        pix_df["exp_ratio"] = np.log2(pix_df["count"] / grp_df + 1)
         pix_df.drop("bin_difference", axis=1, inplace=True)
 
     @console_log
@@ -204,7 +204,7 @@ class HiconaCooler(Cooler):
         """
 
         # Add default alpha value
-        pix_df["spar_alpha"] = -1  # TODO:reverto to 1
+        pix_df["spar_alpha"] = 1
         graph = from_pandas_edgelist(
             pix_df,
             source="bin1_id",
@@ -218,8 +218,6 @@ class HiconaCooler(Cooler):
             # Cannot compute an alpha value if the number of neighbours
             # is one, therefore assign the default alpha value
             if num_neigh == 1:
-                for neigh in graph[node]:  # TODO: Remove
-                    graph[node][neigh]["spar_alpha"] = 1  # TODO: Remove
                 continue
 
             weight_sum = sum(graph[node][n]["exp_ratio"] for n in graph[node])
@@ -227,15 +225,14 @@ class HiconaCooler(Cooler):
                 norm_weight = graph[node][neigh]["exp_ratio"] / weight_sum
                 new_alpha, _ = compute_alpha_val(num_neigh, norm_weight)
                 old_aplha = graph[node][neigh]["spar_alpha"]
-                # TODO: change back to minimum or create a split function
-                graph[node][neigh]["spar_alpha"] = max(old_aplha, new_alpha)
+                graph[node][neigh]["spar_alpha"] = min(old_aplha, new_alpha)
 
         # TODO: cannot find if to_pandas_edgelist is already sorted or not
         graph = to_pandas_edgelist(graph, source="bin1_id", target="bin2_id")
 
         # Graph object does not preserve pair order
         # TODO: test for performance since it does not feel great
-        graph["bin1_id"], graph["bin2_id"] = where(
+        graph["bin1_id"], graph["bin2_id"] = np.where(
             graph["bin1_id"] < graph["bin2_id"],
             (graph["bin1_id"], graph["bin2_id"]),
             (graph["bin2_id"], graph["bin1_id"]),
@@ -616,11 +613,11 @@ class HiconaCooler(Cooler):
 
     def gen_sparsified_cooler(
         self,
-        mcool_uri: str,
+        cool_uri: str,
         chr_tables: ChromTablesIterator,
         alpha_thr: str | float | Iterable[float],
     ):
-        """Create a .mcool file with pixels passing some sparsification filter
+        """Create a cool/mcool file containing only sparsified pixels.
 
         Placeholder
         """
