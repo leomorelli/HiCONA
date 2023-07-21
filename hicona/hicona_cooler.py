@@ -223,7 +223,7 @@ class HiconaCooler(Cooler):
             weight_sum = sum(graph[node][n]["exp_ratio"] for n in graph[node])
             for neigh in graph[node]:
                 norm_weight = graph[node][neigh]["exp_ratio"] / weight_sum
-                new_alpha, _ = compute_alpha_val(num_neigh, norm_weight)
+                new_alpha = compute_alpha_val(num_neigh, norm_weight)
                 old_aplha = graph[node][neigh]["spar_alpha"]
                 graph[node][neigh]["spar_alpha"] = min(old_aplha, new_alpha)
 
