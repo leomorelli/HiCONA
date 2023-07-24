@@ -1,14 +1,9 @@
 """Main I/O handling object extending Cooler functionality and format.
 
-Main object to handle .cool/.mcool files and extending them into .hico
-format (strict extension, base functionality and structure preserved).
-
-Perform all the pre-processing required to obtain chromosome level
-tables which can be stored in the "/chrom_tables" group and retrieved
-(as iterator of table matching a criterion).
-
-TODO: Currently loading full chromosome in memory, working on side
-branch that performs operations in chunks to limit memory usage.
+Main object to handle .cool/.mcool files in order to perform all the
+pre-processing required to obtain chromosome level tables.
+Chromosome-level tables are stored in the ``/chrom_tables`` group and
+can be retrieved to create filtered networks to analyze.
 """
 
 from collections.abc import Iterable
@@ -17,6 +12,7 @@ import re
 from cooler import Cooler, create_cooler
 from cooler.core import delete
 from cooler.util import open_hdf5
+import h5py
 from networkx import from_pandas_edgelist, to_pandas_edgelist
 import numpy as np
 import pandas as pd
@@ -45,31 +41,37 @@ _DEFAULT_CHROM_RE = {
 
 
 class HiconaCooler(Cooler):
-    """An extension of Cooler objects to prepare data for network analysis.
+    """An extension of the Cooler class to prepare data for network analysis.
 
-    :py:class:`HiconaCooler` inherits from :py:class`cooler.Cooler` and
+    :py:class:`HiconaCooler` inherits from :py:class:`cooler.Cooler` and
     extends it by adding new functionalities, mainly revolving around
-    the creation of chromosome-level processed tables to use for network
-    analyses. Tables are stored in a separate group (``chrom_tables``)
-    of the :py:class:`h5py.File` and no method or property of the
-    :py:class`Cooler` is overwritten, therefore a :py:class:`HiconaCooler`
-    object can always be used as a :py:class`Cooler` one.
+    the creation of chromosome-level tables to use for network analyses.
+    Tables are stored in a separate group (``chrom_tables``) of the
+    :py:class:`h5py.File` and no method or property of the :py:class:`Cooler`
+    is overwritten, therefore a :py:class:`HiconaCooler` object can always be
+    used as a :py:class:`Cooler` one.
 
     Parameters
     ----------
-    See :py:class:`cooler.Cooler` for class constructor parameters.
-
-    Notes
-    -----
-    Chromosome tables are created using :py:meth:`create_tables` and can
-    be accessed through :py:meth:`tables`. To print to console the list
-    of available tables use :py:meth:`tables_info`.
+    store : str, :py:class:`h5py.File` or :py:class:`h5py.Group`
+        Path to a cooler file, URI string, or open handle to the root HDF5
+        group of a cooler data collection.
+    kwargs : optional
+        Options to be passed to :py:class:`h5py.File` upon every access.
+        See class constructor for :py:class:`Cooler` for more detail.
     """
+
+    # Defined class constructor to mask deprecated store parameter from Cooler
+    def __init__(self, store: str | h5py.File | h5py.Group, **kwargs):
+        super().__init__(store, **kwargs)
 
     # ////////////////////////////////////////////////////////////////////////
     # /////////////////////// PRE-PROCESSING FUNCTIONS ///////////////////////
     # // Functions to pass from full-pixel table to chromosome-level tables //
     # ////////////////////////////////////////////////////////////////////////
+
+    # TODO: Currently loading full chromosome in memory, working on side...
+    # ...branch that performs operations in chunks to limit memory usage.
 
     def _create_table(self, grp_path, dataf):
         """Save the dataframe columns as 1D arrays in the specified group"""
@@ -84,7 +86,7 @@ class HiconaCooler(Cooler):
                     compression="gzip",
                 )
 
-    def _pixel_chunks(self, chrom_id: str, size: int):
+    def _pixel_chunks(self, chrom_id, size):
         """Generator of pixel chunks of specified chromosome and size."""
 
         extent = self.extent(chrom_id)
@@ -92,13 +94,7 @@ class HiconaCooler(Cooler):
         for lower, upper in borders:
             yield self.pixels()[lower:upper]
 
-    def _filter_pixels(
-        self,
-        pix_df: pd.DataFrame,
-        chrom_id: str,
-        count_thr: int,
-        dist_thr: int,
-    ) -> pd.DataFrame:
+    def _filter_pixels(self, pix_df, chrom_id, count_thr, dist_thr):
         """Filter out pixels non conformant to some condition.
 
         Remove all pixels that do NOT satisfy at least one of these filters:
@@ -107,25 +103,11 @@ class HiconaCooler(Cooler):
         - the bins are distinc (non-self looping)
         - the second bin does match the provided chromosome id
 
-        Parameters
-        ----------
-        pix_df : :py:class:`pd.DataFrame`
-            Dataframe of pixels to filter.
-        chrom_id : str
-            Id of the chromosome whose internal pixels should be kept.
-        count_thr : int
-            Threshold for pixel count; only keep pixels with count greater
-            than this value.
-        dist_thr : int
-            Threshold for genomic distance; only keep pixels whose bins are
-            closer to each other than this distance.
-
-        Notes
-        -----
-        It is assumed that the table to filter was obtained through
-        :py:meth:`Cool.pixels.fetch` and therefore that a) ``bin1_id`` field
-        always matches the chromosome of interest, b) there is no ``bin2_id``
-        lower than the smallest possible bin id for the specified chromosome.
+        NOTE: It is assumed that the table to filter was obtained through
+        Cooler.pixels.fetch and therefore that
+        a) bin1_id field always matches the chromosome of interest
+        b) there is no bin2_id lower than the smallest possible bin id for
+           the specified chromosome.
         """
 
         max_diff = -(-dist_thr // self.binsize)
@@ -142,24 +124,18 @@ class HiconaCooler(Cooler):
         return pix_df
 
     @console_log
-    def _get_filtered_pix(
-        self,
-        chrom_id: str,
-        count_thr: int,
-        dist_thr: int,
-        chunk_size: int = 10_000_000,
-    ) -> pd.DataFrame:
+    def _get_filtered_pix(self, chr_id, count_thr, dist_thr, chunk=10000000):
         """Filter pixels in chunks and return a single dataframe."""
 
-        filt_param = [chrom_id, count_thr, dist_thr]
-        c_iter = self._pixel_chunks(chrom_id, size=chunk_size)
+        filt_param = [chr_id, count_thr, dist_thr]
+        c_iter = self._pixel_chunks(chr_id, size=chunk)
         pix_df = [self._filter_pixels(c, *filt_param) for c in c_iter]
         pix_df = pd.concat(pix_df, axis=0)
 
         return pix_df
 
     @console_log
-    def _drop_duplicate_pixels(self, pix_df: pd.DataFrame) -> pd.DataFrame:
+    def _drop_duplicate_pixels(self, pix_df):
         """pandas.drop_duplicates wrapper for logging purposes."""
 
         start_size = pix_df.shape[0]
@@ -169,14 +145,8 @@ class HiconaCooler(Cooler):
             print(f"Warning, {size_diff} duplicate rows were dropped.")
 
     @console_log
-    def _compute_decay(self, pix_df: pd.DataFrame, stat: str) -> None:
-        """Add expected counts ratio column to the pixels dataframe.
-
-        For each pixel compute the expected counts ratio as log2(1 +
-        observed/expected), where the expected counts are computed as the
-        summary statistic of choice (usually median) of all pixels sharing
-        that distance among the two bins composing it.
-        """
+    def _compute_decay(self, pix_df, stat):
+        """Add normalized counts column to the pixels dataframe."""
 
         pix_df["bin_difference"] = pix_df["bin2_id"] - pix_df["bin1_id"]
         grp_df = pix_df.groupby("bin_difference")["count"].transform(stat)
@@ -184,24 +154,8 @@ class HiconaCooler(Cooler):
         pix_df.drop("bin_difference", axis=1, inplace=True)
 
     @console_log
-    def _add_sparsity_val(self, pix_df: pd.DataFrame) -> None:
-        """Add alpha value to dataframe (computed as per Serrano et al. 2009).
-
-        Add a column to the dataframe containing the alpha values for the
-        edges, meaning the confidence level of a weighted edge given local
-        fluctuations in the network, see Serrano et al. 2009 for in depth
-        explanation. A graph is built starting from the list of edges, then
-        the procedure is iterated over the nodes; the resulting network is
-        converted back to edge list and sorted, since graph traversal does
-        not have inherent order.
-
-        Notes
-        -----
-        The edge in a disconnected doublet (two nodes connected only to each
-        other by a single node) always gets alpha = 1, therefore it will be
-        subsequently filtered. In general the number of doublets is very low
-        (at least 7 orders of magnitude lower than the total number of edges).
-        """
+    def _add_sparsity_val(self, pix_df):
+        """Compute alpha value as per Serrano et al. 2009."""
 
         # Add default alpha value
         pix_df["spar_alpha"] = 1
@@ -242,7 +196,7 @@ class HiconaCooler(Cooler):
         graph.sort_values(["bin1_id", "bin2_id"], inplace=True)
         pix_df["spar_alpha"] = graph["spar_alpha"].values
 
-    def _create_chrom_table(self, chrom_id: str, table_root: str) -> None:
+    def _create_chrom_table(self, chrom_id, table_root):
         """Create chromosome-level table given the set of parameters."""
 
         # Retrieve parameters from the parent group
@@ -277,39 +231,60 @@ class HiconaCooler(Cooler):
 
     def create_tables(
         self,
-        chrom_selection: str = "humanCanonical",
+        chrom_selection: str | Iterable[str] = "humanCanonical",
         count_thr: int = 0,
         dist_thr: int = 200_000_000,
         decay_stat: str = "median",
     ) -> None:
         """Create chromosome-level tables to use for network construction.
 
-        Given a set of chromosome and some parameters for the processing,
-        create individual groups, each one corresponding to a chromosome
+        Given a set of chromosomes and some processing parameters, create
+        individual h5-file groups, each one corresponding to a chromosome
         and containing 1D-arrays corresponding to the columns of the
         processed dataframe.
 
+        The steps performed to create the tables from the starting bins are:
+
+        - **Filtering**: remove inter-chromosomal pixels, self-looping pixels
+          (``bin1_id == bin2_id``), pixels with a count below ``count_thr``,
+          pixels with a genomic distance among the bins greater than
+          ``dist_thr``.
+        - **Deduplication**: remove duplicate pixels (keep first copy found).
+          By cooler file-format specifications there should not be duplicate
+          pixels, but many files from 4D Nucleome Data Portal have them.
+        - **Computing decay**: compute counts normalized for the fact that
+          genomically closer bins have a higher probability of random contact
+          (therefore higher counts by chance). That is
+          :math:`normCount = log_2(rawCount/(normFactor + 1))`, where
+          :math:`normFactor` is the ``decay_stat`` applied on the set of all
+          pixels with the same genomic distance as the one being normalized.
+        - **Sparsification**: compute the sparsification score of each pixel
+          (using normalized counts) according to ``Serrano et al. 2009``.
+
         Parameters
         ----------
-        chrom_selection: str or iterable, optional
-            Iterable of ids of the chromosome to process or regular expression
-            to build one. Some strings are also accepted as proxy for common
-            regular espressions:
-            * humanCanonical: "chr1" to "chr22" plus "chrX" and "chrY"
-            * mouseCanonical: "chr1" to "chr19" plus "chrX" and "chrY"
-            * others to be defined
-            (default is "humanCanonical")
+        chrom_selection: str or Iterable[str], optional
+            Iterable of chromosome ids to process or regular expression.
+            Some strings are also accepted as proxy for common selections:
+
+            - ``humanCanonical``: "chr1" to "chr22" plus "chrX" and "chrY"
+            - ``mouseCanonical``: "chr1" to "chr19" plus "chrX" and "chrY"
+            - others to be defined
+
+            (default is ``humanCanonical``)
         count_thr: int, optional
             Remove pixels whose row count is not greater than this value.
-            (default is 1)
+            (default is 0)
         dist_thr: int, optional
             Remove pixels whose genomic distance among bins is greater or
             equal to this value (in bp). (default is 2Mb)
         decay_stat: str, optional
             Statistic used to summarize pixels with a certain distance while
             computing the expected counts. Must be compatible with
-            pandas.transform. (default is "median")
+            :py:meth:`pandas.transform`. (default is "median")
         """
+
+        # TODO: probably better to set the default to all chromosome in file
 
         # Convert chromosome selection to an iterable
         chrom_selection = self._chrom_regex_to_iter(chrom_selection)
@@ -332,9 +307,10 @@ class HiconaCooler(Cooler):
                 print(f"STARTING {chrom_id}")
                 self._create_chrom_table(chrom_id, table_grp)
 
-    def tables_info(self) -> None:
+    def list_tables(self) -> None:
         """Print available chromosome tables for each set of parameters."""
 
+        # TODO: Maybe find a prettier and more flexible way to print
         with open_hdf5(self.store, mode="r") as h5_handle:
             tables_grp = h5_handle[self.root + "/chrom_tables"]
             par_str = "PARAMETER SETS:"
@@ -356,35 +332,35 @@ class HiconaCooler(Cooler):
     ) -> ChromTablesIterator:
         """Return an iterator of selected tables and respective information.
 
-        Use the input parameters to define a list of partial URIs strings
-        corresponding to the groups where the column tables are stored, then
-        return an iterator object where each item is a tuple in the form
-        (corresponding pandas Dataframe, dictionary of dataframe information).
+        Use the input parameters to define which tables to retrieve, then
+        return a :py:class:`ChromTablesIterator` where each item is a tuple in
+        the form ``(DataFrame, dict)``.
 
         Parameters
         ----------
-        chrom_selection: str or iterable, optional
-            Iterable of ids of the chromosome to fetch or regular expression
-            to build one. Some strings are also accepted as proxy for common
-            regular espressions:
-            * humanCanonical: "chr1" to "chr22" plus "chrX" and "chrY"
-            * mouseCanonical: "chr1" to "chr19" plus "chrX" and "chrY"
-            * other to be defined
-            (default is "humanCanonical")
+        chrom_selection: str or Iterable[str], optional
+            Iterable of chromosome ids to retrieve or regular expression.
+            Some strings are also accepted as proxy for common selections:
+
+            - ``humanCanonical``: "chr1" to "chr22" plus "chrX" and "chrY"
+            - ``mouseCanonical``: "chr1" to "chr19" plus "chrX" and "chrY"
+            - others to be defined
+
+            (default is ``humanCanonical``)
         count_thr: int, optional
             Fetch tables created using this value as count threshold.
-            If None, consider all tables regardless of the used value.
+            If None, get all tables regardless of the used value.
         dist_thr: int, optional
             Fetch tables created using this value as distance threshold.
-            If None, consider all tables regardless of the used value.
+            If None, get all tables regardless of the used value.
         decay_stat: str, optional
-            Fetch tables created using this statistic to compute count decay.
-            If None, consider all tables regardless of the used statistic.
+            Fetch tables created using this statistic for count decay.
+            If None, get all tables regardless of the used statistic.
 
         Returns
         -------
         :py:class:`ChromTablesIterator` :
-            Iterator of tuples in the form (chrom table, information dict).
+            Iterator of tuples in the form ``(chrom table, info dict)``.
         """
 
         # Create valid groups regex according to input parameters
@@ -416,20 +392,21 @@ class HiconaCooler(Cooler):
 
         names = [] if not names else names
         names = [names] if isinstance(names, str) else names
-        names = [n for n in names if n in self.annotations_list()]
+        names = [n for n in names if n in self.list_annotations()]
 
         return names
 
-    def annotations_list(self) -> list[str]:
-        """Return a list of available bin annotation columns
+    def list_annotations(self) -> Iterable[str]:
+        """Return an iterable of available bin annotation columns.
 
-        Return a list of all available bin annotation columns (that is, all
-        columns in the bins group besides "chrom", "start", and "end") sorted
-        alphabetically.
+        Return an iterable of all available bin annotation columns (that is,
+        all columns in the bins group besides ``chrom``, ``start``, and
+        ``end``) sorted alphabetically.
 
         Returns
         -------
-        ann_list : list[str]
+        Iterable[str] :
+            Iterable of bin annotation names in alphabetical order.
         """
 
         with open_hdf5(self.store, mode="r") as h5_handle:
@@ -438,7 +415,7 @@ class HiconaCooler(Cooler):
         ann_list = [k for k in ann_list if k not in ["chrom", "start", "end"]]
         ann_list.sort()
 
-        return ann_list
+        return tuple(ann_list)
 
     def add_bin_annotation(
         self,
@@ -448,32 +425,34 @@ class HiconaCooler(Cooler):
     ) -> None:
         """Add bin annotation(s) using a bed-like file.
 
-        Add one or more annotation columns to the bins dataframe. One can add:
+        Add one or more annotation columns to the bins group. One can add:
         - 0/1 column representing an overlap of the bin in the bed-like file
-        - any number of columns from the bed-like file (regardless of type)
+        - any number of annotation columns from the bed-like file
 
         Parameters
         ----------
         bed_path : str
-            Path to the bed-like file (chrom, start, end, annot1, ..., annotN)
-            to use for the annotation.
+            Path to the bed-like file to use for the annotation
+            ``(chrom, start, end, annot1, ..., annotN)``.
         in_file : str, optional
             Name of the 0/1 annotation column, containing 1 if the bin has at
             least one overlap with any interval in the bed-file, 0 otherwise.
             If None, no such column is created. (default is None)
-        to_keep : Iterable[str], optional
+        to_keep : Iterable[str | None], optional
             Names for the columns of the bed-like file to add to the bins
-            dataframe. Names are assigned from left to right (ignoring the
-            first 3 columns), and any column that receives a name is kept.
-            Any column without a name is discarded. To skip a column place a
+            group. Names are assigned from left to right (ignoring ``chrom``,
+            ``start``, ``end``), and any column that receives a name is kept.
+            Any column without a name is discarded. To skip a column, place a
             None in its position. Excess names are ignored. (default is None)
 
         Notes
         -----
         Adding annotation can drastically increase file size, especially for
-        non-numerical annotations; limit categorical annotations with many
-        distinct values (names, ids, ...).
+        non-numerical annotations; limit string-like non categorical
+        annotations (names, ids, ...).
         """
+
+        # TODO: add example to docstring
 
         def _intersect_dataframes(df_a, df_b):
             """Return dataframe intersection using bedtools intersect -loj"""
@@ -490,10 +469,10 @@ class HiconaCooler(Cooler):
         to_keep = to_keep if any(to_keep) else None
 
         # Check for no overlap in old and new annotations
-        if in_file in self.annotations_list():
+        if in_file in self.list_annotations():
             raise ValueError("'in file' annotation name already exists.")
         if to_keep:
-            if set(to_keep) & set(self.annotations_list()):
+            if set(to_keep) & set(self.list_annotations()):
                 raise ValueError("Overlap with old annotations, stopping.")
 
         # Create the two bin df and merge on default bed columns
@@ -528,14 +507,14 @@ class HiconaCooler(Cooler):
         """Remove bin annotation columns.
 
         Given one or more bin annotation names, remove those columns from the
-        bins table. Non-existent annotations or default bin columns ("chrom",
-        "start", "end") are skipped without raising warning/errors. Removed
-        columns still take space, after this process you might want to repack
-        the file (see h5repack tool).
+        bins table. Non-existent annotations or default columns (``chrom``,
+        ``start``, ``end``) are skipped without raising warning/errors.
+        Removed columns still take space, after this process you might want to
+        repack the file (see h5repack tool).
 
         Parameters
         ----------
-        to_del : str | Iterable[str]
+        to_del : str or Iterable[str]
             String or iterable of them representing bin annotations to remove.
         """
 
@@ -551,7 +530,7 @@ class HiconaCooler(Cooler):
         remove_nan_mod: bool = True,
         force_annotation: bool = False,
     ) -> None:
-        """Convert bin annotation column(s) to one hot encoding form
+        """Convert bin annotation column(s) to one hot encoding form.
 
         Given a list of bin annotations, create for each of those columns N
         other columns (where N is the number of modalities, or unique values,
@@ -562,13 +541,13 @@ class HiconaCooler(Cooler):
         ----------
         to_ohe : Iterable[str]
             Iterable of annotations names to perform one-hot encoding on.
-            Generated columns are named using {original name}_{modality}.
+            Generated columns are named using ``{original name}_{modality}``.
         remove_original : bool, optional
             Whether to remove the original annotation columns on which ohe is
             performed on. (default is False)
         remove_nan_mod : bool, optional
             Whether to remove columns originated from ohe of the NaN modality,
-            meaning {original name}_NaN, if any. (default is True)
+            meaning ``{original name}_NaN``, if any. (default is True)
         force_annotation : bool, optional
             Force ohe even though the number of modalities of one or more
             columns would exceed the default maximum, potentially leading to
@@ -616,10 +595,26 @@ class HiconaCooler(Cooler):
         cool_uri: str,
         chr_tables: ChromTablesIterator,
         alpha_thr: str | float | Iterable[float],
-    ):
+    ) -> None:
         """Create a cool/mcool file containing only sparsified pixels.
 
-        Placeholder
+        Generate a new cooler by using as pixels the specified chromosome
+        tables filtered according to some alpha values. All bins from the
+        file are retained, regardless of whether the corresponding chromosome
+        table is present or not.
+
+        Parameters
+        ----------
+        cool_uri : str
+            Where to generate the new cooler. If the specified file does not
+            exist it will be created.
+        chr_tables : :py:class:`ChromTablesIterator`
+            Iterator of pixel tables to merge and use as pixels.
+        alpha_thr : str, float or Iterable[float]
+            Alpha values to use to filter the pixel tables. If string, compute
+            alphas using the specified method (only "optimal" currently). If
+            float, use that value as threshold for all tables. If iterable,
+            use those values in order, one per table (lengths must match).
         """
         # TODO: Add alpha lenght check
         # TODO: Check the same chromosome was not given twice
@@ -638,4 +633,4 @@ class HiconaCooler(Cooler):
         bare_bins = self.bins()[["chrom", "start", "end"]][:]
         filt_pix = _filter_alpha_tables(chr_tables, alpha_thr)
 
-        create_cooler(mcool_uri, bins=bare_bins, pixels=filt_pix)
+        create_cooler(cool_uri, bins=bare_bins, pixels=filt_pix)

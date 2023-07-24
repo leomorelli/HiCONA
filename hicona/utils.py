@@ -1,6 +1,4 @@
-"""Placeholder
-Placeholder 
-"""
+"""Miscellaneous utility functions for the hicona package."""
 
 from itertools import chain, combinations
 import functools
@@ -21,6 +19,7 @@ DTYPE_CONVERSION_DICT = {
     "object": "string",
     "bool": "bool",
 }
+# TODO: somehow add category
 
 
 def console_log(func):
