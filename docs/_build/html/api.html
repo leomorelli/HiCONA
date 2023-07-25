@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>API &mdash; HiCONA alpha documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
+        <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Tutorials" href="tutorials.html" />
+    <link rel="prev" title="Installation" href="installation.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            HiCONA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">API</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#quick-reference">Quick Reference</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#hiconacooler-i-o-and-preprocessing">HiconaCooler - I/O and preprocessing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#hiconagraph-network-analysis">HiconaGraph - Network analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#hiconacooler">HiconaCooler</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#hicona.HiconaCooler"><code class="docutils literal notranslate"><span class="pre">HiconaCooler</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#hicona.HiconaCooler.add_bin_annotation"><code class="docutils literal notranslate"><span class="pre">HiconaCooler.add_bin_annotation()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#hicona.HiconaCooler.annotation_to_ohe"><code class="docutils literal notranslate"><span class="pre">HiconaCooler.annotation_to_ohe()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#hicona.HiconaCooler.create_tables"><code class="docutils literal notranslate"><span class="pre">HiconaCooler.create_tables()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#hicona.HiconaCooler.del_bin_annotation"><code class="docutils literal notranslate"><span class="pre">HiconaCooler.del_bin_annotation()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#hicona.HiconaCooler.gen_sparsified_cooler"><code class="docutils literal notranslate"><span class="pre">HiconaCooler.gen_sparsified_cooler()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#hicona.HiconaCooler.list_annotations"><code class="docutils literal notranslate"><span class="pre">HiconaCooler.list_annotations()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#hicona.HiconaCooler.list_tables"><code class="docutils literal notranslate"><span class="pre">HiconaCooler.list_tables()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#hicona.HiconaCooler.tables"><code class="docutils literal notranslate"><span class="pre">HiconaCooler.tables()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#hiconagraph">HiconaGraph</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#hicona.HiconaGraph"><code class="docutils literal notranslate"><span class="pre">HiconaGraph</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#hicona.HiconaGraph.permute_annotations"><code class="docutils literal notranslate"><span class="pre">HiconaGraph.permute_annotations()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="references.html">References</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">HiCONA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">API</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/api.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="api">
+<h1>API<a class="headerlink" href="#api" title="Permalink to this heading"></a></h1>
+<section id="quick-reference">
+<h2>Quick Reference<a class="headerlink" href="#quick-reference" title="Permalink to this heading"></a></h2>
+<section id="hiconacooler-i-o-and-preprocessing">
+<h3>HiconaCooler - I/O and preprocessing<a class="headerlink" href="#hiconacooler-i-o-and-preprocessing" title="Permalink to this heading"></a></h3>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#hicona.HiconaCooler" title="hicona.HiconaCooler"><code class="xref py py-obj docutils literal notranslate"><span class="pre">hicona.HiconaCooler</span></code></a>(store, **kwargs)</p></td>
+<td><p>An extension of the Cooler class to prepare data for network analysis.</p></td>
+</tr>
+</tbody>
+</table>
+<p>Create and access chromosome-level tables.</p>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#hicona.HiconaCooler.list_tables" title="hicona.HiconaCooler.list_tables"><code class="xref py py-obj docutils literal notranslate"><span class="pre">hicona.HiconaCooler.list_tables</span></code></a>()</p></td>
+<td><p>Print available chromosome tables for each set of parameters.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#hicona.HiconaCooler.create_tables" title="hicona.HiconaCooler.create_tables"><code class="xref py py-obj docutils literal notranslate"><span class="pre">hicona.HiconaCooler.create_tables</span></code></a>([...])</p></td>
+<td><p>Create chromosome-level tables to use for network construction.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#hicona.HiconaCooler.tables" title="hicona.HiconaCooler.tables"><code class="xref py py-obj docutils literal notranslate"><span class="pre">hicona.HiconaCooler.tables</span></code></a>([...])</p></td>
+<td><p>Return an iterator of selected tables and respective information.</p></td>
+</tr>
+</tbody>
+</table>
+<p>Manipulate bin annotation.</p>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#hicona.HiconaCooler.list_annotations" title="hicona.HiconaCooler.list_annotations"><code class="xref py py-obj docutils literal notranslate"><span class="pre">hicona.HiconaCooler.list_annotations</span></code></a>()</p></td>
+<td><p>Return an iterable of available bin annotation columns.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#hicona.HiconaCooler.add_bin_annotation" title="hicona.HiconaCooler.add_bin_annotation"><code class="xref py py-obj docutils literal notranslate"><span class="pre">hicona.HiconaCooler.add_bin_annotation</span></code></a>(bed_path)</p></td>
+<td><p>Add bin annotation(s) using a bed-like file.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#hicona.HiconaCooler.del_bin_annotation" title="hicona.HiconaCooler.del_bin_annotation"><code class="xref py py-obj docutils literal notranslate"><span class="pre">hicona.HiconaCooler.del_bin_annotation</span></code></a>(to_del)</p></td>
+<td><p>Remove bin annotation columns.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#hicona.HiconaCooler.annotation_to_ohe" title="hicona.HiconaCooler.annotation_to_ohe"><code class="xref py py-obj docutils literal notranslate"><span class="pre">hicona.HiconaCooler.annotation_to_ohe</span></code></a>(to_ohe)</p></td>
+<td><p>Convert bin annotation column(s) to one hot encoding form.</p></td>
+</tr>
+</tbody>
+</table>
+<p>File creation.</p>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#hicona.HiconaCooler.gen_sparsified_cooler" title="hicona.HiconaCooler.gen_sparsified_cooler"><code class="xref py py-obj docutils literal notranslate"><span class="pre">hicona.HiconaCooler.gen_sparsified_cooler</span></code></a>(...)</p></td>
+<td><p>Create a cool/mcool file containing only sparsified pixels.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="hiconagraph-network-analysis">
+<h3>HiconaGraph - Network analysis<a class="headerlink" href="#hiconagraph-network-analysis" title="Permalink to this heading"></a></h3>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#hicona.HiconaGraph" title="hicona.HiconaGraph"><code class="xref py py-obj docutils literal notranslate"><span class="pre">hicona.HiconaGraph</span></code></a>(dataf[, to_keep, ann_df])</p></td>
+<td><p>Specialized Graph subclass for Hi-C data network analysis.</p></td>
+</tr>
+</tbody>
+</table>
+<p>Network analysis algorithms.</p>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#hicona.HiconaGraph.permute_annotations" title="hicona.HiconaGraph.permute_annotations"><code class="xref py py-obj docutils literal notranslate"><span class="pre">hicona.HiconaGraph.permute_annotations</span></code></a>(...)</p></td>
+<td><p>Compute p-values for node label permutations.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<hr class="docutils" />
+<section id="hiconacooler">
+<h2>HiconaCooler<a class="headerlink" href="#hiconacooler" title="Permalink to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="hicona.HiconaCooler">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">hicona.</span></span><span class="sig-name descname"><span class="pre">HiconaCooler</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">store</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">File</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Group</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hicona/hicona_cooler.html#HiconaCooler"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.HiconaCooler" title="Permalink to this definition"></a></dt>
+<dd><p>An extension of the Cooler class to prepare data for network analysis.</p>
+<p><a class="reference internal" href="#hicona.HiconaCooler" title="hicona.HiconaCooler"><code class="xref py py-class docutils literal notranslate"><span class="pre">HiconaCooler</span></code></a> inherits from <code class="xref py py-class docutils literal notranslate"><span class="pre">cooler.Cooler</span></code> and
+extends it by adding new functionalities, mainly revolving around
+the creation of chromosome-level tables to use for network analyses.
+Tables are stored in a separate group (<code class="docutils literal notranslate"><span class="pre">chrom_tables</span></code>) of the
+<code class="xref py py-class docutils literal notranslate"><span class="pre">h5py.File</span></code> and no method or property of the <code class="xref py py-class docutils literal notranslate"><span class="pre">Cooler</span></code>
+is overwritten, therefore a <a class="reference internal" href="#hicona.HiconaCooler" title="hicona.HiconaCooler"><code class="xref py py-class docutils literal notranslate"><span class="pre">HiconaCooler</span></code></a> object can always be
+used as a <code class="xref py py-class docutils literal notranslate"><span class="pre">Cooler</span></code> one.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>store</strong> (str, <code class="xref py py-class docutils literal notranslate"><span class="pre">h5py.File</span></code> or <code class="xref py py-class docutils literal notranslate"><span class="pre">h5py.Group</span></code>) – Path to a cooler file, URI string, or open handle to the root HDF5
+group of a cooler data collection.</p></li>
+<li><p><strong>kwargs</strong> (<em>optional</em>) – Options to be passed to <code class="xref py py-class docutils literal notranslate"><span class="pre">h5py.File</span></code> upon every access.
+See class constructor for <code class="xref py py-class docutils literal notranslate"><span class="pre">Cooler</span></code> for more detail.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="hicona.HiconaCooler.add_bin_annotation">
+<span class="sig-name descname"><span class="pre">add_bin_annotation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">bed_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">in_file</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">to_keep</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/hicona/hicona_cooler.html#HiconaCooler.add_bin_annotation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.HiconaCooler.add_bin_annotation" title="Permalink to this definition"></a></dt>
+<dd><p>Add bin annotation(s) using a bed-like file.</p>
+<p>Add one or more annotation columns to the bins group. One can add:
+- 0/1 column representing an overlap of the bin in the bed-like file
+- any number of annotation columns from the bed-like file</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>bed_path</strong> (<em>str</em>) – Path to the bed-like file to use for the annotation
+<code class="docutils literal notranslate"><span class="pre">(chrom,</span> <span class="pre">start,</span> <span class="pre">end,</span> <span class="pre">annot1,</span> <span class="pre">...,</span> <span class="pre">annotN)</span></code>.</p></li>
+<li><p><strong>in_file</strong> (<em>str</em><em>, </em><em>optional</em>) – Name of the 0/1 annotation column, containing 1 if the bin has at
+least one overlap with any interval in the bed-file, 0 otherwise.
+If None, no such column is created. (default is None)</p></li>
+<li><p><strong>to_keep</strong> (<em>Iterable</em><em>[</em><em>str</em><em> | </em><em>None</em><em>]</em><em>, </em><em>optional</em>) – Names for the columns of the bed-like file to add to the bins
+group. Names are assigned from left to right (ignoring <code class="docutils literal notranslate"><span class="pre">chrom</span></code>,
+<code class="docutils literal notranslate"><span class="pre">start</span></code>, <code class="docutils literal notranslate"><span class="pre">end</span></code>), and any column that receives a name is kept.
+Any column without a name is discarded. To skip a column, place a
+None in its position. Excess names are ignored. (default is None)</p></li>
+</ul>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>Adding annotation can drastically increase file size, especially for
+non-numerical annotations; limit string-like non categorical
+annotations (names, ids, …).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="hicona.HiconaCooler.annotation_to_ohe">
+<span class="sig-name descname"><span class="pre">annotation_to_ohe</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">to_ohe</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">remove_original</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">remove_nan_mod</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force_annotation</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/hicona/hicona_cooler.html#HiconaCooler.annotation_to_ohe"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.HiconaCooler.annotation_to_ohe" title="Permalink to this definition"></a></dt>
+<dd><p>Convert bin annotation column(s) to one hot encoding form.</p>
+<p>Given a list of bin annotations, create for each of those columns N
+other columns (where N is the number of modalities, or unique values,
+for that column) each of which in one hot encoding form (1 if modality
+matches, 0 otherwise). If specified, remove the original column.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>to_ohe</strong> (<em>Iterable</em><em>[</em><em>str</em><em>]</em>) – Iterable of annotations names to perform one-hot encoding on.
+Generated columns are named using <code class="docutils literal notranslate"><span class="pre">{original</span> <span class="pre">name}_{modality}</span></code>.</p></li>
+<li><p><strong>remove_original</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to remove the original annotation columns on which ohe is
+performed on. (default is False)</p></li>
+<li><p><strong>remove_nan_mod</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to remove columns originated from ohe of the NaN modality,
+meaning <code class="docutils literal notranslate"><span class="pre">{original</span> <span class="pre">name}_NaN</span></code>, if any. (default is True)</p></li>
+<li><p><strong>force_annotation</strong> (<em>bool</em><em>, </em><em>optional</em>) – Force ohe even though the number of modalities of one or more
+columns would exceed the default maximum, potentially leading to
+a huge file size increase. (default is False)</p></li>
+</ul>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>Non-existent annotations are skipped without raising warning/errors.
+Removed columns still take space, after this process you might want
+to repack the file (see h5repack tool).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="hicona.HiconaCooler.create_tables">
+<span class="sig-name descname"><span class="pre">create_tables</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">chrom_selection</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'humanCanonical'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">count_thr</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dist_thr</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">200000000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">decay_stat</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'median'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/hicona/hicona_cooler.html#HiconaCooler.create_tables"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.HiconaCooler.create_tables" title="Permalink to this definition"></a></dt>
+<dd><p>Create chromosome-level tables to use for network construction.</p>
+<p>Given a set of chromosomes and some processing parameters, create
+individual h5-file groups, each one corresponding to a chromosome
+and containing 1D-arrays corresponding to the columns of the
+processed dataframe.</p>
+<p>The steps performed to create the tables from the starting bins are:</p>
+<ul class="simple">
+<li><p><strong>Filtering</strong>: remove inter-chromosomal pixels, self-looping pixels
+(<code class="docutils literal notranslate"><span class="pre">bin1_id</span> <span class="pre">==</span> <span class="pre">bin2_id</span></code>), pixels with a count below <code class="docutils literal notranslate"><span class="pre">count_thr</span></code>,
+pixels with a genomic distance among the bins greater than
+<code class="docutils literal notranslate"><span class="pre">dist_thr</span></code>.</p></li>
+<li><p><strong>Deduplication</strong>: remove duplicate pixels (keep first copy found).
+By cooler file-format specifications there should not be duplicate
+pixels, but many files from 4D Nucleome Data Portal have them.</p></li>
+<li><p><strong>Computing decay</strong>: compute counts normalized for the fact that
+genomically closer bins have a higher probability of random contact
+(therefore higher counts by chance). That is
+<span class="math notranslate nohighlight">\(normCount = log_2(rawCount/(normFactor + 1))\)</span>, where
+<span class="math notranslate nohighlight">\(normFactor\)</span> is the <code class="docutils literal notranslate"><span class="pre">decay_stat</span></code> applied on the set of all
+pixels with the same genomic distance as the one being normalized.</p></li>
+<li><p><strong>Sparsification</strong>: compute the sparsification score of each pixel
+(using normalized counts) according to <code class="docutils literal notranslate"><span class="pre">Serrano</span> <span class="pre">et</span> <span class="pre">al.</span> <span class="pre">2009</span></code>.</p></li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>chrom_selection</strong> (<em>str</em><em> or </em><em>Iterable</em><em>[</em><em>str</em><em>]</em><em>, </em><em>optional</em>) – <p>Iterable of chromosome ids to process or regular expression.
+Some strings are also accepted as proxy for common selections:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">humanCanonical</span></code>: “chr1” to “chr22” plus “chrX” and “chrY”</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">mouseCanonical</span></code>: “chr1” to “chr19” plus “chrX” and “chrY”</p></li>
+<li><p>others to be defined</p></li>
+</ul>
+<p>(default is <code class="docutils literal notranslate"><span class="pre">humanCanonical</span></code>)</p>
+</p></li>
+<li><p><strong>count_thr</strong> (<em>int</em><em>, </em><em>optional</em>) – Remove pixels whose row count is not greater than this value.
+(default is 0)</p></li>
+<li><p><strong>dist_thr</strong> (<em>int</em><em>, </em><em>optional</em>) – Remove pixels whose genomic distance among bins is greater or
+equal to this value (in bp). (default is 2Mb)</p></li>
+<li><p><strong>decay_stat</strong> (<em>str</em><em>, </em><em>optional</em>) – Statistic used to summarize pixels with a certain distance while
+computing the expected counts. Must be compatible with
+<code class="xref py py-meth docutils literal notranslate"><span class="pre">pandas.transform()</span></code>. (default is “median”)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="hicona.HiconaCooler.del_bin_annotation">
+<span class="sig-name descname"><span class="pre">del_bin_annotation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">to_del</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/hicona/hicona_cooler.html#HiconaCooler.del_bin_annotation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.HiconaCooler.del_bin_annotation" title="Permalink to this definition"></a></dt>
+<dd><p>Remove bin annotation columns.</p>
+<p>Given one or more bin annotation names, remove those columns from the
+bins table. Non-existent annotations or default columns (<code class="docutils literal notranslate"><span class="pre">chrom</span></code>,
+<code class="docutils literal notranslate"><span class="pre">start</span></code>, <code class="docutils literal notranslate"><span class="pre">end</span></code>) are skipped without raising warning/errors.
+Removed columns still take space, after this process you might want to
+repack the file (see h5repack tool).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>to_del</strong> (<em>str</em><em> or </em><em>Iterable</em><em>[</em><em>str</em><em>]</em>) – String or iterable of them representing bin annotations to remove.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="hicona.HiconaCooler.gen_sparsified_cooler">
+<span class="sig-name descname"><span class="pre">gen_sparsified_cooler</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cool_uri</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chr_tables</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ChromTablesIterator</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha_thr</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/hicona/hicona_cooler.html#HiconaCooler.gen_sparsified_cooler"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.HiconaCooler.gen_sparsified_cooler" title="Permalink to this definition"></a></dt>
+<dd><p>Create a cool/mcool file containing only sparsified pixels.</p>
+<p>Generate a new cooler by using as pixels the specified chromosome
+tables filtered according to some alpha values. All bins from the
+file are retained, regardless of whether the corresponding chromosome
+table is present or not.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>cool_uri</strong> (<em>str</em>) – Where to generate the new cooler. If the specified file does not
+exist it will be created.</p></li>
+<li><p><strong>chr_tables</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">ChromTablesIterator</span></code>) – Iterator of pixel tables to merge and use as pixels.</p></li>
+<li><p><strong>alpha_thr</strong> (<em>str</em><em>, </em><em>float</em><em> or </em><em>Iterable</em><em>[</em><em>float</em><em>]</em>) – Alpha values to use to filter the pixel tables. If string, compute
+alphas using the specified method (only “optimal” currently). If
+float, use that value as threshold for all tables. If iterable,
+use those values in order, one per table (lengths must match).</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="hicona.HiconaCooler.list_annotations">
+<span class="sig-name descname"><span class="pre">list_annotations</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/hicona/hicona_cooler.html#HiconaCooler.list_annotations"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.HiconaCooler.list_annotations" title="Permalink to this definition"></a></dt>
+<dd><p>Return an iterable of available bin annotation columns.</p>
+<p>Return an iterable of all available bin annotation columns (that is,
+all columns in the bins group besides <code class="docutils literal notranslate"><span class="pre">chrom</span></code>, <code class="docutils literal notranslate"><span class="pre">start</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">end</span></code>) sorted alphabetically.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Iterable of bin annotation names in alphabetical order.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>Iterable[str]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="hicona.HiconaCooler.list_tables">
+<span class="sig-name descname"><span class="pre">list_tables</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/hicona/hicona_cooler.html#HiconaCooler.list_tables"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.HiconaCooler.list_tables" title="Permalink to this definition"></a></dt>
+<dd><p>Print available chromosome tables for each set of parameters.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="hicona.HiconaCooler.tables">
+<span class="sig-name descname"><span class="pre">tables</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">chrom_selection</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'humanCanonical'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">count_thr</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dist_thr</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">decay_stat</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ChromTablesIterator</span></span></span><a class="reference internal" href="_modules/hicona/hicona_cooler.html#HiconaCooler.tables"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.HiconaCooler.tables" title="Permalink to this definition"></a></dt>
+<dd><p>Return an iterator of selected tables and respective information.</p>
+<p>Use the input parameters to define which tables to retrieve, then
+return a <code class="xref py py-class docutils literal notranslate"><span class="pre">ChromTablesIterator</span></code> where each item is a tuple in
+the form <code class="docutils literal notranslate"><span class="pre">(DataFrame,</span> <span class="pre">dict)</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>chrom_selection</strong> (<em>str</em><em> or </em><em>Iterable</em><em>[</em><em>str</em><em>]</em><em>, </em><em>optional</em>) – <p>Iterable of chromosome ids to retrieve or regular expression.
+Some strings are also accepted as proxy for common selections:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">humanCanonical</span></code>: “chr1” to “chr22” plus “chrX” and “chrY”</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">mouseCanonical</span></code>: “chr1” to “chr19” plus “chrX” and “chrY”</p></li>
+<li><p>others to be defined</p></li>
+</ul>
+<p>(default is <code class="docutils literal notranslate"><span class="pre">humanCanonical</span></code>)</p>
+</p></li>
+<li><p><strong>count_thr</strong> (<em>int</em><em>, </em><em>optional</em>) – Fetch tables created using this value as count threshold.
+If None, get all tables regardless of the used value.</p></li>
+<li><p><strong>dist_thr</strong> (<em>int</em><em>, </em><em>optional</em>) – Fetch tables created using this value as distance threshold.
+If None, get all tables regardless of the used value.</p></li>
+<li><p><strong>decay_stat</strong> (<em>str</em><em>, </em><em>optional</em>) – Fetch tables created using this statistic for count decay.
+If None, get all tables regardless of the used statistic.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Iterator of tuples in the form <code class="docutils literal notranslate"><span class="pre">(chrom</span> <span class="pre">table,</span> <span class="pre">info</span> <span class="pre">dict)</span></code>.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">ChromTablesIterator</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<hr class="docutils" />
+<section id="hiconagraph">
+<h2>HiconaGraph<a class="headerlink" href="#hiconagraph" title="Permalink to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="hicona.HiconaGraph">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">hicona.</span></span><span class="sig-name descname"><span class="pre">HiconaGraph</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataf</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">to_keep</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ann_df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/hicona/hicona_graph.html#HiconaGraph"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.HiconaGraph" title="Permalink to this definition"></a></dt>
+<dd><p>Specialized Graph subclass for Hi-C data network analysis.</p>
+<p><code class="xref py py-class docutils literal notranslate"><span class="pre">graph_tool.Graph</span></code> subclass created from a chromosome-level
+table, where the nodes are the bins while the edges are the pixels.
+Unless specified otherwise, edges are annotated with all pixel columns.
+Unless specified otherwise, nodes are annotated only with the <code class="docutils literal notranslate"><span class="pre">bin_id</span></code>;
+in general it is suggested to specify only the required annotations, in
+order to prevent graphs too big for memory. Some commonly used network
+analysis algorithms are implemented as methods.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dataf</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code>) – Chromosome-level pixel table to create the network from.</p></li>
+<li><p><strong>to_keep</strong> (<em>Iterable</em><em>[</em><em>str</em><em>]</em><em>, </em><em>optional</em>) – Iterable of pixel table columns to add as edge properties.
+If None, all pixel table columns are kept. (Default is None)</p></li>
+<li><p><strong>ann_df</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code>, optional) – DataFrame whose columns are added as node properties.
+Usually a slice of the <code class="docutils literal notranslate"><span class="pre">bins</span></code> table. (Default is None)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="hicona.HiconaGraph.permute_annotations">
+<span class="sig-name descname"><span class="pre">permute_annotations</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ann_list</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stat</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_perms</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seed</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">94206</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="reference internal" href="_modules/hicona/hicona_graph.html#HiconaGraph.permute_annotations"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.HiconaGraph.permute_annotations" title="Permalink to this definition"></a></dt>
+<dd><p>Compute p-values for node label permutations.</p>
+<p>Given a subset of node annotations of the graph, first compute all
+combinations of one (annA vs universe, e.i. all nodes in the graph)
+or two annotations (annA vs annB), then for each of them compute the
+p-value for the test <span class="math notranslate nohighlight">\(H1: log_2(stat(annA) / stat(annB)) &gt; 0\)</span>
+using node label permutations (randomly permute the attributes among
+nodes without changing graph structure).</p>
+<p>Annotations must be in OHE form.
+The annotations can be overlapping, in which case the number of nodes
+with overlapping annotations remains constant (e.i. if N nodes have
+both annotations in the original set, N nodes will have both
+annotations in each individual permutation).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ann_list</strong> (<em>str</em><em> or </em><em>Iterable</em><em>[</em><em>str</em><em>]</em>) – List of annotations (or single annotation) to permute.</p></li>
+<li><p><strong>stat</strong> (<em>str</em>) – <p>Node-level statistic to use in the test. Currently supported:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">ave_degree</span></code>: average total node degree</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">betweenness</span></code>: node betweenness centrality</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">clustering_coeff</span></code>: local clustering coefficient</p></li>
+</ul>
+</p></li>
+<li><p><strong>num_perms</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of permutation iterations to perform. (Default is 1000)</p></li>
+<li><p><strong>seed</strong> (<em>int</em><em>, </em><em>optional</em>) – Rng seed for the permutations. (Default is 94206)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>dictionary containing permutation parameters and results</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="installation.html" class="btn btn-neutral float-left" title="Installation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="tutorials.html" class="btn btn-neutral float-right" title="Tutorials" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Leonardo Morelli, Stefano Cretti.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

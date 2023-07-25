@@ -158,9 +158,9 @@ class HiconaGraph(gt.Graph):
         Given a subset of node annotations of the graph, first compute all
         combinations of one (annA vs universe, e.i. all nodes in the graph)
         or two annotations (annA vs annB), then for each of them compute the
-        p-value for the test :math:`H1: stat(annA) - stat(annB) > 0` using
-        node label permutations (randomly permute the attributes among nodes
-        without changing graph structure).
+        p-value for the test :math:`H1: log_2(stat(annA) / stat(annB)) > 0`
+        using node label permutations (randomly permute the attributes among
+        nodes without changing graph structure).
 
         Annotations must be in OHE form.
         The annotations can be overlapping, in which case the number of nodes
