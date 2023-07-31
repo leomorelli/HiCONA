@@ -10,7 +10,7 @@ how difficult it can be to handle these huge sparse matrices.
 HiCONA tries to address these needs by building on top of two main packages:
 
 * `Cooler`_ for I/O and storage related tasks
-* `graph_tool`_ for graph processing and plotting
+* `graph-tool`_ for graph processing and plotting
 
 HiCONA adheres as much as possible to the cooler format specifications,
 striving to maintain full compatibility and the ability to be integrated with
@@ -19,6 +19,8 @@ other tools.
 Moreover HiCONA implements other algorithms, especially for preprocessing, 
 optimized for both computational and memory efficiency.
 
+Documentation
+-------------
 
 Installation
 ------------
@@ -53,8 +55,8 @@ In the future the whole procedure will be streamlined.
 
 Citing
 ------
-As of yet, there are no publications on HiCONA.
+*As of yet, there are no publications on HiCONA.*
 
 
 .. _Cooler: https://github.com/open2c/cooler
-.. _graph_tool: https://graph-tool.skewed.de/
+.. _graph-tool: https://graph-tool.skewed.de/
