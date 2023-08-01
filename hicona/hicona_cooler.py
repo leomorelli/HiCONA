@@ -620,13 +620,17 @@ class HiconaCooler(Cooler):
         # TODO: Check the same chromosome was not given twice
 
         def _filter_alpha_tables(tables, alphas):
-            """Filter iterable of tables according to an iterable of alphas"""
-            for (table, _), alpha in zip(tables, alphas):
-                table = table[table["spar_alpha"] < alpha]
+            """Filter iterable of tables according to iterable of alphas."""
+            for table, alpha in zip(tables, alphas):
+                table = table.filter_alpha(alpha)
                 yield table[["bin1_id", "bin2_id", "count"]]
 
+        # Adjust input vector of alphas
         if isinstance(alpha_thr, str):
-            pass  # TODO: compute optimal values
+            if alpha_thr == "optimal":
+                alpha_thr = ["optimal"] * len(chr_tables)
+            else:
+                raise ValueError(f"Unknown filtering parameter: {alpha_thr}")
         elif isinstance(alpha_thr, float):
             alpha_thr = [alpha_thr] * len(chr_tables)
 

@@ -1,10 +1,7 @@
-import hicona_cooler
-import pandas as pd
-import cooler
-import numpy as np
-import matplotlib.pyplot as plt
 import math
 
+import pandas as pd
+import numpy as np
 
 
 def line_intersection(line1, line2):
@@ -24,11 +21,14 @@ def line_intersection(line1, line2):
     return x, y
 
 
-def n_nodes_edges(cool_file, alpha_thr,chrom):
+def n_nodes_edges(cool_file, alpha_thr, chrom):
     # Compute node and edges given alpha threshold (rows are thresholds)
     DF = pd.DataFrame()
     c = cool_file
-    big_net = pd.concat(grp[0] for grp in c.tables(count_thr=0, dist_thr=200000000,chrom_selection=chrom))
+    big_net = pd.concat(
+        grp[0]
+        for grp in c.tables(count_thr=0, dist_thr=200_000_000, chrom_selection=chrom)
+    )
     for a in alpha_thr:
         net_filt = big_net[big_net["spar_alpha"] <= a]
         n_edges = net_filt.shape[0]
@@ -60,7 +60,7 @@ def local_alpha(DF):
     return alpha_thr, df_f
 
 
-def optimal_alpha_chrom(cool_file,chrom):
+def optimal_alpha_chrom(cool_file, chrom):
     # Iterate function to better approximate value
     c = cool_file
     i = 0
@@ -73,7 +73,7 @@ def optimal_alpha_chrom(cool_file,chrom):
             np.array([x for x in range(thr_extremes[0], thr_extremes[1])]) / steps[i]
         )
         alpha_thr = [0.0001] + alpha_thr + [0.9999]
-        DF = n_nodes_edges(c, alpha_thr,chrom)
+        DF = n_nodes_edges(c, alpha_thr, chrom)
         alpha, DF_alpha = local_alpha(DF)
         df = pd.concat([df, DF_alpha])
         opt_a = alpha_thr.index(alpha)
@@ -81,29 +81,30 @@ def optimal_alpha_chrom(cool_file,chrom):
         i = i + 1
         thr_extremes = [
             int(alpha_thr[opt_a - 1] * steps[i]),
-            int(alpha_thr[opt_a + 1] * steps[i]),]
-    df=df.drop_duplicates('alpha')
-    df=df.sort_values('alpha')
-    df.index=[x for x in range(df.shape[0])]
+            int(alpha_thr[opt_a + 1] * steps[i]),
+        ]
+    df = df.drop_duplicates("alpha")
+    df = df.sort_values("alpha")
+    df.index = [x for x in range(df.shape[0])]
     return alpha, df
 
-def optimal_alpha(cool_file,modality):
-    if modality=='global':
-        alpha, df=optimal_alpha_chrom(cool_file,'humanCanonical')
-        df['optimal_alpha']=[alpha for i in range(df.shape[0])]
-    else:
-	chroms=[x for x in list(set(cool_file.bins()[:]['chrom'])) if len(x)<=5]
-        chroms=[x for x in chroms if x != 'chrM']
-        df=pd.DataFrame()
-        for chrom in chroms:
-            print('CHROM:',chrom)
-            alpha, df_c=optimal_alpha_chrom(cool_file,chrom)
-            df_c['chrom']=[chrom for i in range(df_c.shape[0])]
-            df_c['optimal_alpha']=[alpha for i in range(df_c.shape[0])]
-            df=pd.concat([df_c,df])
-        df.index=[x for x in range(df.shape[0])]
-    return df
 
+def optimal_alpha(cool_file, modality):
+    if modality == "global":
+        alpha, df = optimal_alpha_chrom(cool_file, "humanCanonical")
+        df["optimal_alpha"] = [alpha for i in range(df.shape[0])]
+    else:
+        chroms = [x for x in list(set(cool_file.bins()[:]["chrom"])) if len(x) <= 5]
+        chroms = [x for x in chroms if x != "chrM"]
+        df = pd.DataFrame()
+        for chrom in chroms:
+            print("CHROM:", chrom)
+            alpha, df_c = optimal_alpha_chrom(cool_file, chrom)
+            df_c["chrom"] = [chrom for i in range(df_c.shape[0])]
+            df_c["optimal_alpha"] = [alpha for i in range(df_c.shape[0])]
+            df = pd.concat([df_c, df])
+        df.index = [x for x in range(df.shape[0])]
+    return df
 
 
 # Plotting function?

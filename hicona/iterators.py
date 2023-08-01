@@ -5,6 +5,8 @@ Placeholder
 from cooler.util import open_hdf5
 from pandas import DataFrame
 
+from .chrom_table import ChromTable
+
 
 class ChunkBordersIterator:
     """Iterator object of pixel chunks for a specified chromosome.
@@ -54,10 +56,9 @@ class ChunkBordersIterator:
 class ChromTablesIterator:
     """Iterator object of chromosome-level tables and respective information.
 
-    For each table group specified in a list of URI strings, return a tuple
-    in the form (chromosome table, information dictionary), where the
-    chromosome table is a :py:class:`DataFrame` obtained using all tables in
-    the group as columns, while the information dictionary contains all the
+    For each table group specified in a list of URI strings, return a
+    :py:class:`ChromTable` object whose data attribute corresponds to all
+    tables in the group, while the preprocessing_params contains all the
     parameters used for processing plus the chromosome id.
 
     Parameters
@@ -98,5 +99,6 @@ class ChromTablesIterator:
             attr_dict = dict(table_grp.parent.attrs.items())
             attr_dict["chromosome"] = curr_uri.split("/")[-1]
             table = DataFrame({f: table_grp[f] for f in table_grp.keys()})
+            table = ChromTable(table, attr_dict)
 
-        return (table, attr_dict)
+        return table
