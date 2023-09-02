@@ -6,6 +6,10 @@
 results/
 test_files/
 test_script.py
+test.py
 
 # Ignore test files
 */.coverage
+
+# Ignore misc
+tables_tutorial.py

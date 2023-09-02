@@ -110,6 +110,13 @@ class HiconaCooler(Cooler):
            the specified chromosome.
         """
 
+        # NOTE: This works for now, but if at a certain point it is decided
+        # that inter-chromosomal pixels are kept while genomic distance is
+        # still used as a filter, this will not work anymore, since right now
+        # the distance is computed considering the chromosomes as contiguous
+        # genomic distances (last bin of chrom1 and first bin of chrom2 now
+        # have distance 1, while thay should have something like + infinity)
+
         max_diff = -(-dist_thr // self.binsize)
         id_upper_bound = self.extent(chrom_id)[1]
 
@@ -456,7 +463,8 @@ class HiconaCooler(Cooler):
 
         def _intersect_dataframes(df_a, df_b):
             """Return dataframe intersection using bedtools intersect -loj"""
-
+     
+            # TODO: Check handling of overlapping annotations in the same file
             # Suppress linting error due to pybedtools wrapper implementation
             # pylint: disable=unexpected-keyword-arg, too-many-function-args
             bed_a = BedTool.from_dataframe(df_a)
