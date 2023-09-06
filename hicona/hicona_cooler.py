@@ -372,7 +372,10 @@ class HiconaCooler(Cooler):
 
         # Create valid groups regex according to input parameters
         chroms = self._chrom_regex_to_iter(chrom_selection)
-        count_thr = r"\S+" if not count_thr else count_thr
+        if count_thr==0:
+       	    count_thr=0
+       	else:
+            count_thr = r"\S+" if not count_thr else count_thr
         dist_thr = r"\S+" if not dist_thr else dist_thr
         decay_stat = r"\S+" if not decay_stat else decay_stat
         filt_stats = [count_thr, dist_thr, decay_stat]
