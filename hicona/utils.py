@@ -22,6 +22,13 @@ DTYPE_CONVERSION_DICT = {
 # TODO: somehow add category
 
 
+def get_chunk_borders(start, stop, step):
+    """Get list of tuples corresponding to chunk borders."""
+    cutoffs = [start + n * step for n in range((stop - start) // step + 1)]
+    cutoffs = cutoffs if (stop - start) % step == 0 else cutoffs + [stop]
+    return [(cutoffs[n], cutoffs[n + 1]) for n in range(len(cutoffs) - 1)]
+
+
 def console_log(func):
     """A simple decorator to log information to the console."""
     # TODO: Make decorator toggleable

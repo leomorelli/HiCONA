@@ -8,31 +8,35 @@ can be retrieved to create filtered networks to analyze.
 
 from collections.abc import Iterable
 import re
+from statistics import median
 
 from cooler import Cooler, create_cooler
 from cooler.core import delete
-from cooler.util import open_hdf5
 import h5py
-from networkx import from_pandas_edgelist, to_pandas_edgelist
 import numpy as np
 import pandas as pd
 from pybedtools import BedTool
+from scipy import integrate
 
-from .iterators import ChromTablesIterator, ChunkBordersIterator
+import matplotlib.pyplot as plt
+from .iterators import ChromTablesIterator
 from .utils import (
     console_log,
-    compute_alpha_val,
     from_df_to_sarrays,
+    get_chunk_borders,
     pd_from_bed,
+    round_half_up,
 )
 
 __all__ = ["HiconaCooler"]
 
 
 # Template to name groups inside chrom_tables group
-_GRP_TEMPLATE = "countThr_{}_distThr_{}_stat_{}"
+_GRP_TEMPLATE = "distThr_{}_countThr_{}"
 # Maximum number of allowed modalities when transforming an annotation to ohe
 _MAX_MODS = 10
+# Minimum number of pixels per table chunk
+_MIN_PIX_CHUNK = 1_000_000
 # Dictionary of standard regular expressions to simplify chromosome fetching
 _DEFAULT_CHROM_RE = {
     "humanCanonical": "^chr([1-9]|[1][0-9]|[2][0-2]|[XY])$",
@@ -61,22 +65,38 @@ class HiconaCooler(Cooler):
         See class constructor for :py:class:`Cooler` for more detail.
     """
 
-    # Defined class constructor to mask deprecated store parameter from Cooler
+    # ////////////////////////////////////////////////////////////////////////
+    # //////////////////////// BASIC OBJECT FUNCTIONS ////////////////////////
+    # /////// Class constructor, setter, getters and similar functions ///////
+    # ////////////////////////////////////////////////////////////////////////
+
+    # TODO: autodetect system resources to define better chunk size
+
     def __init__(self, store: str | h5py.File | h5py.Group, **kwargs):
+        # Mask deprecated root parameter from super-class
         super().__init__(store, **kwargs)
+        self._chunk_size = 1_000_000
+
+    @property
+    def chunk_size(self):
+        """Size of fixed lenght chunks used during processing."""
+        return self._chunk_size
+
+    @chunk_size.setter
+    def chunk_size(self, value):
+        if not (isinstance(value, int)) or value < _MIN_PIX_CHUNK:
+            raise ValueError(f"chunk_size must be: int >= {_MIN_PIX_CHUNK}.")
+        self._chunk_size = value
 
     # ////////////////////////////////////////////////////////////////////////
-    # /////////////////////// PRE-PROCESSING FUNCTIONS ///////////////////////
-    # // Functions to pass from full-pixel table to chromosome-level tables //
+    # //////////////////////////// I/O FUNCTIONS /////////////////////////////
+    # ////////// Functions to create or retrieve tables and groups ///////////
     # ////////////////////////////////////////////////////////////////////////
-
-    # TODO: Currently loading full chromosome in memory, working on side...
-    # ...branch that performs operations in chunks to limit memory usage.
 
     def _create_table(self, grp_path, dataf):
-        """Save the dataframe columns as 1D arrays in the specified group"""
+        """Save the dataframe columns as 1D arrays in the specified group."""
 
-        with open_hdf5(self.store, mode="r+") as h5_handle:
+        with h5py.File(self.store, mode="r+") as h5_handle:
             grp = h5_handle[self.root + "/" + grp_path]
             for name, vals, dtype in from_df_to_sarrays(dataf):
                 grp.create_dataset(
@@ -86,142 +106,254 @@ class HiconaCooler(Cooler):
                     compression="gzip",
                 )
 
-    def _pixel_chunks(self, chrom_id, size):
-        """Generator of pixel chunks of specified chromosome and size."""
+    def _chrom_chunks(self, chrom_id):
+        """Return chunk borders pairs for the pixels of a chromosome"""
 
         extent = self.extent(chrom_id)
-        borders = ChunkBordersIterator(self.store, self.root, extent, size)
-        for lower, upper in borders:
-            yield self.pixels()[lower:upper]
+        with h5py.File(self.store, mode="r") as h5_handle:
+            h5_grp = h5_handle[self.root]
+            min_off = h5_grp["indexes/bin1_offset"][extent[0]]
+            max_off = h5_grp["indexes/bin1_offset"][extent[1]]
 
-    def _filter_pixels(self, pix_df, chrom_id, count_thr, dist_thr):
-        """Filter out pixels non conformant to some condition.
+        return get_chunk_borders(min_off, max_off, self._chunk_size)
 
-        Remove all pixels that do NOT satisfy at least one of these filters:
-        - distance among the bins is below maximal genomic distance allowed
-        - number of counts of the interaction is above the minimal threshold
-        - the bins are distinc (non-self looping)
-        - the second bin does match the provided chromosome id
+    def _table_chunks(self, table_uri):
+        """Return chunk borders pairs for a pixel table."""
 
-        NOTE: It is assumed that the table to filter was obtained through
-        Cooler.pixels.fetch and therefore that
-        a) bin1_id field always matches the chromosome of interest
-        b) there is no bin2_id lower than the smallest possible bin id for
-           the specified chromosome.
+        with h5py.File(self.store, mode="r") as h5_handle:
+            table = h5_handle[table_uri]
+            max_off = table.attrs["num_pixels"]
+
+        return get_chunk_borders(0, max_off, self._chunk_size)
+
+    def _put_chunk(self, chunk, table_uri, bounds, cols=None):
+        """Place pixel chunk in table at the given position."""
+        lower, upper = bounds
+        cols = cols if cols else list(chunk)
+        with h5py.File(self.store, mode="r+") as h5_handle:
+            table = h5_handle[table_uri]
+            for col in cols:
+                table[col][lower:upper] = chunk[col]
+
+    def _get_chunk(self, table_uri, bounds, cols=None):
+        """Retrieve a chunk of pixels from a specified table."""
+        lower, upper = bounds
+        with h5py.File(self.store, mode="r") as h5_handle:
+            table = h5_handle[table_uri]
+            cols = cols if cols else list(table.keys())
+            chunk = pd.DataFrame({f: table[f][lower:upper] for f in cols})
+        return chunk
+
+    # ////////////////////////////////////////////////////////////////////////
+    # /////////////////////// PRE-PROCESSING FUNCTIONS ///////////////////////
+    # // Functions to pass from full-pixel table to chromosome-level tables //
+    # ////////////////////////////////////////////////////////////////////////
+
+    def _filter_chunk(self, pix_df, chrom_id, count_thr, dist_thr):
         """
-
-        # NOTE: This works for now, but if at a certain point it is decided
-        # that inter-chromosomal pixels are kept while genomic distance is
-        # still used as a filter, this will not work anymore, since right now
-        # the distance is computed considering the chromosomes as contiguous
-        # genomic distances (last bin of chrom1 and first bin of chrom2 now
-        # have distance 1, while thay should have something like + infinity)
+        Filter out pixels which are either self-looping, inter-chromosomal,
+        above/equal to distance threshold, below/equal to count thrshold.
+        Current version does not work if inter-chromosomal pixels are kept.
+        """
 
         max_diff = -(-dist_thr // self.binsize)
         id_upper_bound = self.extent(chrom_id)[1]
 
-        indexer = pix_df[
-            (pix_df["bin2_id"] - pix_df["bin1_id"] >= max_diff)
-            | (pix_df["count"] <= count_thr)
-            | (pix_df["bin1_id"] == pix_df["bin2_id"])
-            | (pix_df["bin2_id"] >= id_upper_bound)
-        ].index
-        pix_df.drop(indexer, inplace=True)
+        filtered_df = pix_df[
+            (pix_df["bin2_id"] - pix_df["bin1_id"] < max_diff)
+            & (pix_df["count"] > count_thr)
+            & (pix_df["bin1_id"] != pix_df["bin2_id"])
+            & (pix_df["bin2_id"] < id_upper_bound)
+        ]
 
-        return pix_df
+        return filtered_df
+
+    def _get_table_size(self, chrom_id, filt_opts):
+        """Determine table size by running mock filtering."""
+
+        size = 0
+        for bounds in self._chrom_chunks(chrom_id):
+            chunk = self._get_chunk(f"{self.root}/pixels", bounds)
+            size += len(self._filter_chunk(chunk, chrom_id, **filt_opts))
+        return size
+
+    def _init_table(self, table_root, chrom_id, filt_opts):
+        """Initialize chromosome-level pixel table to fill in."""
+
+        size = self._get_table_size(chrom_id, filt_opts)
+        with h5py.File(self.store, mode="r+") as h5_handle:
+            table_group = h5_handle[table_root]
+            chrom_table = table_group.require_group(chrom_id)
+            chrom_table.require_dataset("bin1_id", (size,), dtype="i8")
+            chrom_table.require_dataset("bin2_id", (size,), dtype="i8")
+            chrom_table.require_dataset("count", (size,), dtype="i4")
+            chrom_table.require_dataset("exp_ratio", (size,), dtype="f8")
+            chrom_table.require_dataset("alpha_min", (size,), dtype="f8")
+            chrom_table.require_dataset("alpha_max", (size,), dtype="f8")
+
+            chrom_table.attrs["chromosome"] = chrom_id
+            chrom_table.attrs["num_pixels"] = size
+
+    def _filter_pixels(self, table_uri, chrom_id, filt_opts):
+        """Filter and store pixels in the chromosome-table."""
+
+        lower = 0
+        for bounds in self._chrom_chunks(chrom_id):
+            chunk = self._get_chunk(f"{self.root}/pixels", bounds)
+            chunk = self._filter_chunk(chunk, chrom_id, **filt_opts)
+            upper = lower + len(chunk)
+            self._put_chunk(chunk, table_uri, (lower, upper))
+            lower = upper
+
+    def _norm_curve(self, table_uri):
+        """Compute curve for genomic distance normalization."""
+
+        chunk_cols = ["bin1_id", "bin2_id", "count"]
+        curve = pd.Series()
+        for bounds in self._table_chunks(table_uri):
+            chunk = self._get_chunk(table_uri, bounds, cols=chunk_cols)
+            chunk["bin_diff"] = chunk["bin2_id"] - chunk["bin1_id"]
+            vals = chunk.groupby("bin_diff")["count"].apply(list)
+            curve = curve.combine(vals, lambda x, y: x + y, fill_value=[])
+
+        return curve.apply(median)
+
+    def _plot_norm_curve(self, norm_curve):
+        """Temporary function to plot normalization curve."""
+        # TODO: Remove or move elsewhere
+
+        norm_curve.plot()
+        plt.yscale("log")
+        plt.xscale("log")
+        plt.show()
+
+    def _normalize_pixels(self, table_uri, norm_curve):
+        """Normalize chromosome-level table for genomic distance."""
+
+        chunk_cols = ["bin1_id", "bin2_id", "count"]
+        lower = 0
+        for bounds in self._table_chunks(table_uri):
+            chunk = self._get_chunk(table_uri, bounds, cols=chunk_cols)
+
+            # Compute expected ratios
+            chunk["bin_diff"] = chunk["bin2_id"] - chunk["bin1_id"]
+            chunk = chunk.join(norm_curve.rename("dist_norm"), on="bin_diff")
+            exp_ratios = np.log2(chunk["count"] / chunk["dist_norm"] + 1)
+            chunk["exp_ratio"] = exp_ratios
+
+            # Save expected ratios
+            upper = lower + len(exp_ratios)
+            self._put_chunk(chunk, table_uri, (lower, upper), ("exp_ratio",))
+            lower = upper
+
+    def _get_node_stats(self, table_uri):
+        """Compute sum of weights and degree for each node/bin."""
+
+        # Initialize empty containers
+        weights = pd.Series()
+        degrees = pd.Series()
+
+        chunk_cols = ["bin1_id", "bin2_id", "exp_ratio"]
+        for bounds in self._table_chunks(table_uri):
+            chunk = self._get_chunk(table_uri, bounds, cols=chunk_cols)
+            for bin_col in ["bin1_id", "bin2_id"]:
+                # Compute metrics on chunk
+                grouped = chunk[[bin_col, "exp_ratio"]].groupby(bin_col)
+                chunk_weights = grouped.sum()["exp_ratio"]
+                chunk_degrees = grouped.count()["exp_ratio"]
+
+                # Increase counters
+                weights = weights.add(chunk_weights, fill_value=0)
+                degrees = degrees.add(chunk_degrees, fill_value=0)
+
+        return pd.DataFrame({"weight": weights, "degree": degrees})
 
     @console_log
-    def _get_filtered_pix(self, chr_id, count_thr, dist_thr, chunk=10000000):
-        """Filter pixels in chunks and return a single dataframe."""
-
-        filt_param = [chr_id, count_thr, dist_thr]
-        c_iter = self._pixel_chunks(chr_id, size=chunk)
-        pix_df = [self._filter_pixels(c, *filt_param) for c in c_iter]
-        pix_df = pd.concat(pix_df, axis=0)
-
-        return pix_df
-
-    @console_log
-    def _drop_duplicate_pixels(self, pix_df):
-        """pandas.drop_duplicates wrapper for logging purposes."""
-
-        start_size = pix_df.shape[0]
-        pix_df.drop_duplicates(subset=["bin1_id", "bin2_id"], inplace=True)
-        size_diff = start_size - pix_df.shape[0]
-        if size_diff != 0:
-            print(f"Warning, {size_diff} duplicate rows were dropped.")
-
-    @console_log
-    def _compute_decay(self, pix_df, stat):
-        """Add normalized counts column to the pixels dataframe."""
-
-        pix_df["bin_difference"] = pix_df["bin2_id"] - pix_df["bin1_id"]
-        grp_df = pix_df.groupby("bin_difference")["count"].transform(stat)
-        pix_df["exp_ratio"] = np.log2(pix_df["count"] / grp_df + 1)
-        pix_df.drop("bin_difference", axis=1, inplace=True)
-
-    @console_log
-    def _add_sparsity_val(self, pix_df):
+    def _add_spar_alpha(self, table_uri, node_stats):
         """Compute alpha value as per Serrano et al. 2009."""
 
-        # Add default alpha value
-        pix_df["spar_alpha"] = 1
-        graph = from_pandas_edgelist(
-            pix_df,
-            source="bin1_id",
-            target="bin2_id",
-            edge_attr=["exp_ratio", "spar_alpha"],
-        )
+        def compute_alpha(row):
+            """Given a (weight, degree) pair, compute the integral."""
 
-        for node in graph:
-            num_neigh = len(graph[node])
+            weight, deg = row["norm_weight"], row["degree"]
+            res, _ = integrate.quad(lambda x: (1 - x) ** (deg - 2), 0, weight)
+            alpha = 1 - (deg - 1) * res
 
-            # Cannot compute an alpha value if the number of neighbours
-            # is one, therefore assign the default alpha value
-            if num_neigh == 1:
-                continue
+            return round_half_up(alpha, 4)
 
-            weight_sum = sum(graph[node][n]["exp_ratio"] for n in graph[node])
-            for neigh in graph[node]:
-                norm_weight = graph[node][neigh]["exp_ratio"] / weight_sum
-                new_alpha = compute_alpha_val(num_neigh, norm_weight)
-                old_aplha = graph[node][neigh]["spar_alpha"]
-                graph[node][neigh]["spar_alpha"] = min(old_aplha, new_alpha)
+        def unique_alphas(dataf):
+            """Return alpha values of unique (norm_weight, deg) pairs."""
 
-        # TODO: cannot find if to_pandas_edgelist is already sorted or not
-        graph = to_pandas_edgelist(graph, source="bin1_id", target="bin2_id")
+            values = dataf[["degree", "norm_weight"]].drop_duplicates()
+            values[f"alpha_{num}"] = 1
+            mask = values["degree"] != 1
+            alphas = values.loc[mask].apply(compute_alpha, axis=1)
+            values.loc[mask, f"alpha_{num}"] = alphas
 
-        # Graph object does not preserve pair order
-        # TODO: test for performance since it does not feel great
-        graph["bin1_id"], graph["bin2_id"] = np.where(
-            graph["bin1_id"] < graph["bin2_id"],
-            (graph["bin1_id"], graph["bin2_id"]),
-            (graph["bin2_id"], graph["bin1_id"]),
-        )
+            return values
 
-        # TODO: Might be able to remove the sorting step
-        graph.sort_values(["bin1_id", "bin2_id"], inplace=True)
-        pix_df["spar_alpha"] = graph["spar_alpha"].values
+        # For each chunk of the chromosome-level pixel table
+        chunk_cols = ["bin1_id", "bin2_id", "exp_ratio"]
+        for bounds in self._table_chunks(table_uri):
+            chunk = self._get_chunk(table_uri, bounds, cols=chunk_cols)
 
-    def _create_chrom_table(self, chrom_id, table_root):
+            # For both bins composing the pixel
+            for num, bin_col in enumerate(["bin1_id", "bin2_id"]):
+                # Add node statistics and normalized weight for that bin
+                chunk = chunk.merge(
+                    node_stats,
+                    how="left",
+                    left_on=bin_col,
+                    right_index=True,
+                )
+                chunk["norm_weight"] = chunk["exp_ratio"] / chunk["weight"]
+
+                # Compute and add the alpha values for each row
+                chunk = chunk.merge(
+                    unique_alphas(chunk),
+                    how="left",
+                    on=["degree", "norm_weight"],
+                )
+
+                # Remove node specific information
+                tmp_cols = ["weight", "degree", "norm_weight"]
+                chunk.drop(tmp_cols, axis=1, inplace=True)
+
+            # Sort the values into min and max column, then remove tmp ones
+            chunk["alpha_min"] = chunk[["alpha_0", "alpha_1"]].min(axis=1)
+            chunk["alpha_max"] = chunk[["alpha_0", "alpha_1"]].max(axis=1)
+            chunk.drop(["alpha_0", "alpha_1"], axis=1, inplace=True)
+
+            cols_to_store = ["alpha_min", "alpha_max"]
+            self._put_chunk(chunk, table_uri, bounds, cols=cols_to_store)
+
+    def _create_chrom_table(self, chrom_id, table_root, filt_opts):
         """Create chromosome-level table given the set of parameters."""
 
-        # Retrieve parameters from the parent group
-        count_thr = table_root.attrs["count-threshold"]
-        dist_thr = table_root.attrs["distance-threshold"]
-        decay_stat = table_root.attrs["decay-statistic"]
+        def does_not_exist(chrom_id, store, table_root):
+            """Check whether chromosome was already processed."""
+            with h5py.File(store, mode="r") as h5_handle:
+                table = h5_handle[table_root]
+            return chrom_id in table
 
-        if chrom_id not in table_root:
-            # Process the chromosome pixels
-            chrom_pix = self._get_filtered_pix(chrom_id, count_thr, dist_thr)
-            self._drop_duplicate_pixels(chrom_pix)
-            self._compute_decay(chrom_pix, decay_stat)
-            self._add_sparsity_val(chrom_pix)
+        # if does_not_exist(chrom_id, self.store, table_root):
+        if True:
+            table_uri = table_root + "/" + chrom_id
+            self._init_table(table_root, chrom_id, filt_opts)
+            self._filter_pixels(table_uri, chrom_id, filt_opts)
+
+            norm_curve = self._norm_curve(table_uri)
+            # self._plot_norm_curve(norm_curve)
+            self._normalize_pixels(table_uri, norm_curve)
+
+            node_stats = self._get_node_stats(table_uri)
+            self._add_spar_alpha(table_uri, node_stats)
+            quit()
+
+            for chunk in self._table_chunks(table_uri):
+                print(chunk)
 
             # Save the dataframe columns as individual 1D-arrays
-            chrom_table = table_root.create_group(chrom_id)
-            for column in chrom_pix.columns:
-                chrom_table.create_dataset(column, data=chrom_pix[column])
         else:
             print(f"W: {chrom_id} already processed with these params, skip.")
 
@@ -236,12 +368,29 @@ class HiconaCooler(Cooler):
 
         return chrom_selection
 
+    def _init_tables_grp(self, dist_thr, count_thr):
+        """Initialize main table group and param specific group if needed."""
+
+        # TODO: remove
+        print(f"dist_thr: {dist_thr}, count_thr: {count_thr}")
+
+        with h5py.File(self.store, mode="r+") as h5_handle:
+            table_root = _GRP_TEMPLATE.format(dist_thr, count_thr)
+            table_root = self.root + "/chrom_tables/" + table_root
+
+            # Create container group if not already existent
+            if table_root not in h5_handle:
+                table_grp = h5_handle.create_group(table_root)
+                table_grp.attrs["count-threshold"] = count_thr
+                table_grp.attrs["distance-threshold"] = dist_thr
+
+        return table_root
+
     def create_tables(
         self,
         chrom_selection: str | Iterable[str] = "humanCanonical",
-        count_thr: int = 0,
         dist_thr: int = 200_000_000,
-        decay_stat: str = "median",
+        count_thr: int = 0,
     ) -> None:
         """Create chromosome-level tables to use for network construction.
 
@@ -256,9 +405,6 @@ class HiconaCooler(Cooler):
           (``bin1_id == bin2_id``), pixels with a count below ``count_thr``,
           pixels with a genomic distance among the bins greater than
           ``dist_thr``.
-        - **Deduplication**: remove duplicate pixels (keep first copy found).
-          By cooler file-format specifications there should not be duplicate
-          pixels, but many files from 4D Nucleome Data Portal have them.
         - **Computing decay**: compute counts normalized for the fact that
           genomically closer bins have a higher probability of random contact
           (therefore higher counts by chance). That is
@@ -279,46 +425,30 @@ class HiconaCooler(Cooler):
             - others to be defined
 
             (default is ``humanCanonical``)
-        count_thr: int, optional
-            Remove pixels whose row count is not greater than this value.
-            (default is 0)
         dist_thr: int, optional
             Remove pixels whose genomic distance among bins is greater or
             equal to this value (in bp). (default is 2Mb)
-        decay_stat: str, optional
-            Statistic used to summarize pixels with a certain distance while
-            computing the expected counts. Must be compatible with
-            :py:meth:`pandas.transform`. (default is "median")
+        count_thr: int, optional
+            Remove pixels whose row count is not greater than this value.
+            (default is 0)
         """
 
         # TODO: probably better to set the default to all chromosome in file
 
-        # Convert chromosome selection to an iterable
-        chrom_selection = self._chrom_regex_to_iter(chrom_selection)
+        # Initialize table container
+        filt_opts = {"dist_thr": dist_thr, "count_thr": count_thr}
+        table_root = self._init_tables_grp(**filt_opts)
 
-        with open_hdf5(self.store, mode="a") as h5_handle:
-            table_root = _GRP_TEMPLATE.format(count_thr, dist_thr, decay_stat)
-            table_root = self.root + "/chrom_tables/" + table_root
-
-            # Create container group if not already existent
-            if table_root not in h5_handle:
-                table_grp = h5_handle.create_group(table_root)
-                table_grp.attrs["count-threshold"] = count_thr
-                table_grp.attrs["distance-threshold"] = dist_thr
-                table_grp.attrs["decay-statistic"] = decay_stat
-            else:
-                table_grp = h5_handle[table_root]
-
-            # Create chromosome-level groups and datasets
-            for chrom_id in chrom_selection:
-                print(f"STARTING {chrom_id}")
-                self._create_chrom_table(chrom_id, table_grp)
+        # Create chromosome-level groups and datasets
+        for chrom_id in self._chrom_regex_to_iter(chrom_selection):
+            print(f"STARTING to work on: {chrom_id}")
+            self._create_chrom_table(chrom_id, table_root, filt_opts)
 
     def list_tables(self) -> None:
         """Print available chromosome tables for each set of parameters."""
 
         # TODO: Maybe find a prettier and more flexible way to print
-        with open_hdf5(self.store, mode="r") as h5_handle:
+        with h5py.File(self.store, mode="r") as h5_handle:
             tables_grp = h5_handle[self.root + "/chrom_tables"]
             par_str = "PARAMETER SETS:"
             for par_grp in tables_grp.values():
@@ -379,7 +509,7 @@ class HiconaCooler(Cooler):
         grp_regex = re.compile(_GRP_TEMPLATE.format(*filt_stats))
 
         # Define a list of partial URIs to valid tables
-        with open_hdf5(self.store, mode="r") as h5_handle:
+        with h5py.File(self.store, mode="r") as h5_handle:
             tables_grp = h5_handle[self.root + "/chrom_tables"]
             valid_groups = [g for g in tables_grp if grp_regex.match(g)]
             valid_tables = []
@@ -416,7 +546,7 @@ class HiconaCooler(Cooler):
             Iterable of bin annotation names in alphabetical order.
         """
 
-        with open_hdf5(self.store, mode="r") as h5_handle:
+        with h5py.File(self.store, mode="r") as h5_handle:
             bins_grp = h5_handle[self.root + "/bins"]
             ann_list = tuple(bins_grp.keys())
         ann_list = [k for k in ann_list if k not in ["chrom", "start", "end"]]
@@ -463,7 +593,7 @@ class HiconaCooler(Cooler):
 
         def _intersect_dataframes(df_a, df_b):
             """Return dataframe intersection using bedtools intersect -loj"""
-     
+
             # TODO: Check handling of overlapping annotations in the same file
             # Suppress linting error due to pybedtools wrapper implementation
             # pylint: disable=unexpected-keyword-arg, too-many-function-args
@@ -527,7 +657,7 @@ class HiconaCooler(Cooler):
         """
 
         to_del = self._valid_bin_annotations(to_del)
-        with open_hdf5(self.store, mode="r+") as h5_handle:
+        with h5py.File(self.store, mode="r+") as h5_handle:
             bin_grp = h5_handle[self.root + "/bins"]
             delete(bin_grp, to_del)
 

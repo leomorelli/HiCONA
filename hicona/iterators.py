@@ -8,51 +8,6 @@ from pandas import DataFrame
 from .chrom_table import ChromTable
 
 
-class ChunkBordersIterator:
-    """Iterator object of pixel chunks for a specified chromosome.
-
-    Return tuples of two integers to use to slice the full pixel table and
-    only retrieve a chunk of the desired size for the chromosome of interest.
-
-    Parameters
-    ----------
-    store : str
-        Path to the cool/mcool file
-    root : str
-        URI string to resolution of interest
-    extent : tuple
-        String identifier of the chromosome of interest
-    chunk_size : int
-        Number of pixels to span for each chunk
-    """
-
-    def __init__(self, store, root, extent, chunk_size):
-        # Retrieve positions of boundary pixels
-        with open_hdf5(store, mode="r") as h5_handle:
-            h5_grp = h5_handle[root]
-            min_off = h5_grp["indexes/bin1_offset"][extent[0]]
-            max_off = h5_grp["indexes/bin1_offset"][extent[1]]
-
-        # Define number of iterations
-        self.curr_chunk = 0
-        self.num_chunks = -(-(max_off - min_off) // chunk_size)
-
-        # Define list of break-points
-        self.borders = [min_off + k * chunk_size for k in range(self.num_chunks)]
-        if self.borders[-1] < max_off:
-            self.borders.append(max_off)
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        if self.curr_chunk < self.num_chunks:
-            chunk = self.borders[self.curr_chunk : self.curr_chunk + 2]
-            self.curr_chunk += 1
-            return chunk
-        raise StopIteration
-
-
 class ChromTablesIterator:
     """Iterator object of chromosome-level tables and respective information.
 
