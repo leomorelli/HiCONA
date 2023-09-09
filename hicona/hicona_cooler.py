@@ -494,8 +494,8 @@ class HiconaCooler(Cooler):
 
         # Create valid groups regex according to input parameters
         chroms = self._chrom_regex_to_iter(chrom_selection)
-        dist_thr = r"\S+" if not dist_thr else dist_thr
-        count_thr = r"\S+" if not count_thr else count_thr
+        dist_thr = r"\S+" if not dist_thr != 0 else dist_thr
+        count_thr = r"\S+" if not count_thr != 0 else count_thr
         grp_regex = re.compile(_GRP_TEMPLATE.format(dist_thr, count_thr))
 
         # Define a list of partial URIs to valid tables
