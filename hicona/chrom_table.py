@@ -35,6 +35,7 @@ class ChromTable:
     def __init__(self, pix_table: pd.DataFrame, params_info: dict):
         self._data = pix_table
         self._params_info = params_info
+        self._alpha_column = "alpha_min"
         self._optim_alpha = None
         self._alphas_grid = None
 
@@ -52,6 +53,22 @@ class ChromTable:
     def optim_alpha(self) -> float | None:
         """Optimal alpha to filter the pixels (if computed, else None)."""
         return self._optim_alpha
+
+    @property
+    def alpha_column(self) -> str:
+        """Name of the column used as alpha scores."""
+        return self._alpha_column
+
+    @alpha_column.setter
+    def alpha_column(self, col_name) -> None:
+        """Set the column to use as alpha scores."""
+        if col_name in ("alpha_min", "alpha_max"):
+            self._alpha_column = col_name
+            # Reset previous optimal alpha and grid if existent.
+            self._optim_alpha = None
+            self._alphas_grid = None
+        else:
+            print("W: ignored, only 'alpha_min' and 'alpha_max' are allowed.")
 
     def _get_alpha_pts(self, thresholds):
         """Return dataframe with filtering statistics for a threshold grid."""
@@ -75,7 +92,7 @@ class ChromTable:
             alpha = alpha_thr.popleft()
 
             # Filter and compute filtering statistics
-            cur_table = cur_table[cur_table["spar_alpha"] <= alpha]
+            cur_table = cur_table[cur_table[self._alpha_column] <= alpha]
             cur_nodes = num_nodes(cur_table) / tot_nodes
             cur_edges = cur_table.size / tot_edges
 
@@ -248,6 +265,6 @@ class ChromTable:
             alpha = self._optim_alpha
 
         filt_df = self._data.copy()
-        filt_df = filt_df[filt_df["spar_alpha"] < alpha]
+        filt_df = filt_df[filt_df[self._alpha_column] < alpha]
 
         return filt_df

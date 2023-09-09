@@ -13,12 +13,12 @@ from statistics import median
 from cooler import Cooler, create_cooler
 from cooler.core import delete
 import h5py
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from pybedtools import BedTool
 from scipy import integrate
 
-import matplotlib.pyplot as plt
 from .iterators import ChromTablesIterator
 from .utils import (
     console_log,
@@ -145,7 +145,7 @@ class HiconaCooler(Cooler):
         return chunk
 
     # ////////////////////////////////////////////////////////////////////////
-    # /////////////////////// PRE-PROCESSING FUNCTIONS ///////////////////////
+    # /////////////////// PRIVATE PRE-PROCESSING FUNCTIONS ///////////////////
     # // Functions to pass from full-pixel table to chromosome-level tables //
     # ////////////////////////////////////////////////////////////////////////
 
@@ -268,7 +268,6 @@ class HiconaCooler(Cooler):
 
         return pd.DataFrame({"weight": weights, "degree": degrees})
 
-    @console_log
     def _add_spar_alpha(self, table_uri, node_stats):
         """Compute alpha value as per Serrano et al. 2009."""
 
@@ -283,6 +282,7 @@ class HiconaCooler(Cooler):
 
         def unique_alphas(dataf):
             """Return alpha values of unique (norm_weight, deg) pairs."""
+            # TODO: maybe add cache for even faster times
 
             values = dataf[["degree", "norm_weight"]].drop_duplicates()
             values[f"alpha_{num}"] = 1
@@ -336,24 +336,19 @@ class HiconaCooler(Cooler):
                 table = h5_handle[table_root]
             return chrom_id in table
 
-        # if does_not_exist(chrom_id, self.store, table_root):
-        if True:
+        if does_not_exist(chrom_id, self.store, table_root):
+            # Initialize the table and filter the pixels
             table_uri = table_root + "/" + chrom_id
             self._init_table(table_root, chrom_id, filt_opts)
             self._filter_pixels(table_uri, chrom_id, filt_opts)
 
+            # Normalize pixels by genomic distance
             norm_curve = self._norm_curve(table_uri)
-            # self._plot_norm_curve(norm_curve)
             self._normalize_pixels(table_uri, norm_curve)
 
+            # Compute sparsification scores
             node_stats = self._get_node_stats(table_uri)
             self._add_spar_alpha(table_uri, node_stats)
-            quit()
-
-            for chunk in self._table_chunks(table_uri):
-                print(chunk)
-
-            # Save the dataframe columns as individual 1D-arrays
         else:
             print(f"W: {chrom_id} already processed with these params, skip.")
 
@@ -371,9 +366,6 @@ class HiconaCooler(Cooler):
     def _init_tables_grp(self, dist_thr, count_thr):
         """Initialize main table group and param specific group if needed."""
 
-        # TODO: remove
-        print(f"dist_thr: {dist_thr}, count_thr: {count_thr}")
-
         with h5py.File(self.store, mode="r+") as h5_handle:
             table_root = _GRP_TEMPLATE.format(dist_thr, count_thr)
             table_root = self.root + "/chrom_tables/" + table_root
@@ -385,6 +377,11 @@ class HiconaCooler(Cooler):
                 table_grp.attrs["distance-threshold"] = dist_thr
 
         return table_root
+
+    # ////////////////////////////////////////////////////////////////////////
+    # /////////////////////////// PUBLIC TABLE API ///////////////////////////
+    # // Functions to create, inspect and retrieve chromosome-level tables ///
+    # ////////////////////////////////////////////////////////////////////////
 
     def create_tables(
         self,
@@ -441,7 +438,7 @@ class HiconaCooler(Cooler):
 
         # Create chromosome-level groups and datasets
         for chrom_id in self._chrom_regex_to_iter(chrom_selection):
-            print(f"STARTING to work on: {chrom_id}")
+            print(f"Starting to preprocess: {chrom_id}")
             self._create_chrom_table(chrom_id, table_root, filt_opts)
 
     def list_tables(self) -> None:
@@ -452,20 +449,19 @@ class HiconaCooler(Cooler):
             tables_grp = h5_handle[self.root + "/chrom_tables"]
             par_str = "PARAMETER SETS:"
             for par_grp in tables_grp.values():
-                par_str += "\n" + "-" * 80
+                par_str += "\n" + "-" * 78
                 par_lst = [f"\n-{k}: {v}" for k, v in par_grp.attrs.items()]
                 par_str += "".join(par_lst)
                 par_str += "\n-chromosomes:"
                 par_str += "".join([f"\n\t--{k}" for k in par_grp.keys()])
-            par_str += "\n" + "-" * 80
+            par_str += "\n" + "-" * 78
         print(par_str)
 
     def tables(
         self,
         chrom_selection: str = "humanCanonical",
-        count_thr: int = None,
         dist_thr: int = None,
-        decay_stat: str = None,
+        count_thr: int = None,
     ) -> ChromTablesIterator:
         """Return an iterator of selected tables and respective information.
 
@@ -484,29 +480,23 @@ class HiconaCooler(Cooler):
             - others to be defined
 
             (default is ``humanCanonical``)
-        count_thr: int, optional
-            Fetch tables created using this value as count threshold.
-            If None, get all tables regardless of the used value.
         dist_thr: int, optional
             Fetch tables created using this value as distance threshold.
             If None, get all tables regardless of the used value.
-        decay_stat: str, optional
-            Fetch tables created using this statistic for count decay.
-            If None, get all tables regardless of the used statistic.
+        count_thr: int, optional
+            Fetch tables created using this value as count threshold.
+            If None, get all tables regardless of the used value.
 
         Returns
         -------
-        :py:class:`ChromTablesIterator` :
-            Iterator of tuples in the form ``(chrom table, info dict)``.
+        :py:class:`ChromTablesIterator`:
         """
 
         # Create valid groups regex according to input parameters
         chroms = self._chrom_regex_to_iter(chrom_selection)
-        count_thr = r"\S+" if not count_thr else count_thr
         dist_thr = r"\S+" if not dist_thr else dist_thr
-        decay_stat = r"\S+" if not decay_stat else decay_stat
-        filt_stats = [count_thr, dist_thr, decay_stat]
-        grp_regex = re.compile(_GRP_TEMPLATE.format(*filt_stats))
+        count_thr = r"\S+" if not count_thr else count_thr
+        grp_regex = re.compile(_GRP_TEMPLATE.format(dist_thr, count_thr))
 
         # Define a list of partial URIs to valid tables
         with h5py.File(self.store, mode="r") as h5_handle:
@@ -724,8 +714,8 @@ class HiconaCooler(Cooler):
             self.del_bin_annotation(to_ohe)
 
     # ////////////////////////////////////////////////////////////////////////
-    # ////////////////////// MCOOL GENERATION FUNCTIONS //////////////////////
-    # //////////////////// Create new .cool/.mcool files  ////////////////////
+    # /////////////////////// MISCELLANEOUS FUNCTIONS ////////////////////////
+    # ////////// Any function not falling in the previous categories /////////
     # ////////////////////////////////////////////////////////////////////////
 
     def gen_sparsified_cooler(
