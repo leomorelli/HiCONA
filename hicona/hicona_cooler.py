@@ -376,7 +376,8 @@ class HiconaCooler(Cooler):
             """Check whether chromosome was already processed."""
             with h5py.File(store, mode="r") as h5_handle:
                 table = h5_handle[table_root]
-            return chrom_id in table
+                answer = chrom_id not in table.keys()
+            return answer
 
         if does_not_exist(chrom_id, self.store, table_root):
             # Initialize the table and filter the pixels
