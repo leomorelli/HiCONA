@@ -156,17 +156,50 @@ class HiconaCooler(Cooler):
         Current version does not work if inter-chromosomal pixels are kept.
         """
 
+        # Define query thresholds
         max_diff = -(-dist_thr // self.binsize)
         id_upper_bound = self.extent(chrom_id)[1]
 
-        filtered_df = pix_df[
-            (pix_df["bin2_id"] - pix_df["bin1_id"] < max_diff)
-            & (pix_df["count"] > count_thr)
-            & (pix_df["bin1_id"] != pix_df["bin2_id"])
-            & (pix_df["bin2_id"] < id_upper_bound)
-        ]
+        # Define query strings
+        # Not using @ in query, else linter raises "unused variable"
+        queries = {
+            "inter_chroms": f"bin2_id < {id_upper_bound}",
+            "self_looping": "bin1_id != bin2_id",
+            "genomic_dist": f"bin2_id - bin1_id < {max_diff}",
+            "below_counts": f"count > {count_thr}",
+        }
 
-        return filtered_df
+        # Initialize stats container
+        filt_stats = []
+
+        # Perform the filtering
+        curr_size = len(pix_df)
+        for query_name, query_str in queries.items():
+            pix_df.query(query_str, inplace=True)
+            new_size = len(pix_df)
+            filt_stats.append([query_name, curr_size - new_size])
+            curr_size = new_size
+
+        return filt_stats
+
+    def _filter_pixels(self, table_uri, chrom_id, filt_opts):
+        """Filter and store pixels in the chromosome-table."""
+
+        filt_stats = []
+        lower_ind = 0
+        for bounds in self._chrom_chunks(chrom_id):
+            chunk = self._get_chunk(f"{self.root}/pixels", bounds)
+            stats = self._filter_chunk(chunk, chrom_id, **filt_opts)
+            filt_stats.extend(stats)
+            upper_ind = lower_ind + len(chunk)
+            self._put_chunk(chunk, table_uri, (lower_ind, upper_ind))
+            lower_ind = upper_ind
+
+        filt_stats = pd.DataFrame(filt_stats, columns=["filter", "count"])
+        filt_stats = filt_stats.groupby("filter").sum()
+        filt_stats = filt_stats.to_dict()["count"]
+
+        return filt_stats
 
     def _get_table_size(self, chrom_id, filt_opts):
         """Determine table size by running mock filtering."""
@@ -174,7 +207,8 @@ class HiconaCooler(Cooler):
         size = 0
         for bounds in self._chrom_chunks(chrom_id):
             chunk = self._get_chunk(f"{self.root}/pixels", bounds)
-            size += len(self._filter_chunk(chunk, chrom_id, **filt_opts))
+            _ = self._filter_chunk(chunk, chrom_id, **filt_opts)
+            size += len(chunk)
         return size
 
     def _init_table(self, table_root, chrom_id, filt_opts):
@@ -193,17 +227,6 @@ class HiconaCooler(Cooler):
 
             chrom_table.attrs["chromosome"] = chrom_id
             chrom_table.attrs["num_pixels"] = size
-
-    def _filter_pixels(self, table_uri, chrom_id, filt_opts):
-        """Filter and store pixels in the chromosome-table."""
-
-        lower = 0
-        for bounds in self._chrom_chunks(chrom_id):
-            chunk = self._get_chunk(f"{self.root}/pixels", bounds)
-            chunk = self._filter_chunk(chunk, chrom_id, **filt_opts)
-            upper = lower + len(chunk)
-            self._put_chunk(chunk, table_uri, (lower, upper))
-            lower = upper
 
     def _norm_curve(self, table_uri):
         """Compute curve for genomic distance normalization."""
@@ -226,6 +249,24 @@ class HiconaCooler(Cooler):
         plt.yscale("log")
         plt.xscale("log")
         plt.show()
+
+    def _print_filt_stats(self, filt_stats):
+        """Print the filtering statistics to console."""
+        # TODO: Remove or move elsewhere
+
+        # TODO: Currently order in which filters are applied is hard-coded
+        filters = [
+            "inter_chroms",
+            "self_looping",
+            "genomic_dist",
+            "below_counts",
+        ]
+
+        print("-" * 78)
+        print("Summary of removed pixels (filters applied in this order):")
+        for filt in filters:
+            print(f"\t{filt}: {filt_stats[filt]}")
+        print("-" * 78)
 
     def _normalize_pixels(self, table_uri, norm_curve):
         """Normalize chromosome-level table for genomic distance."""
@@ -327,6 +368,7 @@ class HiconaCooler(Cooler):
             cols_to_store = ["alpha_min", "alpha_max"]
             self._put_chunk(chunk, table_uri, bounds, cols=cols_to_store)
 
+    @console_log
     def _create_chrom_table(self, chrom_id, table_root, filt_opts):
         """Create chromosome-level table given the set of parameters."""
 
@@ -340,7 +382,8 @@ class HiconaCooler(Cooler):
             # Initialize the table and filter the pixels
             table_uri = table_root + "/" + chrom_id
             self._init_table(table_root, chrom_id, filt_opts)
-            self._filter_pixels(table_uri, chrom_id, filt_opts)
+            filt_stats = self._filter_pixels(table_uri, chrom_id, filt_opts)
+            self._print_filt_stats(filt_stats)
 
             # Normalize pixels by genomic distance
             norm_curve = self._norm_curve(table_uri)

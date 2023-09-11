@@ -39,7 +39,7 @@ def console_log(func):
         fun_return = func(*args, **kwargs)
         end_time = time()
         print(f"Elapsed time: {end_time-start_time}s")
-        print("-" * 79)
+        print("-" * 78)
         return fun_return
 
     return console_log_wrapper
