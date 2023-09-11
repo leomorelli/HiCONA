@@ -326,7 +326,7 @@ class HiconaCooler(Cooler):
             # TODO: maybe add cache for even faster times
 
             values = dataf[["degree", "norm_weight"]].drop_duplicates()
-            values[f"alpha_{num}"] = 1
+            values[f"alpha_{num}"] = 1.0  # .0 needed to initialize as float
             mask = values["degree"] != 1
             alphas = values.loc[mask].apply(compute_alpha, axis=1)
             values.loc[mask, f"alpha_{num}"] = alphas
