@@ -32,7 +32,7 @@ __all__ = ["HiconaCooler"]
 
 
 # Template to name groups inside chrom_tables group
-_GRP_TEMPLATE = "distThr_{dist_thr}_countThr_{count_thr}_quantThr_{quant_thr}"
+_GRP_TEMPLATE = "distThr_{}_countThr_{}_quantThr_{}"
 # Maximum number of allowed modalities when transforming an annotation to ohe
 _MAX_MODS = 10
 # Minimum number of pixels per table chunk
