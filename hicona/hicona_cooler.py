@@ -576,11 +576,7 @@ class HiconaCooler(Cooler):
         dist_thr = r"\d+" if dist_thr is None else dist_thr
         count_thr = r"\d+" if count_thr is None else count_thr
         quant_thr = r"[\d.]+(\.[\d]+)?" if quant_thr is None else quant_thr
-        grp_template = _GRP_TEMPLATE.format(
-            dist_thr=dist_thr,
-            count_thr=count_thr,
-            quant_thr=quant_thr,
-        )
+        grp_template = _GRP_TEMPLATE.format(dist_thr, count_thr, quant_thr)
         grp_regex = re.compile(grp_template)
 
         # Define a list of partial URIs to valid tables
