@@ -577,7 +577,7 @@ class HiconaCooler(Cooler):
         count_thr = r"\d+" if count_thr is None else count_thr
         quant_thr = r"[\d.]+(\.[\d]+)?" if quant_thr is None else quant_thr
         grp_template = _GRP_TEMPLATE.format(dist_thr, count_thr, quant_thr)
-        grp_regex = re.compile(grp_template)
+        grp_regex = re.compile(f"^{grp_template}$")
 
         # Define a list of partial URIs to valid tables
         with h5py.File(self.store, mode="r") as h5_handle:
