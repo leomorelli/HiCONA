@@ -188,7 +188,7 @@ class HiconaCooler(Cooler):
         return queries
 
     def _filtered_pixels(self, chrom_id, filt_opts):
-        """Geerator of filtered pixels ad relative statistics."""
+        """Generator of filtered pixels ad relative statistics."""
 
         def filter_chunk(pix_df, queries):
             """Filter out pixels according to provided queries."""
@@ -247,7 +247,7 @@ class HiconaCooler(Cooler):
         return curve.apply(median)
 
     def _store_table(self, chrom_id, filt_opts, norm_curve, quant, table_uri):
-        """Filter chromsome pixels and store stem in the table."""
+        """Filter chromsome pixels and store them in the table."""
 
         pos = 0
         cols = ["bin1_id", "bin2_id", "count", "exp_ratio"]
