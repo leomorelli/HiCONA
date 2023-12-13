@@ -145,6 +145,19 @@ class HiconaCooler(Cooler):
             chunk = pd.DataFrame({f: table[f][lower:upper] for f in cols})
         return chunk
 
+    def _get_chrom_bed(self):
+        """Generate a dataframe in bed-like style for the chromosomes."""
+
+        bed = pd.DataFrame(
+            {
+                "chrom": self.chromnames,
+                "start": [0] * len(self.chromnames),
+                "end": self.chromsizes.values,
+            }
+        )
+
+        return bed
+
     # ////////////////////////////////////////////////////////////////////////
     # /////////////////// PRIVATE PRE-PROCESSING FUNCTIONS ///////////////////
     # // Functions to pass from full-pixel table to chromosome-level tables //
@@ -794,6 +807,99 @@ class HiconaCooler(Cooler):
         # Remove original columns if selected
         if remove_original:
             self.del_bin_annotation(to_ohe)
+
+    def add_HMM_annotation(self, HMM_annotation: str):
+        """Add chromHMM style annotation to the bins table.
+
+        Given a chromHMM-like annotation (multimodal, covering the entire
+        genome), add an annotation column to the bins table, where the
+        modality is the annotation which is most enriched in the bin with
+        respect to the reference chromosome (fold change between observed
+        bases with the annotation and expected ones).
+        NOTE: Currently only one annotation of this type can be stored.
+
+        Parameters
+        ----------
+        HMM_annotation : str
+            Path to the bed file containing the chromHMM annotation.
+        """
+
+        def compute_fraction(table, annotation):
+            """Get fraction of bases with given annotation in an interval."""
+
+            table_bed = BedTool.from_dataframe(table)
+            annot_bed = BedTool.from_dataframe(annotation)
+
+            # Merge and get back a pandas dataframe
+            names_fix = {"thickStart": "HMM_annot", "thickEnd": "HMM_frac"}
+            inters = table_bed.intersect(annot_bed, wao=True).to_dataframe()
+            inters = inters[["chrom", "start", "end", "thickStart", "thickEnd"]]
+            inters.rename(columns=names_fix, inplace=True)
+
+            # Compute fraction of bases with annotation in the interval
+            inters["int_size"] = inters["end"] - inters["start"]
+            inters["HMM_frac"] = inters["HMM_frac"] / inters["int_size"]
+            inters.drop(columns=["int_size"], inplace=True)
+
+            # NOTE: HMM annotation should cover the chromosomes entirely,
+            # though currently there is a variable sized gap (usually 10000
+            # bp) at the beginning of each chromosome. Currently fixing
+            # manually the gap by assigning arbitrarely the value "Void"
+            # TODO: Fix issue above
+            inters["HMM_annot"] = inters["HMM_annot"].str.replace(".", "Void")
+
+            # TODO: Some parts of the genome are not annotated still (10%).
+            # Is it cause chromHMM is for non-coding regions?
+
+            # Sum the fractions for two identical annotations in the interval
+            grouping_cols = ["chrom", "start", "end", "HMM_annot"]
+            inters = inters.groupby(grouping_cols, as_index=False).sum()
+
+            return inters
+
+        def compute_enrichment(main_table, ref_table):
+            """Get fold change of the annotation over the background."""
+
+            main_bed = BedTool.from_dataframe(main_table)
+            ref_bed = BedTool.from_dataframe(ref_table)
+
+            # Merge and fix colnames
+            names_fix = {
+                "chrom": "chrom",
+                "start": "start",
+                "end": "end",
+                "name": "HMM_annot",
+                "score": "HMM_frac",
+                "itemRgb": "bkg_annot",
+                "blockCount": "HMM_bkg",
+            }
+            inters = main_bed.intersect(ref_bed, loj=True).to_dataframe()
+            inters.rename(columns=names_fix, inplace=True)
+
+            # Keep only the lines where the annotation and bkg match
+            to_remove = [c for c in inters.columns if c not in names_fix.values()]
+            inters.query("HMM_annot == bkg_annot", inplace=True)
+            inters.drop(columns=to_remove + ["bkg_annot"], inplace=True)
+
+            # Fold change with respect to the background
+            inters["HMM_fold"] = inters["HMM_frac"] / inters["HMM_bkg"]
+
+            return inters
+
+        # Compute annotation fractions for both background and query
+        ann_table = pd_from_bed(HMM_annotation)
+        bin_table = self.bins()[["chrom", "start", "end"]][:]
+        bin_table = compute_fraction(bin_table, ann_table)
+        bkg_table = self._get_chrom_bed()
+        bkg_table = compute_fraction(bkg_table, ann_table)
+
+        # Compute enrichments and select annotations
+        bin_table = compute_enrichment(bin_table, bkg_table)
+        bin_index = bin_table.groupby(["chrom", "start", "end"])["HMM_fold"].idxmax()
+        bin_table = bin_table.loc[bin_index]
+
+        # Add annotation column
+        self._write_table("bins", bin_table[["HMM_annot"]])
 
     # ////////////////////////////////////////////////////////////////////////
     # /////////////////////// MISCELLANEOUS FUNCTIONS ////////////////////////
