@@ -93,7 +93,7 @@ class HiconaCooler(Cooler):
     # ////////// Functions to create or retrieve tables and groups ///////////
     # ////////////////////////////////////////////////////////////////////////
 
-    def _create_table(self, grp_path, dataf):
+    def _write_table(self, grp_path, dataf):
         """Save the dataframe columns as 1D arrays in the specified group."""
 
         with h5py.File(self.store, mode="r+") as h5_handle:
@@ -131,7 +131,8 @@ class HiconaCooler(Cooler):
         lower, upper = bounds
         cols = cols if cols else list(chunk)
         with h5py.File(self.store, mode="r+") as h5_handle:
-            table = h5_handle[table_uri]
+            table = h5_handle[self.root]
+            table = table[table_uri]
             for col in cols:
                 table[col][lower:upper] = chunk[col]
 
@@ -693,7 +694,7 @@ class HiconaCooler(Cooler):
         if in_file:
             in_file_df = [1 if c != -1 else 0 for c in bin_df.iloc[:, 5]]
             in_file_df = pd.DataFrame(in_file_df, columns=[in_file])
-            self._create_table("bins", in_file_df)
+            self._write_table("bins", in_file_df)
 
         # Crate any other specified annotation columns
         if to_keep:
@@ -709,7 +710,7 @@ class HiconaCooler(Cooler):
             # Merge and save only required columns
             ann_df = bin_df.merge(ann_df, how="left", on=to_intersect_on)
             ann_df.drop(labels=[None], axis=1, inplace=True)
-            self._create_table("bins", ann_df.iloc[:, 6:])
+            self._write_table("bins", ann_df.iloc[:, 6:])
             # Columns 0-5 are "chrom" "start" "end" "name" "score" "strand"
 
     def del_bin_annotation(self, to_del: str | Iterable[str]) -> None:
@@ -788,7 +789,7 @@ class HiconaCooler(Cooler):
         ohe_df = pd.get_dummies(ann_df, columns=to_ohe)
         if remove_nan_mod:
             ohe_df = ohe_df[[c for c in ohe_df if not c.endswith("_NaN")]]
-        self._create_table("bins", ohe_df)
+        self._write_table("bins", ohe_df)
 
         # Remove original columns if selected
         if remove_original:
