@@ -8,24 +8,21 @@ can be retrieved to create filtered networks to analyze.
 
 from collections.abc import Iterable
 import re
-from statistics import median
 
 from cooler import Cooler, create_cooler
 from cooler.core import delete
 import h5py
-import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 from pybedtools import BedTool
-from scipy import integrate
 
+from .chrom_table import ChromTable
 from .iterators import ChromTablesIterator
+from .table_processor import TableProcessor
 from .utils import (
     console_log,
     from_df_to_sarrays,
-    get_chunk_borders,
+    parse_regions,
     pd_from_bed,
-    round_half_up,
 )
 
 __all__ = ["HiconaCooler"]
@@ -37,10 +34,14 @@ _GRP_TEMPLATE = "distThr_{}_countThr_{}_quantThr_{}"
 _MAX_MODS = 10
 # Minimum number of pixels per table chunk
 _MIN_PIX_CHUNK = 1_000_000
-# Dictionary of standard regular expressions to simplify chromosome fetching
-_DEFAULT_CHROM_RE = {
-    "humanCanonical": "^chr([1-9]|[1][0-9]|[2][0-2]|[XY])$",
-    "mouseCanonical": "^chr([1-9]|[1][0-9]|[XY])$",
+
+_BASE_TABLE_COLS = {
+    "bin1_id": "i8",
+    "bin2_id": "i8",
+    "count": "i4",
+    "exp_ratio": "i8",
+    "alpha_min": "i8",
+    "alpha_max": "i8",
 }
 
 
@@ -93,57 +94,36 @@ class HiconaCooler(Cooler):
     # ////////// Functions to create or retrieve tables and groups ///////////
     # ////////////////////////////////////////////////////////////////////////
 
-    def _write_table(self, grp_path, dataf):
-        """Save the dataframe columns as 1D arrays in the specified group."""
+    # TODO: make the write operations wait, so that they can be parallelized.
+
+    def _init_table(self, grp_path, tab_size, col_mapping):
+        """Initialize dataframe columns as 1D arrays."""
 
         with h5py.File(self.store, mode="r+") as h5_handle:
-            grp = h5_handle[self.root + "/" + grp_path]
-            for name, vals, dtype in from_df_to_sarrays(dataf):
-                grp.create_dataset(
+            grp = h5_handle.require_group(grp_path)
+            for name, dtype in col_mapping.items():
+                grp.require_dataset(
                     name,
-                    data=vals,
-                    dtype=dtype,
+                    shape=(tab_size,),
+                    dtype=dtype,  # Add pd_to_h5 type conversion
                     compression="gzip",
                 )
 
-    def _chrom_chunks(self, chrom_id):
-        """Return chunk borders pairs for the pixels of a chromosome"""
-
-        extent = self.extent(chrom_id)
-        with h5py.File(self.store, mode="r") as h5_handle:
-            h5_grp = h5_handle[self.root]
-            min_off = h5_grp["indexes/bin1_offset"][extent[0]]
-            max_off = h5_grp["indexes/bin1_offset"][extent[1]]
-
-        return get_chunk_borders(min_off, max_off, self._chunk_size)
-
-    def _table_chunks(self, table_uri):
-        """Return chunk borders pairs for a pixel table."""
-
-        with h5py.File(self.store, mode="r") as h5_handle:
-            table = h5_handle[table_uri]
-            max_off = table.attrs["num_pixels"]
-
-        return get_chunk_borders(0, max_off, self._chunk_size)
-
-    def _put_chunk(self, chunk, table_uri, bounds, cols=None):
+    def _place_table(self, grp_path, chunks, cols=None):
         """Place pixel chunk in table at the given position."""
-        lower, upper = bounds
-        cols = cols if cols else list(chunk)
-        with h5py.File(self.store, mode="r+") as h5_handle:
-            table = h5_handle[self.root]
-            table = table[table_uri]
-            for col in cols:
-                table[col][lower:upper] = chunk[col]
+        # TODO: Maybe roll back to individual chunk
 
-    def _get_chunk(self, table_uri, bounds, cols=None):
-        """Retrieve a chunk of pixels from a specified table."""
-        lower, upper = bounds
-        with h5py.File(self.store, mode="r") as h5_handle:
-            table = h5_handle[table_uri]
-            cols = cols if cols else list(table.keys())
-            chunk = pd.DataFrame({f: table[f][lower:upper] for f in cols})
-        return chunk
+        lower, upper = (0, 0)
+        for chunk in chunks:
+            upper += len(chunk)
+
+            names = cols if cols else chunk.columns
+            with h5py.File(self.store, mode="r+") as h5_handle:
+                grp = h5_handle[grp_path]
+                for name in names:
+                    grp[name][lower:upper] = chunk[name]
+
+            lower += len(chunk)
 
     def _get_chrom_bed(self):
         """Generate a dataframe in bed-like style for the chromosomes."""
@@ -163,286 +143,64 @@ class HiconaCooler(Cooler):
     # // Functions to pass from full-pixel table to chromosome-level tables //
     # ////////////////////////////////////////////////////////////////////////
 
-    def _get_query_dict(self, chrom_id, dist_thr, count_thr):
-        """Get a dictionary containing the strings to use as queries."""
-
-        # Initialize empty dict to populate with queries
-        # NOTE: Not using @ in the query, else linter raises "unused variable"
-        queries = {}
-
-        # QUERY: remove inter-chromosomal pixels
-        id_upper_bound = self.extent(chrom_id)[1]
-        queries["inter_chroms"] = f"bin2_id < {id_upper_bound}"
-
-        # QUERY: remove self-looping pixels
-        queries["self_looping"] = "bin1_id != bin2_id"
-
-        # QUERY: remove pixels above maximal genomic distance
-        max_diff = -(-dist_thr // self.binsize)
-        queries["genomic_dist"] = f"bin2_id - bin1_id < {max_diff}"
-
-        # QUERY: remove pixels whose raw counts are below a certain theshold
-        if count_thr > 0:
-            queries["below_counts"] = f"count > {count_thr}"
-
-        return queries
-
-    def _filtered_pixels(self, chrom_id, filt_opts):
-        """Generator of filtered pixels ad relative statistics."""
-
-        def filter_chunk(pix_df, queries):
-            """Filter out pixels according to provided queries."""
-
-            stats = {}
-            curr_size = len(pix_df)
-            for query_name, query_str in queries.items():
-                pix_df.query(query_str, inplace=True)
-                new_size = len(pix_df)
-                stats[query_name] = curr_size - new_size
-                curr_size = new_size
-
-            return stats
-
-        # Initialize query strings and results container
-        queries = self._get_query_dict(chrom_id, **filt_opts)
-
-        for bounds in self._chrom_chunks(chrom_id):
-            # Retrieve and filter chunk
-            chunk = self._get_chunk(f"{self.root}/pixels", bounds)
-            stats = filter_chunk(chunk, queries)
-
-            yield chunk, stats
-
-    def _table_size(self, chrom_id, filt_opts, norm_curve, quant):
-        """Determine table size by running mock filtering."""
-
-        size = 0
-        for chunk in self._normalized_pixels(chrom_id, filt_opts, norm_curve):
-            chunk = chunk[chunk["exp_ratio"] > quant]
-            size += len(chunk)
-        return size
-
-    def _get_filt_stats(self, chrom_id, filt_opts, size):
-        """Retrieve filtering statistics."""
-
-        queries = self._get_query_dict(chrom_id, **filt_opts)
-        all_stats = {key: 0 for key in queries}
-        pre_quant = 0
-        for chunk, stats in self._filtered_pixels(chrom_id, filt_opts):
-            pre_quant += len(chunk)
-            for key, val in stats.items():
-                all_stats[key] += val
-        all_stats["counts_quant"] = pre_quant - size
-        return all_stats
-
-    def _get_norm_curve(self, chrom_id, filt_opts):
-        """Compute curve for genomic distance normalization."""
-
-        curve = pd.Series()
-        for chunk, _ in self._filtered_pixels(chrom_id, filt_opts):
-            chunk["bin_diff"] = chunk["bin2_id"] - chunk["bin1_id"]
-            vals = chunk.groupby("bin_diff")["count"].apply(list)
-            curve = curve.combine(vals, lambda x, y: x + y, fill_value=[])
-
-        return curve.apply(median)
-
-    def _store_table(self, chrom_id, filt_opts, norm_curve, quant, table_uri):
-        """Filter chromsome pixels and store them in the table."""
-
-        pos = 0
-        cols = ["bin1_id", "bin2_id", "count", "exp_ratio"]
-
-        for chunk in self._normalized_pixels(chrom_id, filt_opts, norm_curve):
-            chunk = chunk[chunk["exp_ratio"] > quant]
-            bounds = (pos, pos + len(chunk))
-            self._put_chunk(chunk, table_uri, bounds, cols=cols)
-            pos += len(chunk)
-
-    def _normalized_pixels(self, chrom_id, filt_opts, norm_curve):
-        """Normalize chromosome-level table for genomic distance."""
-
-        for chunk, _ in self._filtered_pixels(chrom_id, filt_opts):
-            # Compute expected ratios
-            chunk["bin_diff"] = chunk["bin2_id"] - chunk["bin1_id"]
-            chunk = chunk.join(norm_curve.rename("dist_norm"), on="bin_diff")
-            exp_ratios = np.log2(chunk["count"] / chunk["dist_norm"] + 1)
-            chunk["exp_ratio"] = exp_ratios
-
-            yield chunk
-
-    def _norm_quant(self, chrom_id, filt_opts, norm_curve, quant_thr):
-        """Define the cutoff to use for quantile filtering."""
-
-        # Compute count distribution
-        curve = pd.Series()
-        for chunk in self._normalized_pixels(chrom_id, filt_opts, norm_curve):
-            vals = chunk.groupby("exp_ratio")["count"].count()
-            curve = curve.combine(vals, lambda x, y: x + y, fill_value=0)
-
-        # Compute the value to use as threshold
-        threshold = curve.sum() * quant_thr
-        threshold = curve.cumsum()[curve.cumsum() > threshold].index[0]
-
-        return threshold
-
-    def _init_table(self, table_root, chrom_id, size):
-        """Initialize chromosome-level pixel table to fill in."""
-
-        with h5py.File(self.store, mode="r+") as h5_handle:
-            table_group = h5_handle[table_root]
-            chrom_table = table_group.require_group(chrom_id)
-            chrom_table.require_dataset("bin1_id", (size,), dtype="i8")
-            chrom_table.require_dataset("bin2_id", (size,), dtype="i8")
-            chrom_table.require_dataset("count", (size,), dtype="i4")
-            chrom_table.require_dataset("exp_ratio", (size,), dtype="f8")
-            chrom_table.require_dataset("alpha_min", (size,), dtype="f8")
-            chrom_table.require_dataset("alpha_max", (size,), dtype="f8")
-
-            chrom_table.attrs["chromosome"] = chrom_id
-            chrom_table.attrs["num_pixels"] = size
-
-    def _plot_norm_curve(self, norm_curve):
-        """Temporary function to plot normalization curve."""
-        # TODO: Remove or move elsewhere
-
-        norm_curve.plot()
-        plt.yscale("log")
-        plt.xscale("log")
-        plt.show()
-
-    def _print_filt_stats(self, filt_stats):
-        """Print the filtering statistics to console."""
-        # TODO: Remove or move elsewhere
-        # TODO: Maybe make the filters sorted by application order.
-
-        print("-" * 78)
-        print("Summary of removed pixels (filters in application order):")
-        for key, val in filt_stats.items():
-            print(f"\t{key}: {val}")
-        print("-" * 78)
-
-    def _get_node_stats(self, table_uri):
-        """Compute sum of weights and degree for each node/bin."""
-
-        # Initialize empty containers
-        weights = pd.Series()
-        degrees = pd.Series()
-
-        chunk_cols = ["bin1_id", "bin2_id", "exp_ratio"]
-        for bounds in self._table_chunks(table_uri):
-            chunk = self._get_chunk(table_uri, bounds, cols=chunk_cols)
-            for bin_col in ["bin1_id", "bin2_id"]:
-                # Compute metrics on chunk
-                grouped = chunk[[bin_col, "exp_ratio"]].groupby(bin_col)
-                chunk_weights = grouped.sum()["exp_ratio"]
-                chunk_degrees = grouped.count()["exp_ratio"]
-
-                # Increase counters
-                weights = weights.add(chunk_weights, fill_value=0)
-                degrees = degrees.add(chunk_degrees, fill_value=0)
-
-        return pd.DataFrame({"weight": weights, "degree": degrees})
-
-    def _add_spar_alpha(self, table_uri, node_stats):
-        """Compute alpha value as per Serrano et al. 2009."""
-
-        def compute_alpha(row):
-            """Given a (weight, degree) pair, compute the integral."""
-
-            weight, deg = row["norm_weight"], row["degree"]
-            res, _ = integrate.quad(lambda x: (1 - x) ** (deg - 2), 0, weight)
-            alpha = 1 - (deg - 1) * res
-
-            return round_half_up(alpha, 4)
-
-        def unique_alphas(dataf):
-            """Return alpha values of unique (norm_weight, deg) pairs."""
-            # TODO: maybe add cache for even faster times
-
-            values = dataf[["degree", "norm_weight"]].drop_duplicates()
-            values[f"alpha_{num}"] = 1.0  # .0 needed to initialize as float
-            mask = values["degree"] != 1
-            alphas = values.loc[mask].apply(compute_alpha, axis=1)
-            values.loc[mask, f"alpha_{num}"] = alphas
-
-            return values
-
-        # For each chunk of the chromosome-level pixel table
-        chunk_cols = ["bin1_id", "bin2_id", "exp_ratio"]
-        for bounds in self._table_chunks(table_uri):
-            chunk = self._get_chunk(table_uri, bounds, cols=chunk_cols)
-
-            # For both bins composing the pixel
-            for num, bin_col in enumerate(["bin1_id", "bin2_id"]):
-                # Add node statistics and normalized weight for that bin
-                chunk = chunk.merge(
-                    node_stats,
-                    how="left",
-                    left_on=bin_col,
-                    right_index=True,
-                )
-                chunk["norm_weight"] = chunk["exp_ratio"] / chunk["weight"]
-
-                # Compute and add the alpha values for each row
-                chunk = chunk.merge(
-                    unique_alphas(chunk),
-                    how="left",
-                    on=["degree", "norm_weight"],
-                )
-
-                # Remove node specific information
-                tmp_cols = ["weight", "degree", "norm_weight"]
-                chunk.drop(tmp_cols, axis=1, inplace=True)
-
-            # Sort the values into min and max column, then remove tmp ones
-            chunk["alpha_min"] = chunk[["alpha_0", "alpha_1"]].min(axis=1)
-            chunk["alpha_max"] = chunk[["alpha_0", "alpha_1"]].max(axis=1)
-            chunk.drop(["alpha_0", "alpha_1"], axis=1, inplace=True)
-
-            cols_to_store = ["alpha_min", "alpha_max"]
-            self._put_chunk(chunk, table_uri, bounds, cols=cols_to_store)
-
     @console_log
-    def _create_table(self, chrom_id, table_root, filt_opts, quant):
+    def _create_table(self, region, table_root, filt_opts):
         """Create chromosome-level table given the set of parameters."""
 
-        def does_not_exist(chrom_id, store, table_root):
+        def does_not_exist(region, store, table_root):
             """Check whether chromosome was already processed."""
+
             with h5py.File(store, mode="r") as h5_handle:
                 table = h5_handle[table_root]
-                answer = chrom_id not in table.keys()
+                answer = region not in table.keys()
             return answer
 
-        if does_not_exist(chrom_id, self.store, table_root):
-            # Initialize the table and filter the pixels
-            table_uri = table_root + "/" + chrom_id
+        def get_pix_idx(borders, store, table_root):
+            """Placeholder."""
 
-            norm_curve = self._get_norm_curve(chrom_id, filt_opts)
-            quant = self._norm_quant(chrom_id, filt_opts, norm_curve, quant)
-            size = self._table_size(chrom_id, filt_opts, norm_curve, quant)
+            with h5py.File(store, mode="r") as h5_handle:
+                h5_grp = h5_handle[table_root]
+                return [h5_grp["indexes/bin1_offset"][b] for b in borders]
 
-            self._init_table(table_root, chrom_id, size)
-            self._store_table(chrom_id, filt_opts, norm_curve, quant, table_uri)
+        def get_queries(binsize, upper_idx, dist_thr, count_thr, quant_thr):
+            """Get a dictionary containing the strings to use as queries."""
 
-            filt_stats = self._get_filt_stats(chrom_id, filt_opts, size)
-            self._print_filt_stats(filt_stats)
+            queries = {}
 
-            # Compute sparsification scores
-            node_stats = self._get_node_stats(table_uri)
-            self._add_spar_alpha(table_uri, node_stats)
+            # QUERY: remove pixels with bins outside of the interval
+            queries["out_interval"] = f"bin2_id < {upper_idx}"
+
+            # QUERY: remove self-looping pixels
+            queries["self_looping"] = "bin1_id != bin2_id"
+
+            # QUERY: remove pixels above maximal genomic distance
+            max_diff = -(-dist_thr // binsize)
+            queries["genomic_dist"] = f"bin2_id - bin1_id < {max_diff}"
+
+            # QUERY: remove pixels with raw counts below a certain theshold
+            if count_thr > 0:
+                queries["below_counts"] = f"count > {count_thr}"
+
+            # QUERY: remove a quantile of pixels from the processed table
+            if quant_thr > 0:
+                queries["quantile_thr"] = quant_thr
+
+            return queries
+
+        if does_not_exist(region, self.store, table_root):
+            bin_idx = self.extent(region)
+            pix_idx = get_pix_idx(bin_idx, self.store, self.root)
+
+            table = ChromTable(self.store, self.root + "/pixels", pix_idx)
+            queries = get_queries(self.binsize, bin_idx[1], **filt_opts)
+            processor = TableProcessor(table, queries)
+
+            table_path = table_root + "/" + region
+            self._init_table(table_path, processor.table_size, _BASE_TABLE_COLS)
+            self._place_table(table_path, processor.get_processed_chunks())
+
         else:
-            print(f"W: {chrom_id} already processed with these params, skip.")
-
-    def _chrom_regex_to_iter(self, chrom_selection):
-        """Convert chromosome selection from regex/default str to iterable."""
-
-        if isinstance(chrom_selection, str):
-            if _DEFAULT_CHROM_RE.get(chrom_selection):
-                chrom_selection = _DEFAULT_CHROM_RE.get(chrom_selection)
-            regex = re.compile(chrom_selection)
-            chrom_selection = [c for c in self.chromnames if regex.match(c)]
-
-        return chrom_selection
+            print(f"W: {region} already processed with these params, skip.")
 
     def _init_tables_grp(self, dist_thr, count_thr, quant_thr):
         """Initialize main table group and param specific group if needed."""
@@ -451,12 +209,11 @@ class HiconaCooler(Cooler):
             table_root = _GRP_TEMPLATE.format(dist_thr, count_thr, quant_thr)
             table_root = self.root + "/chrom_tables/" + table_root
 
-            # Create container group if not already existent
-            if table_root not in h5_handle:
-                table_grp = h5_handle.create_group(table_root)
-                table_grp.attrs["count-threshold"] = count_thr
-                table_grp.attrs["distance-threshold"] = dist_thr
-                table_grp.attrs["quantile-threshold"] = quant_thr
+            # Create container group if not already existent and set attrs
+            table_grp = h5_handle.require_group(table_root)
+            table_grp.attrs["count-threshold"] = count_thr
+            table_grp.attrs["distance-threshold"] = dist_thr
+            table_grp.attrs["quantile-threshold"] = quant_thr
 
         return table_root
 
@@ -471,7 +228,7 @@ class HiconaCooler(Cooler):
         dist_thr: int = 200_000_000,
         count_thr: int = 0,
         quant_thr: float = 0.05,
-    ) -> None:
+    ):
         """Create chromosome-level tables to use for network construction.
 
         Given a set of chromosomes and some processing parameters, create
@@ -516,24 +273,23 @@ class HiconaCooler(Cooler):
             (default is 0.0)
         """
 
-        # TODO: probably better to set the default to all chromosome in file
-
         # Initialize table container
         filt_opts = {
             "dist_thr": dist_thr,
             "count_thr": count_thr,
+            "quant_thr": quant_thr,
         }
-        table_root = self._init_tables_grp(**filt_opts, quant_thr=quant_thr)
+        table_root = self._init_tables_grp(**filt_opts)
 
         # Create chromosome-level groups and datasets
-        for chrom_id in self._chrom_regex_to_iter(chrom_selection):
-            print(f"Starting to preprocess: {chrom_id}")
-            self._create_table(chrom_id, table_root, filt_opts, quant_thr)
+        for region in parse_regions(chrom_selection, self._get_chrom_bed()):
+            self._create_table(region, table_root, filt_opts)
 
     def list_tables(self) -> None:
         """Print available chromosome tables for each set of parameters."""
 
         # TODO: Maybe find a prettier and more flexible way to print
+        # TODO: sort
         with h5py.File(self.store, mode="r") as h5_handle:
             tables_grp = h5_handle[self.root + "/chrom_tables"]
             par_str = "PARAMETER SETS:"
@@ -548,7 +304,7 @@ class HiconaCooler(Cooler):
 
     def tables(
         self,
-        chrom_selection: str = "humanCanonical",
+        chrom_selection: str | Iterable[str] = "humanCanonical",
         dist_thr: int = None,
         count_thr: int = None,
         quant_thr: float = None,
@@ -586,7 +342,7 @@ class HiconaCooler(Cooler):
         """
 
         # Create valid groups regex according to input parameters
-        chroms = self._chrom_regex_to_iter(chrom_selection)
+        chroms = parse_regions(chrom_selection, self._get_chrom_bed())
         dist_thr = r"\d+" if dist_thr is None else dist_thr
         count_thr = r"\d+" if count_thr is None else count_thr
         quant_thr = r"[\d.]+(\.[\d]+)?" if quant_thr is None else quant_thr
@@ -602,7 +358,8 @@ class HiconaCooler(Cooler):
                 tabs = [grp + "/" + c for c in chroms if c in tables_grp[grp]]
                 valid_tables.extend(tabs)
 
-        return ChromTablesIterator(self.store, self.root, valid_tables)
+        valid_tables = [f"{self.root}/chrom_tables/{t}" for t in valid_tables]
+        return ChromTablesIterator(self.store, valid_tables)
 
     # ////////////////////////////////////////////////////////////////////////
     # ///////////////////////// ANNOTATION FUNCTIONS /////////////////////////
