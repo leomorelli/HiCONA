@@ -10,11 +10,113 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+import h5py
 
 from .utils import round_half_up
 
 
+class TableChunksIterator:
+    """Return table chunks as pandas DataFrames."""
+
+    def __init__(self, store_uri, table_uri, idx_bounds, chunk_size):
+        self._store_uri = store_uri
+        self._table_uri = table_uri
+        self._idx_bounds = idx_bounds
+        self._chunk_size = chunk_size
+
+        # Set iteration properties
+        self._curr_chunk = 0
+        self._num_chunks = (idx_bounds[1] - idx_bounds[0]) // chunk_size
+        if (idx_bounds[1] - idx_bounds[0]) % chunk_size != 0:
+            self._num_chunks += 1
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self._curr_chunk >= self._num_chunks:
+            raise StopIteration
+
+        # Fix boundaries of the region to fetch
+        lower = self._idx_bounds[0] + self._chunk_size * self._curr_chunk
+        upper = lower + self._chunk_size
+        if upper > self._idx_bounds[1]:
+            upper = self._idx_bounds[1]
+
+        with h5py.File(self._store_uri, mode="r") as h5_handle:
+            grp = h5_handle[self._table_uri]
+            table = pd.DataFrame({f: grp[f][lower:upper] for f in grp.keys()})
+
+        self._curr_chunk += 1
+
+        return table
+
+
 class ChromTable:
+    """Placeholder"""
+
+    def __init__(
+        self,
+        store_uri: str,
+        table_uri: str,
+        idx_bounds: tuple[int] = None,
+        chunk_size: int = 1_000_000,
+    ):
+        self._store_uri = store_uri
+        self._table_uri = table_uri
+        self._idx_bounds = idx_bounds
+        self._chunk_size = chunk_size
+
+        # Fetch bin size from the main file (needed for filtering)
+        with h5py.File(self._store_uri, mode="r") as h5_handle:
+            grp = h5_handle[self._table_uri]
+            self._bin_size = grp.attrs.get("bin-size")
+
+            if self._idx_bounds is None:
+                self._idx_bounds = (0, len(grp["bin1_id"]))
+
+        # TODO: Create defaults object maybe
+
+    @property
+    def store_uri(self):
+        """Uri string to the cooler of interest (includes resolution)."""
+        return self._store_uri
+
+    @property
+    def table_uri(self):
+        """Uri string to the table of interest from the main cooler."""
+        return self._table_uri
+
+    @property
+    def chunk_size(self):
+        """Size of the chunks to retrieve during iteration."""
+        return self._chunk_size
+
+    @chunk_size.setter
+    def chunk_size(self, size: int):
+        if isinstance(size, int):
+            self._chunk_size = size
+        else:
+            print("W: invalid chunk size provided, value not updated.")
+
+    @property
+    def bin_size(self):
+        return self._bin_size
+
+    def get_chunks(self) -> TableChunksIterator:
+        """Returns an iterator of table chunks (as pandas DataFrames)."""
+
+        chunks = TableChunksIterator(
+            self._store_uri,
+            self._table_uri,
+            self._idx_bounds,
+            self._chunk_size,
+        )
+
+        return chunks
+
+
+class ChromTableOld:
     """Class used to handle preprocessed chromosome level table.
 
     Class implementing methods for further manipulation of already

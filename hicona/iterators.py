@@ -26,9 +26,8 @@ class ChromTablesIterator:
         List of URI strings to the table groups of interest.
     """
 
-    def __init__(self, store, root, uris):
+    def __init__(self, store, uris):
         self._store = store
-        self._root = root
         self._uri_list = uris
 
         self._uri_index = 0
@@ -48,12 +47,6 @@ class ChromTablesIterator:
         self._uri_index += 1
 
         with h5py.File(self._store, mode="r") as h5_handle:
-            main_grp = h5_handle[self._root + "/chrom_tables"]
-            table_grp = main_grp[curr_uri]
+            table_grp = h5_handle[curr_uri]
 
-            attr_dict = dict(table_grp.parent.attrs.items())
-            attr_dict["chromosome"] = curr_uri.split("/")[-1]
-            table = DataFrame({f: table_grp[f] for f in table_grp.keys()})
-            table = ChromTable(table, attr_dict)
-
-        return table
+        return ChromTable(self._store, curr_uri)
