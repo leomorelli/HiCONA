@@ -3,6 +3,7 @@
 from itertools import chain, combinations
 import functools
 from math import floor
+import re
 from time import time
 
 import numpy as np
@@ -20,6 +21,13 @@ DTYPE_CONVERSION_DICT = {
     "bool": "bool",
 }
 # TODO: somehow add category
+
+_GENOMIC_REGION_REGEX = "^chr([0-9]{1,2}|X|Y|MT):(\d+)-(\d+)$"
+_SINGLE_CHROM_REGEX = "^chr([0-9]{1,2}|X|Y|MT)$"
+_DEFAULT_CHROM_LISTS = {
+    "humanCanonical": (*[f"chr{i}" for i in range(1, 23)], "chrX", "chrY"),
+    "mouseCanonical": (*[f"chr{i}" for i in range(1, 20)], "chrX", "chrY"),
+}
 
 
 def get_chunk_borders(start, stop, step):
@@ -141,3 +149,37 @@ def pd_from_bed(bed_path: str):
         raise ValueError(f"Min 3 columns required for .bed (found {n_cols})")
 
     return bed_df
+
+
+def parse_regions(regions, chroms):
+    """Convert chromosome selection from regex/default str to iterable."""
+
+    intervals = []
+
+    if isinstance(regions, str):
+        regions = regions.strip()
+
+        # "chrN:NNNN-NNNN" -> no formatting needed, return it
+        if match := re.search(_GENOMIC_REGION_REGEX, regions):
+            intervals.append(regions)
+
+        # "chrN" -> "chrN:NNNN-NNNN"
+        elif match := re.search(_SINGLE_CHROM_REGEX, regions):
+            c, s, e = chroms.query(f"chrom == '{match.group(0)}'").values[0].T
+            intervals.append(f"{c}:{s}-{e}")
+
+        # "organism" -> ["chrN:NNNN-NNNN", ...]
+        elif match := _DEFAULT_CHROM_LISTS.get(regions):
+            for r in match:
+                intervals.extend(parse_regions(r, chroms))
+
+        # Incompatible string
+        else:
+            raise ValueError(f"{regions} is not a recognized genomic region.")
+
+    # Assume it is an iterable of compatible objects
+    else:
+        for r in regions:
+            intervals.extend(parse_regions(r, chroms))
+
+    return intervals
