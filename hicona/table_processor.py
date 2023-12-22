@@ -14,7 +14,9 @@ from .utils import round_half_up
 class TableProcessor:
     """Placeholder"""
 
-    def __init__(self, table: ChromTable, quant: float, queries: dict, verbose: True):
+    def __init__(self, table: ChromTable, queries: dict, verbose: bool = True):
+        quant = queries.pop("quantile_thr")
+
         self._table = table
         self._quant = quant
         self._queries = queries
@@ -46,7 +48,7 @@ class TableProcessor:
         """Iterator of table chunks which underwent initial filtering."""
 
         for chunk in self._table.get_chunks():
-            for query in self._queries:
+            for query in self._queries.values():
                 chunk.query(query, inplace=True)
             yield chunk
 
@@ -64,7 +66,7 @@ class TableProcessor:
     def _get_normalized_chunks(self):
         """Iterator of table chunks normalized for genomic distance."""
 
-        if not self._norm_curve:
+        if self._norm_curve is None:
             self._compute_norm_curve()
 
         for chunk in self._get_filtered_chunks():
@@ -72,6 +74,7 @@ class TableProcessor:
             chunk["bin_diff"] = chunk["bin2_id"] - chunk["bin1_id"]
             chunk = chunk.join(self._norm_curve, on="bin_diff")
             chunk["exp_ratio"] = log2(chunk["count"] / chunk["dist_norm"] + 1)
+            chunk.drop(["bin_diff", "dist_norm"], axis=1, inplace=True)
 
             yield chunk
 
@@ -174,17 +177,6 @@ class TableProcessor:
             chunk.drop(["alpha_0", "alpha_1"], axis=1, inplace=True)
 
             yield chunk
-
-    def get_table_size(self) -> int:
-        """Determine table size by running mock filtering."""
-
-        if not self._table_size:
-            tot_size = 0
-            for chunk in self._get_quantile_chunks():
-                tot_size += len(chunk)
-            self._table_size = tot_size
-
-        return self._table_size
 
     def get_processed_chunks(self) -> Iterable[pd.DataFrame]:
         """Placeholder"""

@@ -24,6 +24,7 @@ from .utils import (
     from_df_to_sarrays,
     parse_regions,
     pd_from_bed,
+    wait_hdf5_lock,
 )
 
 __all__ = ["HiconaCooler"]
@@ -40,9 +41,9 @@ _BASE_TABLE_COLS = {
     "bin1_id": "i8",
     "bin2_id": "i8",
     "count": "i4",
-    "exp_ratio": "i8",
-    "alpha_min": "i8",
-    "alpha_max": "i8",
+    "exp_ratio": "f8",
+    "alpha_min": "f8",
+    "alpha_max": "f8",
 }
 
 
@@ -484,6 +485,9 @@ class HiconaCooler(Cooler):
         if in_file:
             in_file_df = [1 if c != -1 else 0 for c in bin_df.iloc[:, 5]]
             in_file_df = pd.DataFrame(in_file_df, columns=[in_file])
+
+            mapping = {k: v for k, v in zip(in_file_df.columns, in_file_df.dtype)}
+            self._init_table(grp_path, tab_size, col_mapping)
             self._write_table("bins", in_file_df)
 
         # Crate any other specified annotation columns
