@@ -3,13 +3,11 @@
 Placeholder
 """
 
-from collections import deque
 from math import dist
 
-import matplotlib.pyplot as plt
+import cooler
 import numpy as np
 import pandas as pd
-import seaborn as sns
 import h5py
 
 from .utils import round_half_up, wait_hdf5_lock
@@ -54,8 +52,6 @@ class TableChunksIterator:
         with h5py.File(self._store_uri, mode="r") as h5_handle:
             grp = h5_handle[self._table_uri]
             table = pd.DataFrame({f: grp[f][lower:upper] for f in grp.keys()})
-
-        self._curr_chunk += 1
 
         return table
 
@@ -153,6 +149,7 @@ class ChromTable:
 
     @property
     def bin_size(self):
+        """Placeholder"""
         return self._bin_size
 
     def get_chunks(self) -> TableChunksIterator:
@@ -167,62 +164,60 @@ class ChromTable:
 
         return chunks
 
+    def get_dataframe(self):
+        """Placeholder"""
 
-class ChromTableOld:
-    """Class used to handle preprocessed chromosome level table.
+        return pd.concat(self.get_chunks()).reset_index(drop=True)
 
-    Class implementing methods for further manipulation of already
-    preprocessed chromosome level tables. It allows to prepare the tables
-    for network conversion (for instance by filtering pixels based on
-    sparsification results). Class mostly meant for instantiation through
-    a :py:class:`ChromTablesIterator` instance.
 
-    Parameters
-    ----------
-    pix_table : :py:class:`DataFrame`
-        Pixels-like table (e.i. "bin1_id", "bin2_id", "count" columns must
-        be present).
-    params_info : dict
-        Dictionary containing information about table preprocessing.
-    """
+class RawChromTable(ChromTable):
+    """Placeholder"""
 
-    def __init__(self, pix_table: pd.DataFrame, params_info: dict):
-        self._data = pix_table
-        self._params_info = params_info
-        self._alpha_column = "alpha_min"
-        self._optim_alpha = None
-        self._alphas_grid = None
+
+class SparChromTable(ChromTable):
+    """Placeholder"""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self._table_info = None
+        self._alpha_optimal = None
+        self._alpha_grid = None
+        self._alpha_mod = "alpha_min"
+
+        # TODO: Add attributes (such as filtering params)
 
     @property
-    def data(self) -> pd.DataFrame:
-        """:py:class:`DataFrame` of pixels."""
-        return self._data
+    def table_info(self):
+        """Placeholder"""
+        return self._table_info
 
     @property
-    def params_info(self) -> dict:
-        """Dictionary of parameters used during preprocessing."""
-        return self._params_info
+    def alpha_optimal(self):
+        """Placeholder"""
+        return self._alpha_optimal
 
     @property
-    def optim_alpha(self) -> float | None:
-        """Optimal alpha to filter the pixels (if computed, else None)."""
-        return self._optim_alpha
+    def alpha_grid(self):
+        """Placeholder"""
+        return self._alpha_grid
 
     @property
-    def alpha_column(self) -> str:
-        """Name of the column used as alpha scores."""
-        return self._alpha_column
+    def alpha_modality(self):
+        """Placeholder"""
+        modality = self._alpha_mod.split("_")[1]  # 'min'/'max'
+        return modality
 
-    @alpha_column.setter
-    def alpha_column(self, col_name) -> None:
-        """Set the column to use as alpha scores."""
-        if col_name in ("alpha_min", "alpha_max"):
-            self._alpha_column = col_name
-            # Reset previous optimal alpha and grid if existent.
-            self._optim_alpha = None
-            self._alphas_grid = None
+    @alpha_modality.setter
+    def alpha_modality(self, modality: str):
+        """Placeholder"""
+        if modality in ("min", "max"):
+            if self._alpha_mod.split("_")[1] != modality:
+                self._alpha_mod = f"alpha_{modality}"
+                self._alpha_grid = None
+                self._alpha_optimal = None
         else:
-            print("W: ignored, only 'alpha_min' and 'alpha_max' are allowed.")
+            print("W: ignored, only 'min' and 'max' modalities are allowed.")
 
     def _get_alpha_pts(self, thresholds):
         """Return dataframe with filtering statistics for a threshold grid."""
@@ -233,8 +228,7 @@ class ChromTableOld:
             return len(set(table["bin1_id"]) | set(table["bin2_id"]))
 
         # Initialize input parameters and output container
-        alpha_thr = deque(thresholds)
-        cur_table = self._data.copy()
+        cur_table = self.get_dataframe()
         res_list = []
 
         # Define normalization values
@@ -242,11 +236,9 @@ class ChromTableOld:
         tot_edges = cur_table.size
 
         # Iterate over each alpha value
-        while alpha_thr:
-            alpha = alpha_thr.popleft()
-
+        for alpha in thresholds:
             # Filter and compute filtering statistics
-            cur_table = cur_table[cur_table[self._alpha_column] <= alpha]
+            cur_table = cur_table[cur_table[self._alpha_mod] <= alpha]
             cur_nodes = num_nodes(cur_table) / tot_nodes
             cur_edges = cur_table.size / tot_edges
 
@@ -265,7 +257,6 @@ class ChromTableOld:
     def compute_opt_alpha(
         self,
         decimals: int = 3,
-        num_pts: int = 11,
         verbose: bool = True,
     ) -> float:
         """Return the optimal alpha value for filtering the pixel table.
@@ -286,9 +277,6 @@ class ChromTableOld:
         decimals : int, optional
             Number of decimal positions to compute for the alpha value. Must
             be at least 1. (default is 3)
-        num_pts : int, optional
-            Number of alpha values to test at each decimal position. Must be
-            at least 3. (default is 11)
         verbose : bool, optional
             Print progress to console. (default is True)
 
@@ -298,12 +286,9 @@ class ChromTableOld:
             Optimal alpha value
         """
 
-        # TODO: If num_pts is removed, add check of pre-existing alphas
-        # TODO: Maybe add recompute parameter but not the most elegant
-        # TODO: Could add check that minimum is not grid extrema
-
         # Initialize optimal alpha and result container
         opt_alpha = 0.5  # Middle of initial search space 0-1
+        num_points = 11  # Number of points to guarantee 1 unit span
         alpha_vals = []
 
         for pos in range(decimals):
@@ -312,7 +297,7 @@ class ChromTableOld:
 
             # Define the grid of alpha values to test
             step = 0.5 * 10 ** (-pos)
-            grid = np.linspace(opt_alpha + step, opt_alpha - step, num_pts)
+            grid = np.linspace(opt_alpha + step, opt_alpha - step, num_points)
             grid = [a for a in grid if 0 <= a <= 1]
 
             # Compute the new statistics, then update optimal alpha
@@ -322,16 +307,16 @@ class ChromTableOld:
 
         # Store results
         alpha_vals = pd.concat(alpha_vals).reset_index()
-        opt_alpha = round_half_up(opt_alpha, decimals)
-        self._alphas_grid = alpha_vals
-        self._optim_alpha = opt_alpha
+        opt_alpha = round_half_up(opt_alpha, decimals)  # "2.129999" -> "2.13"
+        self._alpha_grid = alpha_vals
+        self._alpha_optimal = opt_alpha
 
         if verbose:
             print(f"Optimal alpha: {opt_alpha}")
 
         return opt_alpha
 
-    def filter_alpha(self, alpha: str | float = "optimal") -> pd.DataFrame:
+    def get_dataframe(self, alpha: str | float = None) -> pd.DataFrame:
         """Return the pixel table filtered according to some alpha value.
 
         Return a :py:class:`DataFrame` where only the pixels having a
@@ -351,12 +336,55 @@ class ChromTableOld:
         """
 
         if alpha == "optimal":
-            if not self._optim_alpha:
-                msg = "Cannot filter by optimal alpha before computing it."
-                raise UnboundLocalError(msg)
-            alpha = self._optim_alpha
+            if not self._alpha_optimal:
+                raise ValueError("W: ignored, compute optimal alpha first.")
+            alpha = self._alpha_optimal
 
-        filt_df = self._data.copy()
-        filt_df = filt_df[filt_df[self._alpha_column] < alpha]
+        if alpha is not None:
+            chunks = [c[c[self._alpha_mod] < alpha] for c in self.get_chunks()]
+        else:
+            chunks = [c for c in self.get_chunks()]
 
-        return filt_df
+        return pd.concat(chunks).reset_index(drop=True)
+
+    def bin_annotation_pairs(self, annot: str, bins, alpha: str | float = None):
+        """Placeholder"""
+
+        ann_df = cooler.annotate(self.get_dataframe(), bins)
+
+        # Sort annotations alphabetically to make a triagular matrix later on
+        ann_df[f"{annot}1"], ann_df[f"{annot}2"] = np.where(
+            ann_df[f"{annot}1"] < ann_df[f"{annot}2"],
+            (ann_df[f"{annot}1"], ann_df[f"{annot}2"]),
+            (ann_df[f"{annot}2"], ann_df[f"{annot}1"]),
+        )
+
+        table = ann_df.groupby([f"{annot}1", f"{annot}2"])["count"].count()
+        table = table.unstack().T
+        table = table / len(self.get_dataframe())
+
+        print(np.nansum(table.to_numpy()))
+        assert np.nansum(table.to_numpy()) == 1
+
+
+"""
+    
+    annotated = cooler.annotate(pixel_tab, handle.bins()[:])
+
+
+annotated["HMM_annot1"], annotated["HMM_annot2"] = np.where(
+    annotated["HMM_annot1"] < annotated["HMM_annot2"],
+    (annotated["HMM_annot1"], annotated["HMM_annot2"]),
+    (annotated["HMM_annot2"], annotated["HMM_annot1"]),
+)
+
+comparison = annotated.groupby(["HMM_annot1", "HMM_annot2"])["count"].count()
+comparison = comparison.unstack().T
+comparison = comparison / len(pixel_tab)
+
+print(np.nansum(comparison.to_numpy()))
+assert np.nansum(comparison.to_numpy()) == 1
+
+sns.heatmap(comparison, annot=True, robust=True)
+plt.show()
+"""
