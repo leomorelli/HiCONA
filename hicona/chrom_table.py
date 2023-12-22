@@ -52,6 +52,50 @@ class TableChunksIterator:
         return table
 
 
+class ChromTablesIterator:
+    """Iterator object of chromosome-level tables and respective information.
+
+    For each table group specified in a list of URI strings, return a
+    :py:class:`ChromTable` object whose data attribute corresponds to all
+    tables in the group, while the preprocessing_params contains all the
+    parameters used for processing plus the chromosome id.
+
+    Parameters
+    ----------
+    store : str
+        Path to the cool/mcool file.
+    root : str
+        URI string to resolution of interest.
+    uris : list
+        List of URI strings to the table groups of interest.
+    """
+
+    def __init__(self, store, uris):
+        self._store = store
+        self._uri_list = uris
+
+        self._uri_index = 0
+        self._max_uri = len(uris)
+
+    def __len__(self):
+        return self._max_uri
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self._uri_index >= self._max_uri:
+            raise StopIteration
+
+        curr_uri = self._uri_list[self._uri_index]
+        self._uri_index += 1
+
+        with h5py.File(self._store, mode="r") as h5_handle:
+            table_grp = h5_handle[curr_uri]
+
+        return SparChromTable(self._store, curr_uri)
+
+
 class ChromTable:
     """Placeholder"""
 
@@ -278,68 +322,6 @@ class ChromTableOld:
             print(f"Optimal alpha: {opt_alpha}")
 
         return opt_alpha
-
-    def plot_alpha_selec(self, img_path: str = None, show: bool = False):
-        """Plot the grid used to compute the optimal alpha value.
-
-        Plot and/or show the grid of alpha values tested when computing the
-        optimal alpha value for pixel filtering. The plot has the fraction
-        of retained nodes on the ``x`` axis and the fraction of retained
-        edges on the ``y`` axis.
-
-        Parameters
-        ---------
-        img_path : str, optional
-            If provided, path to save the plot to. (default is None)
-        show : bool, optional
-            If True, display the plot in a :py:mod:`matplotlib` window.
-            (default is False)
-        """
-
-        # Define plotting parameters
-        # TODO: Find definition that does not break with rescaling
-        x_offset = -0.23
-        y_offset = +0.03
-        optim_style = {
-            "marker": "o",
-            "markersize": 10,
-            "markerfacecolor": "tab:orange",
-            "markeredgewidth": 0.0,
-        }
-        other_style = {
-            "marker": "o",
-            "markersize": 5,
-            "markerfacecolor": "tab:blue",
-            "markeredgewidth": 0.0,
-        }
-
-        # Create main plot
-        axes = sns.lineplot(self._alphas_grid, x="nodes_f", y="edges_f")
-        axes.set(
-            title="Optimal Alpha Test Grid",
-            xlabel="Node Fraction",
-            ylabel="Edge Fraction",
-            aspect="equal",
-        )
-
-        # Manually plot markers
-        for _, pts in self._alphas_grid.iterrows():
-            axes.plot(pts["nodes_f"], pts["edges_f"], **other_style)
-
-        # Redraw optimal alpha marker to have artist on top
-        optim = self._alphas_grid.iloc[self._alphas_grid["eu_dist"].idxmin()]
-        axes.plot(optim["nodes_f"], optim["edges_f"], **optim_style)
-        plt.text(
-            optim["nodes_f"] + x_offset,
-            optim["edges_f"] + y_offset,
-            rf"$\alpha$ = {optim['alpha']:.3f}",
-        )
-
-        if img_path:
-            plt.savefig(img_path)
-
-        if show:
-            plt.show()
 
     def filter_alpha(self, alpha: str | float = "optimal") -> pd.DataFrame:
         """Return the pixel table filtered according to some alpha value.

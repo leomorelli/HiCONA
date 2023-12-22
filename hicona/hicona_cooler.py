@@ -15,8 +15,7 @@ import h5py
 import pandas as pd
 from pybedtools import BedTool
 
-from .chrom_table import ChromTable
-from .iterators import ChromTablesIterator
+from .chrom_table import ChromTable, ChromTablesIterator
 from .table_processor import TableProcessor
 from .utils import (
     console_log,
