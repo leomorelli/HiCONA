@@ -8,12 +8,14 @@ can be retrieved to create filtered networks to analyze.
 
 from collections.abc import Iterable
 import re
+import time
 
 from cooler import Cooler, create_cooler
 from cooler.core import delete
 import h5py
 import pandas as pd
 from pybedtools import BedTool
+import ray
 
 from .chrom_table import ChromTable, ChromTablesIterator
 from .table_processor import TableProcessor
@@ -95,6 +97,7 @@ class HiconaCooler(Cooler):
 
     # TODO: make the write operations wait, so that they can be parallelized.
 
+    @wait_hdf5_lock
     def _init_table(self, grp_path, tab_size, col_mapping):
         """Initialize dataframe columns as 1D arrays."""
 
@@ -112,15 +115,19 @@ class HiconaCooler(Cooler):
         """Place pixel chunk in table at the given position."""
         # TODO: Maybe roll back to individual chunk
 
+        @wait_hdf5_lock
+        def put(store, grp_path, names, lower, upper):
+            with h5py.File(self.store, mode="r+") as h5_handle:
+                grp = h5_handle[grp_path]
+                for name in names:
+                    grp[name][lower:upper] = chunk[name]
+
         lower, upper = (0, 0)
         for chunk in chunks:
             upper += len(chunk)
 
             names = cols if cols else chunk.columns
-            with h5py.File(self.store, mode="r+") as h5_handle:
-                grp = h5_handle[grp_path]
-                for name in names:
-                    grp[name][lower:upper] = chunk[name]
+            put(self.store, grp_path, names, lower, upper)
 
             lower += len(chunk)
 
@@ -142,10 +149,12 @@ class HiconaCooler(Cooler):
     # // Functions to pass from full-pixel table to chromosome-level tables //
     # ////////////////////////////////////////////////////////////////////////
 
-    @console_log
+    @ray.remote
+    # @console_log
     def _create_table(self, region, table_root, filt_opts):
         """Create chromosome-level table given the set of parameters."""
 
+        @wait_hdf5_lock
         def does_not_exist(region, store, table_root):
             """Check whether chromosome was already processed."""
 
@@ -154,6 +163,7 @@ class HiconaCooler(Cooler):
                 answer = region not in table.keys()
             return answer
 
+        @wait_hdf5_lock
         def get_pix_idx(borders, store, table_root):
             """Placeholder."""
 
@@ -187,6 +197,7 @@ class HiconaCooler(Cooler):
             return queries
 
         if does_not_exist(region, self.store, table_root):
+            print(f"Starting to work on {region}")
             bin_idx = self.extent(region)
             pix_idx = get_pix_idx(bin_idx, self.store, self.root)
 
@@ -280,9 +291,19 @@ class HiconaCooler(Cooler):
         }
         table_root = self._init_tables_grp(**filt_opts)
 
+        start = time.time()
+
+        ray.init()
         # Create chromosome-level groups and datasets
+        refs = []
+        self_id = ray.put(self)
         for region in parse_regions(chrom_selection, self._get_chrom_bed()):
-            self._create_table(region, table_root, filt_opts)
+            refs.append(
+                self._create_table.remote(self_id, region, table_root, filt_opts)
+            )
+
+        ray.get(refs)
+        print(f"{time.time() - start}s elapsed")
 
     def list_tables(self) -> None:
         """Print available chromosome tables for each set of parameters."""

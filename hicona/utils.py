@@ -4,8 +4,9 @@ from itertools import chain, combinations
 import functools
 from math import floor
 import re
-from time import time
+import time
 
+from decorator import decorate
 import numpy as np
 import pandas as pd
 from scipy import integrate
@@ -51,6 +52,22 @@ def console_log(func):
         return fun_return
 
     return console_log_wrapper
+
+
+def wait_hdf5_lock(func):
+    """Placeholder"""
+
+    def _wait_hdf5_lock(func, *args, **kwargs):
+        while True:
+            try:
+                fun_return = func(*args, **kwargs)
+                break
+            except BlockingIOError:
+                time.sleep(0.5)
+
+        return fun_return
+
+    return decorate(func, _wait_hdf5_lock)
 
 
 def round_half_up(number: float, decimals: int = 0):

@@ -12,7 +12,7 @@ import pandas as pd
 import seaborn as sns
 import h5py
 
-from .utils import round_half_up
+from .utils import round_half_up, wait_hdf5_lock
 
 
 class TableChunksIterator:
@@ -43,6 +43,14 @@ class TableChunksIterator:
         if upper > self._idx_bounds[1]:
             upper = self._idx_bounds[1]
 
+        table = self._fetch_chunk(lower, upper)
+
+        self._curr_chunk += 1
+
+        return table
+
+    @wait_hdf5_lock
+    def _fetch_chunk(self, lower, upper):
         with h5py.File(self._store_uri, mode="r") as h5_handle:
             grp = h5_handle[self._table_uri]
             table = pd.DataFrame({f: grp[f][lower:upper] for f in grp.keys()})
