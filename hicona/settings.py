@@ -66,8 +66,8 @@ class _HiconaParameters(_SettingsBase):
 class _HiconaRegexes(_SettingsBase):
     """Class to store the various regexes, especially for genomic regions."""
 
-    genomic_region: str
-    single_chromosome: str
+    region: str
+    chromosome: str
 
 
 class HiconaSettings:

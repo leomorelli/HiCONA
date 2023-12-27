@@ -28,8 +28,8 @@
         "min_pix_chunk": 1000000
     },
     "regexes": {
-        "genomic_region": "^chr([0-9]{1,2}|X|Y|MT):(\\d+)-(\\d+)$",
-        "single_chromosome": "^chr([0-9]{1,2}|X|Y|MT)$"
+        "region": "^chr([0-9]{1,2}|X|Y|MT):(\\d+)-(\\d+)$",
+        "chromosome": "^chr([0-9]{1,2}|X|Y|MT)$"
     }
 } 
 

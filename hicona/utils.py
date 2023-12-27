@@ -45,7 +45,7 @@ def wait_hdf5_lock(func):
                 fun_return = func(*args, **kwargs)
                 break
             except BlockingIOError:
-                time.sleep(_HICONA_SETTINGS.lock_delay)
+                time.sleep(HICONA_SETTINGS.parameters.lock_delay)
 
         return fun_return
 
@@ -118,7 +118,7 @@ def pd_to_h5_dtype(pd_dtype: str):
 
 def pd_to_gt_dtype(pd_dtype: str):
     """Convert pandas-like datatypes to graph-tools datatypes"""
-    return _HICONA_CONVENTIONS.dtype_conversion[pd_dtype]
+    return HICONA_SETTINGS.conventions.dtype_conversion[pd_dtype]
 
 
 def annotation_combinations(iterable, k_vals=(1, 2)):
@@ -153,23 +153,42 @@ def pd_from_bed(bed_path: str):
 def parse_regions(regions, chroms):
     """Convert chromosome selection from regex/default str to iterable."""
 
+    def fix_species_selection(selection):
+        """Convert species selection string into list of chromosomes."""
+        # "1-22,X,Y" -> ["chr1", "chr2", ..., "chr22", "chrX", "chrY"]
+
+        out = []
+        selection = selection.split(",")
+        for s in selection:
+            is_interval = len(s.split("-")) > 1
+            if is_interval:
+                lower, upper = s.split("-")
+                for v in range(int(lower), int(upper) + 1):
+                    out.append(f"chr{v}")
+            else:
+                out.append(f"chr{s}")
+
+        return out
+
     intervals = []
+
+    print(regions)
 
     if isinstance(regions, str):
         regions = regions.strip()
 
         # "chrN:NNNN-NNNN" -> no formatting needed, return it
-        if match := re.search(_HICONA_REGEXES.genomic_region, regions):
+        if match := re.search(HICONA_SETTINGS.regexes.region, regions):
             intervals.append(regions)
 
         # "chrN" -> "chrN:NNNN-NNNN"
-        elif match := re.search(_HICONA_REGEXES.single_chromosome, regions):
+        elif match := re.search(HICONA_SETTINGS.regexes.chromosome, regions):
             c, s, e = chroms.query(f"chrom == '{match.group(0)}'").values[0].T
             intervals.append(f"{c}:{s}-{e}")
 
         # "organism" -> ["chrN:NNNN-NNNN", ...]
-        elif match := _HICONA_CONVENTIONS.chrom_lists.get(regions):
-            for r in match:
+        elif match := HICONA_SETTINGS.conventions.chrom_lists.get(regions):
+            for r in fix_species_selection(match):
                 intervals.extend(parse_regions(r, chroms))
 
         # Incompatible string
