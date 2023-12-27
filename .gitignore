@@ -1,6 +1,7 @@
 # Ignore tmp files
 */.ipynb_checkpoints/
 */__pycache__
+*/*/__pycache__
 
 # Ignore manual testing files
 results/

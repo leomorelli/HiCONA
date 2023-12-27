@@ -11,24 +11,13 @@ import numpy as np
 import pandas as pd
 from scipy import integrate
 
+from .settings import HICONA_SETTINGS
+
 
 # Store conversion dict since there is no automatic way to pass from ...
 # ... pandas/numpy dtypes to graph-tool dtypes.
-DTYPE_CONVERSION_DICT = {
-    "int32": "int",
-    "int64": "long",
-    "float64": "long double",
-    "object": "string",
-    "bool": "bool",
-}
-# TODO: somehow add category
 
-_GENOMIC_REGION_REGEX = "^chr([0-9]{1,2}|X|Y|MT):(\d+)-(\d+)$"
-_SINGLE_CHROM_REGEX = "^chr([0-9]{1,2}|X|Y|MT)$"
-_DEFAULT_CHROM_LISTS = {
-    "humanCanonical": (*[f"chr{i}" for i in range(1, 23)], "chrX", "chrY"),
-    "mouseCanonical": (*[f"chr{i}" for i in range(1, 20)], "chrX", "chrY"),
-}
+# TODO: somehow add category
 
 
 def console_log(func):
@@ -56,7 +45,7 @@ def wait_hdf5_lock(func):
                 fun_return = func(*args, **kwargs)
                 break
             except BlockingIOError:
-                time.sleep(0.5)
+                time.sleep(_HICONA_SETTINGS.lock_delay)
 
         return fun_return
 
@@ -129,7 +118,7 @@ def pd_to_h5_dtype(pd_dtype: str):
 
 def pd_to_gt_dtype(pd_dtype: str):
     """Convert pandas-like datatypes to graph-tools datatypes"""
-    return DTYPE_CONVERSION_DICT[pd_dtype]
+    return _HICONA_CONVENTIONS.dtype_conversion[pd_dtype]
 
 
 def annotation_combinations(iterable, k_vals=(1, 2)):
@@ -170,16 +159,16 @@ def parse_regions(regions, chroms):
         regions = regions.strip()
 
         # "chrN:NNNN-NNNN" -> no formatting needed, return it
-        if match := re.search(_GENOMIC_REGION_REGEX, regions):
+        if match := re.search(_HICONA_REGEXES.genomic_region, regions):
             intervals.append(regions)
 
         # "chrN" -> "chrN:NNNN-NNNN"
-        elif match := re.search(_SINGLE_CHROM_REGEX, regions):
+        elif match := re.search(_HICONA_REGEXES.single_chromosome, regions):
             c, s, e = chroms.query(f"chrom == '{match.group(0)}'").values[0].T
             intervals.append(f"{c}:{s}-{e}")
 
         # "organism" -> ["chrN:NNNN-NNNN", ...]
-        elif match := _DEFAULT_CHROM_LISTS.get(regions):
+        elif match := _HICONA_CONVENTIONS.chrom_lists.get(regions):
             for r in match:
                 intervals.extend(parse_regions(r, chroms))
 

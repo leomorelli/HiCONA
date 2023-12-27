@@ -18,6 +18,7 @@ from pybedtools import BedTool
 import ray
 
 from .chrom_table import ChromTable, ChromTablesIterator
+from .settings import HICONA_SETTINGS
 from .table_processor import TableProcessor
 from .utils import (
     console_log,
@@ -28,23 +29,6 @@ from .utils import (
 )
 
 __all__ = ["HiconaCooler"]
-
-
-# Template to name groups inside chrom_tables group
-_GRP_TEMPLATE = "distThr_{}_countThr_{}_quantThr_{}"
-# Maximum number of allowed modalities when transforming an annotation to ohe
-_MAX_MODS = 10
-# Minimum number of pixels per table chunk
-_MIN_PIX_CHUNK = 1_000_000
-
-_BASE_TABLE_COLS = {
-    "bin1_id": "i8",
-    "bin2_id": "i8",
-    "count": "i4",
-    "exp_ratio": "f8",
-    "alpha_min": "f8",
-    "alpha_max": "f8",
-}
 
 
 class HiconaCooler(Cooler):
@@ -78,7 +62,7 @@ class HiconaCooler(Cooler):
     def __init__(self, store: str | h5py.File | h5py.Group, **kwargs):
         # Mask deprecated root parameter from super-class
         super().__init__(store, **kwargs)
-        self._chunk_size = 1_000_000
+        self._chunk_size = _HICONA_SETTINGS.base_pix_chunk
 
     @property
     def chunk_size(self):
@@ -87,8 +71,9 @@ class HiconaCooler(Cooler):
 
     @chunk_size.setter
     def chunk_size(self, value):
-        if not (isinstance(value, int)) or value < _MIN_PIX_CHUNK:
-            raise ValueError(f"chunk_size must be: int >= {_MIN_PIX_CHUNK}.")
+        min_val = _HICONA_SETTINGS.min_pix_chunks
+        if not (isinstance(value, int)) or value < min_val:
+            raise ValueError(f"chunk_size must be: int >= {min_val}.")
         self._chunk_size = value
 
     # ////////////////////////////////////////////////////////////////////////
@@ -207,7 +192,11 @@ class HiconaCooler(Cooler):
             processor = TableProcessor(table, queries)
 
             table_path = table_root + "/" + region
-            self._init_table(table_path, processor.table_size, _BASE_TABLE_COLS)
+            self._init_table(
+                table_path,
+                processor.table_size,
+                _HICONA_CONVENTIONS.table_columns,
+            )
             self._place_table(table_path, processor.get_processed_chunks())
 
         else:
@@ -217,7 +206,8 @@ class HiconaCooler(Cooler):
         """Initialize main table group and param specific group if needed."""
 
         with h5py.File(self.store, mode="r+") as h5_handle:
-            table_root = _GRP_TEMPLATE.format(dist_thr, count_thr, quant_thr)
+            root_template = _HICONA_CONVENTIONS.table_uri_template
+            table_root = root_template.format(dist_thr, count_thr, quant_thr)
             table_root = self.root + "/chrom_tables/" + table_root
 
             # Create container group if not already existent and set attrs
@@ -304,6 +294,7 @@ class HiconaCooler(Cooler):
             )
 
         ray.get(refs)
+        ray.shutdown()
         print(f"{time.time() - start}s elapsed")
 
     def list_tables(self) -> None:
@@ -367,7 +358,8 @@ class HiconaCooler(Cooler):
         dist_thr = r"\d+" if dist_thr is None else dist_thr
         count_thr = r"\d+" if count_thr is None else count_thr
         quant_thr = r"[\d.]+(\.[\d]+)?" if quant_thr is None else quant_thr
-        grp_template = _GRP_TEMPLATE.format(dist_thr, count_thr, quant_thr)
+        root_template = _HICONA_CONVENTIONS.table_uri_template
+        grp_template = root_template.format(dist_thr, count_thr, quant_thr)
         grp_regex = re.compile(f"^{grp_template}$")
 
         # Define a list of partial URIs to valid tables
@@ -570,11 +562,12 @@ class HiconaCooler(Cooler):
 
         # If force, skip modalities number check
         if not force_annotation:
-            too_many = [c for c in to_ohe if ann_df[c].nunique() > _MAX_MODS]
+            max_mods = _HICONA_SETTINGS.max_annot_mods
+            too_many = [c for c in to_ohe if ann_df[c].nunique() > max_mods]
             if too_many:
                 raise ValueError(
                     f"The variable(s) {', '.join(too_many)} has/have more "
-                    f"than the default max number of modalities ({_MAX_MODS})"
+                    f"than the default max number of modalities ({max_mods})"
                     f".\nThis could lead to a huge file size increase. To "
                     f"proceed anyway, rerun with force_annotation=True."
                 )
