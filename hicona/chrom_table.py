@@ -110,20 +110,31 @@ class ChromTable:
         idx_bounds: tuple[int] = None,
         chunk_size: int = 1_000_000,
     ):
+        @wait_hdf5_lock
+        def _fetch_binsize(store_uri, table_uri):
+            """Fetch bin size from the main file (needed for filtering)."""
+
+            with h5py.File(store_uri, mode="r") as h5_handle:
+                grp = h5_handle[table_uri]
+                binsize = grp.attrs.get("bin-size")
+
+            return binsize
+
+        @wait_hdf5_lock
+        def _fetch_bounds(store_uri, table_uri):
+            """Return tuple to use as table boundaries."""
+
+            with h5py.File(store_uri, mode="r") as h5_handle:
+                grp = h5_handle[table_uri]
+                size = len(grp["bin1_id"])
+
+            return (0, size)
+
         self._store_uri = store_uri
         self._table_uri = table_uri
-        self._idx_bounds = idx_bounds
         self._chunk_size = chunk_size
-
-        # Fetch bin size from the main file (needed for filtering)
-        with h5py.File(self._store_uri, mode="r") as h5_handle:
-            grp = h5_handle[self._table_uri]
-            self._bin_size = grp.attrs.get("bin-size")
-
-            if self._idx_bounds is None:
-                self._idx_bounds = (0, len(grp["bin1_id"]))
-
-        # TODO: Create defaults object maybe
+        self._idx_bounds = idx_bounds or _fetch_bounds(store_uri, table_uri)
+        self._bin_size = _fetch_binsize(store_uri, table_uri)
 
     @property
     def store_uri(self):

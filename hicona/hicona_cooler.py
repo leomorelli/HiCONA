@@ -202,6 +202,7 @@ class HiconaCooler(Cooler):
         else:
             print(f"W: {region} already processed with these params, skip.")
 
+    @wait_hdf5_lock
     def _init_tables_grp(self, dist_thr, count_thr, quant_thr):
         """Initialize main table group and param specific group if needed."""
 

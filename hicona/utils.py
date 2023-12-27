@@ -172,8 +172,6 @@ def parse_regions(regions, chroms):
 
     intervals = []
 
-    print(regions)
-
     if isinstance(regions, str):
         regions = regions.strip()
 
