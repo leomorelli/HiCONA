@@ -1,5 +1,13 @@
+"""Placehodler"""
+
 import matplotlib.pyplot as plt
 import seaborn as sns
+
+
+__all__ = ["plot_alpha_grid"]
+
+# TODO: there probably is a better way to import the style, maybe in init
+plt.style.use("hicona/resources/paper_style.mplstyle")
 
 
 def plot_alpha_grid(alpha_grid, img_path: str = None, show: bool = False):
@@ -56,6 +64,23 @@ def plot_alpha_grid(alpha_grid, img_path: str = None, show: bool = False):
         optim["nodes_f"] + x_offset,
         optim["edges_f"] + y_offset,
         rf"$\alpha$ = {optim['alpha']:.3f}",
+    )
+
+    if img_path:
+        plt.savefig(img_path)
+
+    if show:
+        plt.show()
+
+
+def plot_alpha_distr(alpha_distr, img_path: str = None, show: bool = False):
+    """Placeholder"""
+
+    axes = sns.lineplot(alpha_distr)
+    axes.set(
+        title="Alpha Score Distribution",
+        xlabel="Alpha Score",
+        ylabel="Count",
     )
 
     if img_path:
