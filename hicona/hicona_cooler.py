@@ -22,9 +22,11 @@ from .settings import HICONA_SETTINGS
 from .table_processor import TableProcessor
 from .utils import (
     console_log,
-    from_df_to_sarrays,
+    bedtool_to_dataframe,
+    get_dataf_mapping,
+    intersect_dataframes,
     parse_regions,
-    pd_from_bed,
+    pd_to_h5_dtype,
     wait_hdf5_lock,
 )
 
@@ -93,28 +95,28 @@ class HiconaCooler(Cooler):
                 grp.require_dataset(
                     name,
                     shape=(tab_size,),
-                    dtype=dtype,  # Add pd_to_h5 type conversion
+                    dtype=dtype,
                     compression="gzip",
                 )
 
     def _place_table(self, grp_path, chunks, cols=None):
         """Place pixel chunk in table at the given position."""
-        # TODO: Maybe roll back to individual chunk
 
         @wait_hdf5_lock
-        def put(store, grp_path, names, lower, upper):
+        def put(store, grp_path, names, chunk, lower, upper):
             with h5py.File(self.store, mode="r+") as h5_handle:
                 grp = h5_handle[grp_path]
                 for name in names:
                     grp[name][lower:upper] = chunk[name]
 
+        # Make single pandas df into interable of chunks
+        chunks = [chunks] if isinstance(chunks, pd.DataFrame) else chunks
+
         lower, upper = (0, 0)
         for chunk in chunks:
             upper += len(chunk)
-
             names = cols if cols else chunk.columns
-            put(self.store, grp_path, names, lower, upper)
-
+            put(self.store, grp_path, names, chunk, lower, upper)
             lower += len(chunk)
 
     def _get_chrom_bed(self):
@@ -285,8 +287,8 @@ class HiconaCooler(Cooler):
 
         start = time.time()
 
-        ray.init()
         # Create chromosome-level groups and datasets
+        ray.init()
         refs = []
         self_id = ray.put(self)
         for region in parse_regions(chrom_selection, self._get_chrom_bed()):
@@ -296,6 +298,7 @@ class HiconaCooler(Cooler):
 
         ray.get(refs)
         ray.shutdown()
+
         print(f"{time.time() - start}s elapsed")
 
     def list_tables(self) -> None:
@@ -383,13 +386,13 @@ class HiconaCooler(Cooler):
     def _valid_bin_annotations(self, names: str | Iterable[str]):
         """Return only valid bin annotation names as iterable of strings"""
 
-        names = [] if not names else names
+        names = names or []
         names = [names] if isinstance(names, str) else names
-        names = [n for n in names if n in self.list_annotations()]
+        names = [n for n in names if n in self.annotation_list()]
 
         return names
 
-    def list_annotations(self) -> Iterable[str]:
+    def annotation_list(self) -> Iterable[str]:
         """Return an iterable of available bin annotation columns.
 
         Return an iterable of all available bin annotation columns (that is,
@@ -408,13 +411,13 @@ class HiconaCooler(Cooler):
         ann_list = [k for k in ann_list if k not in ["chrom", "start", "end"]]
         ann_list.sort()
 
-        return tuple(ann_list)
+        return ann_list
 
     def add_bin_annotation(
         self,
         bed_path: str,
         in_file: str = None,
-        to_keep: Iterable[str | None] = None,
+        to_keep: str | None | Iterable[str | None] = None,
     ) -> None:
         """Add bin annotation(s) using a bed-like file.
 
@@ -431,7 +434,7 @@ class HiconaCooler(Cooler):
             Name of the 0/1 annotation column, containing 1 if the bin has at
             least one overlap with any interval in the bed-file, 0 otherwise.
             If None, no such column is created. (default is None)
-        to_keep : Iterable[str | None], optional
+        to_keep : str | None | Iterable[str | None], optional
             Names for the columns of the bed-like file to add to the bins
             group. Names are assigned from left to right (ignoring ``chrom``,
             ``start``, ``end``), and any column that receives a name is kept.
@@ -447,58 +450,33 @@ class HiconaCooler(Cooler):
 
         # TODO: add example to docstring
 
-        def _intersect_dataframes(df_a, df_b):
-            """Return dataframe intersection using bedtools intersect -loj"""
-
-            # TODO: Check handling of overlapping annotations in the same file
-            # Suppress linting error due to pybedtools wrapper implementation
-            # pylint: disable=unexpected-keyword-arg, too-many-function-args
-            bed_a = BedTool.from_dataframe(df_a)
-            bed_b = BedTool.from_dataframe(df_b)
-            bed_a = bed_a.intersect(bed_b, loj=True)
-            # pylint: enable=unexpected-keyword-arg, too-many-function-args
-            return bed_a.to_dataframe()
+        base_cols = ["chrom", "start", "end"]
 
         # Convert to_keep to None if all elements are None
-        to_keep = to_keep if any(to_keep) else None
+        to_keep = list(to_keep) if isinstance(to_keep, tuple) else to_keep
+        to_keep = to_keep if isinstance(to_keep, list) else [to_keep]
 
         # Check for no overlap in old and new annotations
-        if in_file in self.list_annotations():
+        if in_file in self.annotation_list():
             raise ValueError("'in file' annotation name already exists.")
-        if to_keep:
-            if set(to_keep) & set(self.list_annotations()):
-                raise ValueError("Overlap with old annotations, stopping.")
+        if any([ann for ann in to_keep if ann in self.annotation_list()]):
+            raise ValueError("Overlap with old annotations, stopping.")
 
         # Create the two bin df and merge on default bed columns
-        bin_df = self.bins()[["chrom", "start", "end"]][:]
-        ann_df = pd_from_bed(bed_path)
-        bin_df = _intersect_dataframes(bin_df, ann_df.iloc[:, :3])
+        # While reading, replace chrom, start, end of bed file with None.
+        bin_df = self.bins()[base_cols][:]
+        ann_df = bedtool_to_dataframe(bed_path, [None] * 3 + to_keep)
+        bin_df = intersect_dataframes(bin_df, ann_df, loj=True)
 
         # Create OHE column where 1 = "intersection with annotation"
         if in_file:
-            in_file_df = [1 if c != -1 else 0 for c in bin_df.iloc[:, 5]]
-            in_file_df = pd.DataFrame(in_file_df, columns=[in_file])
+            col_vals = [1 if c != -1 else 0 for c in bin_df.iloc[:, 5]]
+            bin_df[in_file] = pd.Series(col_vals, dtype=bool)
 
-            mapping = {k: v for k, v in zip(in_file_df.columns, in_file_df.dtype)}
-            self._init_table(grp_path, tab_size, col_mapping)
-            self._write_table("bins", in_file_df)
-
-        # Crate any other specified annotation columns
-        if to_keep:
-            # Bedtools automatically assigns these values
-            to_intersect_on = ["name", "score", "strand"]
-
-            # Rename columns for merge and pad with None
-            ann_cols = to_intersect_on + list(to_keep)
-            if (pad := len(ann_df.columns) - len(ann_cols)) > 0:
-                ann_cols = ann_cols + [None] * pad
-            ann_df.columns = ann_cols
-
-            # Merge and save only required columns
-            ann_df = bin_df.merge(ann_df, how="left", on=to_intersect_on)
-            ann_df.drop(labels=[None], axis=1, inplace=True)
-            self._write_table("bins", ann_df.iloc[:, 6:])
-            # Columns 0-5 are "chrom" "start" "end" "name" "score" "strand"
+        # Save new annotation columns
+        bin_df.drop(labels=[None] + base_cols, axis=1, inplace=True)
+        self._init_table("bins", len(bin_df), get_dataf_mapping(bin_df))
+        self._place_table("bins", bin_df)
 
     def del_bin_annotation(self, to_del: str | Iterable[str]) -> None:
         """Remove bin annotation columns.
@@ -520,9 +498,9 @@ class HiconaCooler(Cooler):
             bin_grp = h5_handle[self.root + "/bins"]
             delete(bin_grp, to_del)
 
-    def annotation_to_ohe(
+    def ohe_bin_annotation(
         self,
-        to_ohe: Iterable[str],
+        to_ohe: str | Iterable[str],
         remove_original: bool = False,
         remove_nan_mod: bool = True,
         force_annotation: bool = False,
@@ -536,7 +514,7 @@ class HiconaCooler(Cooler):
 
         Parameters
         ----------
-        to_ohe : Iterable[str]
+        to_ohe : str | Iterable[str]
             Iterable of annotations names to perform one-hot encoding on.
             Generated columns are named using ``{original name}_{modality}``.
         remove_original : bool, optional
@@ -563,7 +541,7 @@ class HiconaCooler(Cooler):
 
         # If force, skip modalities number check
         if not force_annotation:
-            max_mods = HICONA_SETTINGS.settings.max_annot_mods
+            max_mods = HICONA_SETTINGS.parameters.max_annot_mods
             too_many = [c for c in to_ohe if ann_df[c].nunique() > max_mods]
             if too_many:
                 raise ValueError(
@@ -575,9 +553,13 @@ class HiconaCooler(Cooler):
 
         # Generate ohe df and save to h5
         ohe_df = pd.get_dummies(ann_df, columns=to_ohe)
+
         if remove_nan_mod:
-            ohe_df = ohe_df[[c for c in ohe_df if not c.endswith("_NaN")]]
-        self._write_table("bins", ohe_df)
+            columns = [c for c in ohe_df if not c.lower().endswith("_nan")]
+            ohe_df = ohe_df[columns]
+
+        self._init_table("bins", len(ohe_df), get_dataf_mapping(ohe_df))
+        self._place_table("bins", ohe_df)
 
         # Remove original columns if selected
         if remove_original:

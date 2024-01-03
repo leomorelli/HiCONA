@@ -111,9 +111,36 @@ def from_df_to_sarrays(data: pd.DataFrame):
         yield (col_name, new_col, dtype)
 
 
+def get_dataf_mapping(dataf: pd.DataFrame) -> dict:
+    """Placeholder"""
+
+    # Fetch dtype for each column name
+    mapping = {k: v for k, v in zip(dataf.columns, dataf.dtypes)}
+
+    # If dtype is object, convert to |SX where X is the max str length.
+    # This is because hdf5 does not support object or generic string types.
+    for k, v in mapping.items():
+        if v == "object":
+            conv_col = dataf[k].convert_dtypes()
+            if conv_col.dtype == "string[python]":
+                conv_col.fillna("nan", inplace=True)
+                max_str_len = conv_col.map(len).max()
+                mapping[k] = f"|S{max_str_len}"
+
+            else:  # Cannot be converted to string
+                raise TypeError("Object type annotations are not supported.")
+
+    return mapping
+
+
 def pd_to_h5_dtype(pd_dtype: str):
     """Stuff"""
-    pass
+
+    h5_dtype = pd_dtype
+    if pd_dtype == "object":
+        h5_dtype = np.dtype("S10")
+
+    return h5_dtype
 
 
 def pd_to_gt_dtype(pd_dtype: str):
@@ -126,28 +153,6 @@ def annotation_combinations(iterable, k_vals=(1, 2)):
 
     comb = [combinations(iterable, k) for k in k_vals]
     return list(chain.from_iterable(comb))
-
-
-def pd_from_bed(bed_path: str):
-    """Return a pandas DataFrame form a .bed file (to skip # header)"""
-
-    # Peek top rows to define presence of header lines (starting with #)
-    h_rows = 0
-    with open(bed_path, "r", encoding="UTF-8") as bed_file:
-        for line in bed_file:
-            if line.startswith("#"):
-                h_rows += 1
-            else:
-                break
-
-    # Load DataFrame
-    bed_df = pd.read_csv(bed_path, sep="\t", header=None, skiprows=h_rows)
-
-    # Check at least minimum number of rows
-    if (n_cols := len(bed_df.columns)) < 3:
-        raise ValueError(f"Min 3 columns required for .bed (found {n_cols})")
-
-    return bed_df
 
 
 def parse_regions(regions, chroms):
@@ -199,3 +204,43 @@ def parse_regions(regions, chroms):
             intervals.extend(parse_regions(r, chroms))
 
     return intervals
+
+
+def bedtool_to_dataframe(bed, colnames):
+    """Placeholder"""
+
+    if isinstance(bed, str):
+        bed = BedTool(bed)
+
+    num_columns = bed.field_count()
+    if len(colnames) < num_columns:
+        colnames += [None] * (num_columns - len(colnames))
+
+    # Setting names after df creation to allow for duplicate colnames
+    data = bed.to_dataframe(disable_auto_names=True, comment="#", header=None)
+    data.columns = colnames
+
+    # "." is the empty intersection for bedtools loj
+    # Set after instead of using na_values="." due to type guessing issue
+    data.replace(".", np.NaN, inplace=True)
+
+    return data
+
+
+def intersect_dataframes(df_a, df_b, **kwargs):
+    """Return dataframe intersection using bedtools intersect.
+
+    Placeholder
+    """
+
+    columns = list(df_a.columns) + list(df_b.columns)
+
+    # TODO: Check handling of overlapping annotations in the same file
+    # Suppress linting error due to pybedtools wrapper implementation
+    # pylint: disable=unexpected-keyword-arg, too-many-function-args
+    bed_a = BedTool.from_dataframe(df_a)
+    bed_b = BedTool.from_dataframe(df_b)
+    bed_a = bed_a.intersect(bed_b, **kwargs)
+    # pylint: enable=unexpected-keyword-arg, too-many-function-args
+
+    return bedtool_to_dataframe(bed_a, columns)
