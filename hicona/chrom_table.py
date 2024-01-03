@@ -49,6 +49,8 @@ class TableChunksIterator:
 
     @wait_hdf5_lock
     def _fetch_chunk(self, lower, upper):
+        """Placeholder"""
+
         with h5py.File(self._store_uri, mode="r") as h5_handle:
             grp = h5_handle[self._table_uri]
             table = pd.DataFrame({f: grp[f][lower:upper] for f in grp.keys()})
@@ -93,9 +95,6 @@ class ChromTablesIterator:
 
         curr_uri = self._uri_list[self._uri_index]
         self._uri_index += 1
-
-        with h5py.File(self._store, mode="r") as h5_handle:
-            table_grp = h5_handle[curr_uri]
 
         return SparChromTable(self._store, curr_uri)
 
@@ -175,7 +174,7 @@ class ChromTable:
 
         return chunks
 
-    def get_dataframe(self):
+    def get_dataframe(self) -> pd.DataFrame:
         """Placeholder"""
 
         return pd.concat(self.get_chunks()).reset_index(drop=True)
@@ -357,6 +356,16 @@ class SparChromTable(ChromTable):
             chunks = [c for c in self.get_chunks()]
 
         return pd.concat(chunks).reset_index(drop=True)
+
+    def get_alpha_distr(self) -> pd.Series:
+        """Placeholder"""
+
+        distr = pd.Series()
+        for chunk in self.get_chunks():
+            vals = chunk.groupby(self._alpha_mod)["count"].count()
+            distr = distr.combine(vals, lambda x, y: x + y, fill_value=0)
+
+        return distr
 
     def bin_annotation_pairs(self, annot: str, bins, alpha: str | float = None):
         """Placeholder"""
