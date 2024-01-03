@@ -78,6 +78,15 @@ class HiconaCooler(Cooler):
             raise ValueError(f"chunk_size must be: int >= {min_val}.")
         self._chunk_size = value
 
+    @wait_hdf5_lock
+    def extent(self, region: str) -> tuple[int]:
+        """Return bin IDs of the lower and upper bounds of a genomic region.
+
+        Wrapper of the extend method from the parent Cooler class in order to
+        be able to implement parallelization. See Cooler class documentation.
+        """
+        return super().extent(region)
+
     # ////////////////////////////////////////////////////////////////////////
     # //////////////////////////// I/O FUNCTIONS /////////////////////////////
     # ////////// Functions to create or retrieve tables and groups ///////////
@@ -306,17 +315,21 @@ class HiconaCooler(Cooler):
 
         # TODO: Maybe find a prettier and more flexible way to print
         # TODO: sort
-        with h5py.File(self.store, mode="r") as h5_handle:
-            tables_grp = h5_handle[self.root + "/chrom_tables"]
-            par_str = "PARAMETER SETS:"
-            for par_grp in tables_grp.values():
+        try:
+            with h5py.File(self.store, mode="r") as h5_handle:
+                tables_grp = h5_handle[self.root + "/chrom_tables"]
+                par_str = "PARAMETER SETS:"
+                for par_grp in tables_grp.values():
+                    par_str += "\n" + "-" * 78
+                    par_lst = [f"\n-{k}: {v}" for k, v in par_grp.attrs.items()]
+                    par_str += "".join(par_lst)
+                    par_str += "\n-intervals:"
+                    par_str += "".join([f"\n\t--{k}" for k in par_grp.keys()])
                 par_str += "\n" + "-" * 78
-                par_lst = [f"\n-{k}: {v}" for k, v in par_grp.attrs.items()]
-                par_str += "".join(par_lst)
-                par_str += "\n-chromosomes:"
-                par_str += "".join([f"\n\t--{k}" for k in par_grp.keys()])
-            par_str += "\n" + "-" * 78
-        print(par_str)
+            print(par_str)
+
+        except KeyError:
+            print("No tables have been created yet.")
 
     def tables(
         self,
@@ -359,9 +372,9 @@ class HiconaCooler(Cooler):
 
         # Create valid groups regex according to input parameters
         chroms = parse_regions(chrom_selection, self._get_chrom_bed())
-        dist_thr = r"\d+" if dist_thr is None else dist_thr
-        count_thr = r"\d+" if count_thr is None else count_thr
-        quant_thr = r"[\d.]+(\.[\d]+)?" if quant_thr is None else quant_thr
+        dist_thr = dist_thr or r"\d+"
+        count_thr = count_thr or r"\d+"
+        quant_thr = quant_thr or r"[\d.]+(\.[\d]+)?"
         root_template = HICONA_SETTINGS.conventions.table_uri_template
         grp_template = root_template.format(dist_thr, count_thr, quant_thr)
         grp_regex = re.compile(f"^{grp_template}$")

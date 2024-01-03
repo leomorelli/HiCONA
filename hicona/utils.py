@@ -6,7 +6,9 @@ from math import floor
 import re
 import time
 
+from pybedtools import BedTool
 from decorator import decorate
+import h5py
 import numpy as np
 import pandas as pd
 from scipy import integrate
@@ -26,9 +28,9 @@ def console_log(func):
 
     def console_log_wrapper(*args, **kwargs):
         print(f"Starting to run: {func}")
-        start_time = time()
+        start_time = time.time()
         fun_return = func(*args, **kwargs)
-        end_time = time()
+        end_time = time.time()
         print(f"Elapsed time: {end_time-start_time}s")
         print("-" * 78)
         return fun_return
