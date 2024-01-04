@@ -21,10 +21,12 @@ from .chrom_table import ChromTable, ChromTablesIterator
 from .settings import HICONA_SETTINGS
 from .table_processor import TableProcessor
 from .utils import (
+    ann_fraction,
+    ann_enriched,
     console_log,
-    bedtool_to_dataframe,
+    bed_to_df,
     get_dataf_mapping,
-    intersect_dataframes,
+    intersect_dfs,
     parse_regions,
     pd_to_h5_dtype,
     wait_hdf5_lock,
@@ -127,6 +129,16 @@ class HiconaCooler(Cooler):
             names = cols if cols else chunk.columns
             put(self.store, grp_path, names, chunk, lower, upper)
             lower += len(chunk)
+
+    def _save_table(self, grp_path, table):
+        """Placeholder"""
+
+        self._init_table(grp_path, len(table), get_dataf_mapping(table))
+        self._place_table(grp_path, table)
+
+    def _bare_bins(self):
+        """Get full bin table without any annotation."""
+        return self.bins()[["chrom", "start", "end"]][:]
 
     def _get_chrom_bed(self):
         """Generate a dataframe in bed-like style for the chromosomes."""
@@ -461,10 +473,6 @@ class HiconaCooler(Cooler):
         annotations (names, ids, ...).
         """
 
-        # TODO: add example to docstring
-
-        base_cols = ["chrom", "start", "end"]
-
         # Convert to_keep to None if all elements are None
         to_keep = list(to_keep) if isinstance(to_keep, tuple) else to_keep
         to_keep = to_keep if isinstance(to_keep, list) else [to_keep]
@@ -477,19 +485,22 @@ class HiconaCooler(Cooler):
 
         # Create the two bin df and merge on default bed columns
         # While reading, replace chrom, start, end of bed file with None.
-        bin_df = self.bins()[base_cols][:]
-        ann_df = bedtool_to_dataframe(bed_path, [None] * 3 + to_keep)
-        bin_df = intersect_dataframes(bin_df, ann_df, loj=True)
+        bin_df = self._bare_bins()
+        ann_df = bed_to_df(bed_path, to_keep)
+        ann_df = intersect_dfs(bin_df, ann_df, drop_none=False, loj=True)
+
+        # Check for overlapping annotations
+        if len(ann_df) != len(bin_df):
+            raise ValueError("Overlapping annotations are not supported yet.")
 
         # Create OHE column where 1 = "intersection with annotation"
         if in_file:
-            col_vals = [1 if c != -1 else 0 for c in bin_df.iloc[:, 5]]
-            bin_df[in_file] = pd.Series(col_vals, dtype=bool)
+            col_vals = [1 if c != -1 else 0 for c in ann_df.iloc[:, 5]]
+            ann_df[in_file] = pd.Series(col_vals, dtype=bool)
 
         # Save new annotation columns
-        bin_df.drop(labels=[None] + base_cols, axis=1, inplace=True)
-        self._init_table("bins", len(bin_df), get_dataf_mapping(bin_df))
-        self._place_table("bins", bin_df)
+        ann_df = ann_df.drop(labels=[None] + list(bin_df.columns), axis=1)
+        self._save_table("bins", ann_df)
 
     def del_bin_annotation(self, to_del: str | Iterable[str]) -> None:
         """Remove bin annotation columns.
@@ -559,26 +570,30 @@ class HiconaCooler(Cooler):
             if too_many:
                 raise ValueError(
                     f"The variable(s) {', '.join(too_many)} has/have more "
-                    f"than the default max number of modalities ({max_mods})"
-                    f".\nThis could lead to a huge file size increase. To "
+                    f"than the default max number of modalities ({max_mods})."
+                    f"\nThis could lead to a huge file size increase. To "
                     f"proceed anyway, rerun with force_annotation=True."
                 )
 
-        # Generate ohe df and save to h5
+        # Generate ohe df and save to hdf5
         ohe_df = pd.get_dummies(ann_df, columns=to_ohe)
 
         if remove_nan_mod:
             columns = [c for c in ohe_df if not c.lower().endswith("_nan")]
             ohe_df = ohe_df[columns]
 
-        self._init_table("bins", len(ohe_df), get_dataf_mapping(ohe_df))
-        self._place_table("bins", ohe_df)
+        self._save_table("bins", ohe_df)
 
         # Remove original columns if selected
         if remove_original:
             self.del_bin_annotation(to_ohe)
 
-    def add_HMM_annotation(self, HMM_annotation: str):
+    def hmm_bin_annotation(
+        self,
+        HMM_file: str,
+        HMM_name: str = "HMM",
+        nan_annot: str = "Void",
+    ):
         """Add chromHMM style annotation to the bins table.
 
         Given a chromHMM-like annotation (multimodal, covering the entire
@@ -586,90 +601,27 @@ class HiconaCooler(Cooler):
         modality is the annotation which is most enriched in the bin with
         respect to the reference chromosome (fold change between observed
         bases with the annotation and expected ones).
-        NOTE: Currently only one annotation of this type can be stored.
 
         Parameters
         ----------
-        HMM_annotation : str
+        HMM_file : str
             Path to the bed file containing the chromHMM annotation.
         """
 
-        def compute_fraction(table, annotation):
-            """Get fraction of bases with given annotation in an interval."""
-
-            table_bed = BedTool.from_dataframe(table)
-            annot_bed = BedTool.from_dataframe(annotation)
-
-            # Merge and get back a pandas dataframe
-            names_fix = {"thickStart": "HMM_annot", "thickEnd": "HMM_frac"}
-            inters = table_bed.intersect(annot_bed, wao=True).to_dataframe()
-            inters = inters[["chrom", "start", "end", "thickStart", "thickEnd"]]
-            inters.rename(columns=names_fix, inplace=True)
-
-            # Compute fraction of bases with annotation in the interval
-            inters["int_size"] = inters["end"] - inters["start"]
-            inters["HMM_frac"] = inters["HMM_frac"] / inters["int_size"]
-            inters.drop(columns=["int_size"], inplace=True)
-
-            # NOTE: HMM annotation should cover the chromosomes entirely,
-            # though currently there is a variable sized gap (usually 10000
-            # bp) at the beginning of each chromosome. Currently fixing
-            # manually the gap by assigning arbitrarely the value "Void"
-            # TODO: Fix issue above
-            inters["HMM_annot"] = inters["HMM_annot"].str.replace(".", "Void")
-
-            # TODO: Some parts of the genome are not annotated still (10%).
-            # Is it cause chromHMM is for non-coding regions?
-
-            # Sum the fractions for two identical annotations in the interval
-            grouping_cols = ["chrom", "start", "end", "HMM_annot"]
-            inters = inters.groupby(grouping_cols, as_index=False).sum()
-
-            return inters
-
-        def compute_enrichment(main_table, ref_table):
-            """Get fold change of the annotation over the background."""
-
-            main_bed = BedTool.from_dataframe(main_table)
-            ref_bed = BedTool.from_dataframe(ref_table)
-
-            # Merge and fix colnames
-            names_fix = {
-                "chrom": "chrom",
-                "start": "start",
-                "end": "end",
-                "name": "HMM_annot",
-                "score": "HMM_frac",
-                "itemRgb": "bkg_annot",
-                "blockCount": "HMM_bkg",
-            }
-            inters = main_bed.intersect(ref_bed, loj=True).to_dataframe()
-            inters.rename(columns=names_fix, inplace=True)
-
-            # Keep only the lines where the annotation and bkg match
-            to_remove = [c for c in inters.columns if c not in names_fix.values()]
-            inters.query("HMM_annot == bkg_annot", inplace=True)
-            inters.drop(columns=to_remove + ["bkg_annot"], inplace=True)
-
-            # Fold change with respect to the background
-            inters["HMM_fold"] = inters["HMM_frac"] / inters["HMM_bkg"]
-
-            return inters
-
         # Compute annotation fractions for both background and query
-        ann_table = pd_from_bed(HMM_annotation)
-        bin_table = self.bins()[["chrom", "start", "end"]][:]
-        bin_table = compute_fraction(bin_table, ann_table)
+        anno_col, frac_col = f"{HMM_name}_annot", f"{HMM_name}_frac"
+
+        ann_table = bed_to_df(HMM_file, anno_col)
+        bin_table = self._bare_bins()
         bkg_table = self._get_chrom_bed()
-        bkg_table = compute_fraction(bkg_table, ann_table)
 
-        # Compute enrichments and select annotations
-        bin_table = compute_enrichment(bin_table, bkg_table)
-        bin_index = bin_table.groupby(["chrom", "start", "end"])["HMM_fold"].idxmax()
-        bin_table = bin_table.loc[bin_index]
+        col_names = anno_col, frac_col
+        bin_table = ann_fraction(bin_table, ann_table, col_names, nan_annot)
+        bkg_table = ann_fraction(bkg_table, ann_table, col_names, nan_annot)
 
-        # Add annotation column
-        self._write_table("bins", bin_table[["HMM_annot"]])
+        annot_col = ann_enriched(bin_table, bkg_table, col_names)
+
+        self._save_table("bins", annot_col)
 
     # ////////////////////////////////////////////////////////////////////////
     # /////////////////////// MISCELLANEOUS FUNCTIONS ////////////////////////
