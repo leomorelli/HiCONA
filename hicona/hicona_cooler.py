@@ -658,11 +658,11 @@ class HiconaCooler(Cooler):
         # TODO: Add alpha lenght check
         # TODO: Check the same chromosome was not given twice
 
-        def _filter_alpha_tables(tables, alphas):
+        def tables_generator(tables, alphas):
             """Filter iterable of tables according to iterable of alphas."""
+            default_bin_cols = ["bin1_id", "bin2_id", "count"]
             for table, alpha in zip(tables, alphas):
-                table = table.filter_alpha(alpha)
-                yield table[["bin1_id", "bin2_id", "count"]]
+                yield table.get_dataframe(alpha)[default_bin_cols]
 
         # Adjust input vector of alphas
         if isinstance(alpha_thr, str):
@@ -673,7 +673,5 @@ class HiconaCooler(Cooler):
         elif isinstance(alpha_thr, float):
             alpha_thr = [alpha_thr] * len(chr_tables)
 
-        bare_bins = self.bins()[["chrom", "start", "end"]][:]
-        filt_pix = _filter_alpha_tables(chr_tables, alpha_thr)
-
-        create_cooler(cool_uri, bins=bare_bins, pixels=filt_pix)
+        filt_pix = tables_generator(chr_tables, alpha_thr)
+        create_cooler(cool_uri, bins=self._bare_bins(), pixels=filt_pix)

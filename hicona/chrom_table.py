@@ -3,6 +3,7 @@
 Placeholder
 """
 
+from collections.abc import Iterable
 from math import dist
 
 import cooler
@@ -16,11 +17,19 @@ from .utils import round_half_up, wait_hdf5_lock
 class TableChunksIterator:
     """Return table chunks as pandas DataFrames."""
 
-    def __init__(self, store_uri, table_uri, idx_bounds, chunk_size):
+    def __init__(
+        self,
+        store_uri,
+        table_uri,
+        idx_bounds,
+        chunk_size,
+        queries=None,
+    ):
         self._store_uri = store_uri
         self._table_uri = table_uri
         self._idx_bounds = idx_bounds
         self._chunk_size = chunk_size
+        self._queries = queries
 
         # Set iteration properties
         self._curr_chunk = 0
@@ -54,6 +63,9 @@ class TableChunksIterator:
         with h5py.File(self._store_uri, mode="r") as h5_handle:
             grp = h5_handle[self._table_uri]
             table = pd.DataFrame({f: grp[f][lower:upper] for f in grp.keys()})
+
+        for query in self._queries:
+            table.query(query, inplace=True)
 
         return table
 
@@ -162,22 +174,32 @@ class ChromTable:
         """Placeholder"""
         return self._bin_size
 
-    def get_chunks(self) -> TableChunksIterator:
+    def get_chunks(
+        self,
+        queries: str | Iterable[str] = None,
+    ) -> TableChunksIterator:
         """Returns an iterator of table chunks (as pandas DataFrames)."""
 
+        queries = queries or []
+        queries = [queries] if isinstance(queries, str) else queries
+
         chunks = TableChunksIterator(
-            self._store_uri,
-            self._table_uri,
-            self._idx_bounds,
-            self._chunk_size,
+            store_uri=self._store_uri,
+            table_uri=self._table_uri,
+            idx_bounds=self._idx_bounds,
+            chunk_size=self._chunk_size,
+            queries=queries,
         )
 
         return chunks
 
-    def get_dataframe(self) -> pd.DataFrame:
+    def get_dataframe(
+        self,
+        queries: str | Iterable[str] = None,
+    ) -> pd.DataFrame:
         """Placeholder"""
 
-        return pd.concat(self.get_chunks()).reset_index(drop=True)
+        return pd.concat(self.get_chunks(queries)).reset_index(drop=True)
 
 
 class RawChromTable(ChromTable):
@@ -326,6 +348,21 @@ class SparChromTable(ChromTable):
 
         return opt_alpha
 
+    def get_chunks(
+        self,
+        alpha: str | float = None,
+    ) -> TableChunksIterator:
+        """Returns an iterator of table chunks (as pandas DataFrames)."""
+        # TODO: also make columns selectable
+
+        if alpha == "optimal":
+            if not self._alpha_optimal:
+                raise ValueError("W: ignored, compute optimal alpha first.")
+            alpha = self._alpha_optimal
+
+        alpha_query = f"{self._alpha_mod} <= {alpha}" if alpha else None
+        return super().get_chunks(alpha_query)
+
     def get_dataframe(self, alpha: str | float = None) -> pd.DataFrame:
         """Return the pixel table filtered according to some alpha value.
 
@@ -344,18 +381,15 @@ class SparChromTable(ChromTable):
         :py:class:`DataFrame` :
             Dataframe of filtered pixels.
         """
+        # TODO: also make columns selectable
 
         if alpha == "optimal":
             if not self._alpha_optimal:
                 raise ValueError("W: ignored, compute optimal alpha first.")
             alpha = self._alpha_optimal
 
-        if alpha is not None:
-            chunks = [c[c[self._alpha_mod] < alpha] for c in self.get_chunks()]
-        else:
-            chunks = [c for c in self.get_chunks()]
-
-        return pd.concat(chunks).reset_index(drop=True)
+        alpha_query = f"{self._alpha_mod} <= {alpha}" if alpha else None
+        return super().get_dataframe(alpha_query)
 
     def get_alpha_distr(self) -> pd.Series:
         """Placeholder"""
