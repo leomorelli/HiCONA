@@ -590,8 +590,8 @@ class HiconaCooler(Cooler):
 
     def hmm_bin_annotation(
         self,
-        HMM_file: str,
-        HMM_name: str = "HMM",
+        ann_file: str,
+        ann_name: str = "HMM",
         nan_annot: str = "Void",
     ):
         """Add chromHMM style annotation to the bins table.
@@ -604,24 +604,25 @@ class HiconaCooler(Cooler):
 
         Parameters
         ----------
-        HMM_file : str
+        ann_file : str
             Path to the bed file containing the chromHMM annotation.
         """
 
         # Compute annotation fractions for both background and query
-        anno_col, frac_col = f"{HMM_name}_annot", f"{HMM_name}_frac"
+        annot_col, frac_col = f"{ann_name}_annot", f"{ann_name}_frac"
 
-        ann_table = bed_to_df(HMM_file, anno_col)
+        ann_table = bed_to_df(ann_file, annot_col)
         bin_table = self._bare_bins()
         bkg_table = self._get_chrom_bed()
 
-        col_names = anno_col, frac_col
+        col_names = annot_col, frac_col
         bin_table = ann_fraction(bin_table, ann_table, col_names, nan_annot)
         bkg_table = ann_fraction(bkg_table, ann_table, col_names, nan_annot)
 
-        annot_col = ann_enriched(bin_table, bkg_table, col_names)
+        out_table = ann_enriched(bin_table, bkg_table, col_names)
+        out_table.rename(columns={annot_col: ann_name})
 
-        self._save_table("bins", annot_col)
+        self._save_table("bins", out_table)
 
     # ////////////////////////////////////////////////////////////////////////
     # /////////////////////// MISCELLANEOUS FUNCTIONS ////////////////////////

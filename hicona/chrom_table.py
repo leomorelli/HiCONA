@@ -367,44 +367,51 @@ class SparChromTable(ChromTable):
 
         return distr
 
-    def bin_annotation_pairs(self, annot: str, bins, alpha: str | float = None):
+    def annotation_dynamics(
+        self,
+        annot: str,
+        alphas: float | list[float],
+    ) -> pd.DataFrame:
         """Placeholder"""
 
-        ann_df = cooler.annotate(self.get_dataframe(), bins)
+        def process_table(table, alpha):
+            """Placeholder"""
 
-        # Sort annotations alphabetically to make a triagular matrix later on
-        ann_df[f"{annot}1"], ann_df[f"{annot}2"] = np.where(
-            ann_df[f"{annot}1"] < ann_df[f"{annot}2"],
-            (ann_df[f"{annot}1"], ann_df[f"{annot}2"]),
-            (ann_df[f"{annot}2"], ann_df[f"{annot}1"]),
+            ann1, ann2, alpha_col = table.columns  # Assumed for convenience
+            table.query(f"{alpha_col} <= {alpha}", inplace=True)
+            table_size = len(table)
+
+            out = table.groupby([ann1, ann2]).count() / table_size
+            out.reset_index(inplace=True)
+            out["alpha"] = alpha
+
+            return out
+
+        alphas = [alphas] if isinstance(alphas, float) else alphas
+        alphas.sort(reverse=True)
+
+        parent_store = self._table_uri.split("chrom_tables")[0].strip("/")
+        parent_location = self._store_uri
+        if parent_store:  # Non empty -> multires
+            parent_location += f"::{parent_store}"
+
+        parent_cooler = cooler.Cooler(parent_location)
+        bins = parent_cooler.bins()[:]
+        # TODO: slightly memory demanding, maybe just fetch subset of bins
+
+        ann1, ann2 = f"{annot}1", f"{annot}2"
+        ann_df = cooler.annotate(self.get_dataframe(), bins)
+        ann_df = ann_df[[ann1, ann2, self._alpha_mod]]
+
+        # Sort annotations alphabetically to make a triagular matrix later
+        ann_df[ann1], ann_df[ann2] = np.where(
+            ann_df[ann1] < ann_df[ann2],
+            (ann_df[ann1], ann_df[ann2]),
+            (ann_df[ann2], ann_df[ann1]),
         )
 
-        table = ann_df.groupby([f"{annot}1", f"{annot}2"])["count"].count()
-        table = table.unstack().T
-        table = table / len(self.get_dataframe())
+        out_df = pd.concat([process_table(ann_df, a) for a in alphas])
+        out_df.reset_index(drop=True, inplace=True)
+        out_df.rename(columns={self._alpha_mod: "fraction"}, inplace=True)
 
-        print(np.nansum(table.to_numpy()))
-        assert np.nansum(table.to_numpy()) == 1
-
-
-"""
-    
-    annotated = cooler.annotate(pixel_tab, handle.bins()[:])
-
-
-annotated["HMM_annot1"], annotated["HMM_annot2"] = np.where(
-    annotated["HMM_annot1"] < annotated["HMM_annot2"],
-    (annotated["HMM_annot1"], annotated["HMM_annot2"]),
-    (annotated["HMM_annot2"], annotated["HMM_annot1"]),
-)
-
-comparison = annotated.groupby(["HMM_annot1", "HMM_annot2"])["count"].count()
-comparison = comparison.unstack().T
-comparison = comparison / len(pixel_tab)
-
-print(np.nansum(comparison.to_numpy()))
-assert np.nansum(comparison.to_numpy()) == 1
-
-sns.heatmap(comparison, annot=True, robust=True)
-plt.show()
-"""
+        return out_df

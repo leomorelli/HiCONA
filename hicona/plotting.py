@@ -88,3 +88,8 @@ def plot_alpha_distr(alpha_distr, img_path: str = None, show: bool = False):
 
     if show:
         plt.show()
+
+
+# table = table.unstack().T
+# sns.heatmap(comparison, annot=True, robust=True)
+# plt.show()
