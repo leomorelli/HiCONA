@@ -401,28 +401,25 @@ class SparChromTable(ChromTable):
 
         return distr
 
-    def annotation_dynamics(
-        self,
-        annot: str,
-        alphas: float | list[float],
-    ) -> pd.DataFrame:
+    def annotation_dynamics(self, annot: str, step: float = 0.05) -> pd.DataFrame:
         """Placeholder"""
 
-        def process_table(table, alpha):
+        def process_table(table, lower, upper):
             """Placeholder"""
 
             ann1, ann2, alpha_col = table.columns  # Assumed for convenience
-            table.query(f"{alpha_col} <= {alpha}", inplace=True)
-            table_size = len(table)
 
-            out = table.groupby([ann1, ann2]).count() / table_size
+            filt_table = table[table[alpha_col] <= upper]
+            filt_table.query(f"{alpha_col} > {lower}", inplace=True)
+
+            out = filt_table.groupby([ann1, ann2]).count()
             out.reset_index(inplace=True)
-            out["alpha"] = alpha
+            out["alpha"] = upper
 
             return out
 
-        alphas = [alphas] if isinstance(alphas, float) else alphas
-        alphas.sort(reverse=True)
+        alphas = [round_half_up(n, 2) for n in np.arange(0, 1, step)]
+        interv = [(alphas[i], alphas[i + 1]) for i in range(len(alphas) - 1)]
 
         parent_store = self._table_uri.split("chrom_tables")[0].strip("/")
         parent_location = self._store_uri
@@ -444,8 +441,65 @@ class SparChromTable(ChromTable):
             (ann_df[ann2], ann_df[ann1]),
         )
 
-        out_df = pd.concat([process_table(ann_df, a) for a in alphas])
+        out_df = pd.concat([process_table(ann_df, *i) for i in interv])
+
         out_df.reset_index(drop=True, inplace=True)
-        out_df.rename(columns={self._alpha_mod: "fraction"}, inplace=True)
+        out_df.rename(columns={self._alpha_mod: "num_pixels"}, inplace=True)
 
         return out_df
+
+
+'''
+# CUMULATIVE VERSION OF ANNOTATION DYNAMICS
+def annotation_dynamics(
+    self,
+    annot: str,
+    alphas: float | list[float],
+) -> pd.DataFrame:
+    """Placeholder"""
+
+    def process_table(table, alpha):
+        """Placeholder"""
+
+        ann1, ann2, alpha_col = table.columns  # Assumed for convenience
+        table.query(f"{alpha_col} <= {alpha}", inplace=True)
+        table_size = len(table)
+
+        out = table.groupby([ann1, ann2]).count()  # / table_size
+        print(alpha)
+        print(out)
+        out = out / table_size
+        out.reset_index(inplace=True)
+        out["alpha"] = alpha
+
+        return out
+
+    alphas = [alphas] if isinstance(alphas, float) else alphas
+    alphas.sort(reverse=True)
+
+    parent_store = self._table_uri.split("chrom_tables")[0].strip("/")
+    parent_location = self._store_uri
+    if parent_store:  # Non empty -> multires
+        parent_location += f"::{parent_store}"
+
+    parent_cooler = cooler.Cooler(parent_location)
+    bins = parent_cooler.bins()[:]
+    # TODO: slightly memory demanding, maybe just fetch subset of bins
+
+    ann1, ann2 = f"{annot}1", f"{annot}2"
+    ann_df = cooler.annotate(self.get_dataframe(), bins)
+    ann_df = ann_df[[ann1, ann2, self._alpha_mod]]
+
+    # Sort annotations alphabetically to make a triagular matrix later
+    ann_df[ann1], ann_df[ann2] = np.where(
+        ann_df[ann1] < ann_df[ann2],
+        (ann_df[ann1], ann_df[ann2]),
+        (ann_df[ann2], ann_df[ann1]),
+    )
+
+    out_df = pd.concat([process_table(ann_df, a) for a in alphas])
+    out_df.reset_index(drop=True, inplace=True)
+    out_df.rename(columns={self._alpha_mod: "fraction"}, inplace=True)
+
+    return out_df
+'''
