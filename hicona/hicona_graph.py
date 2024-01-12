@@ -10,7 +10,8 @@ import numpy as np
 import pandas as pd
 import graph_tool.all as gt
 
-from .utils import pd_to_gt_dtype, annotation_combinations
+from .utils.misc import annotation_combinations
+from .utils.tableops import pd_to_gt_dtype
 
 __all__ = ["HiconaGraph"]
 

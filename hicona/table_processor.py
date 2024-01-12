@@ -7,8 +7,8 @@ from numpy import log2
 import pandas as pd
 from scipy import integrate
 
-from .utils import round_half_up
 from .hicona_table import HiconaTable
+from .utils.numeric import round_half_up
 
 
 class TableProcessor:

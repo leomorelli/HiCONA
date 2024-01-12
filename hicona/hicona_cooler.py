@@ -20,17 +20,10 @@ import ray
 from .hicona_table import HiconaTable, HiconaTablesIterator
 from .settings import HICONA_SETTINGS
 from .table_processor import TableProcessor
-from .utils import (
-    ann_fraction,
-    ann_enriched,
-    console_log,
-    bed_to_df,
-    get_dataf_mapping,
-    intersect_dfs,
-    parse_regions,
-    pd_to_h5_dtype,
-    wait_hdf5_lock,
-)
+from .utils.bedops import ann_enriched, ann_fraction, bed_to_df, intersect_dfs
+from .utils.decorators import wait_hdf5_lock
+from .utils.misc import parse_regions
+from .utils.tableops import get_dataf_mapping
 
 __all__ = ["HiconaCooler"]
 

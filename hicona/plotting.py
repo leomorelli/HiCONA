@@ -8,8 +8,6 @@ import pandas as pd
 import seaborn as sns
 from scipy.cluster.hierarchy import dendrogram, linkage
 
-from .utils import round_half_up
-
 
 __all__ = ["plot_alpha_grid"]
 
