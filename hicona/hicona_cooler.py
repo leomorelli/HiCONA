@@ -11,10 +11,8 @@ import re
 import time
 
 from cooler import Cooler, create_cooler
-from cooler.core import delete
 import h5py
 import pandas as pd
-from pybedtools import BedTool
 import ray
 
 from .hicona_table import HiconaTable, HiconaTablesIterator
@@ -68,7 +66,7 @@ class HiconaCooler(Cooler):
 
     @chunk_size.setter
     def chunk_size(self, value):
-        min_val = HICONA_SETTINGS.parameters.min_pix_chunks
+        min_val = HICONA_SETTINGS.parameters.min_pix_chunk
         if not (isinstance(value, int)) or value < min_val:
             raise ValueError(f"chunk_size must be: int >= {min_val}.")
         self._chunk_size = value
@@ -86,8 +84,6 @@ class HiconaCooler(Cooler):
     # //////////////////////////// I/O FUNCTIONS /////////////////////////////
     # ////////// Functions to create or retrieve tables and groups ///////////
     # ////////////////////////////////////////////////////////////////////////
-
-    # TODO: make the write operations wait, so that they can be parallelized.
 
     @wait_hdf5_lock
     def _init_table(self, grp_path, tab_size, col_mapping):
@@ -107,20 +103,19 @@ class HiconaCooler(Cooler):
         """Place pixel chunk in table at the given position."""
 
         @wait_hdf5_lock
-        def put(store, grp_path, names, chunk, lower, upper):
-            with h5py.File(self.store, mode="r+") as h5_handle:
+        def put(store, grp_path, names, chunk, lower):
+            with h5py.File(store, mode="r+") as h5_handle:
                 grp = h5_handle[grp_path]
                 for name in names:
-                    grp[name][lower:upper] = chunk[name]
+                    grp[name][lower : lower + len(chunk)] = chunk[name]
 
         # Make single pandas df into interable of chunks
         chunks = [chunks] if isinstance(chunks, pd.DataFrame) else chunks
 
-        lower, upper = (0, 0)
+        lower = 0
         for chunk in chunks:
-            upper += len(chunk)
             names = cols if cols else chunk.columns
-            put(self.store, grp_path, names, chunk, lower, upper)
+            put(self.store, grp_path, names, chunk, lower)
             lower += len(chunk)
 
     def _save_table(self, grp_path, table):
@@ -313,13 +308,12 @@ class HiconaCooler(Cooler):
         ray.get(refs)
         ray.shutdown()
 
-        print(f"{time.time() - start}s elapsed")
+        print(f"Took {time.time()-start}s")
 
     def list_tables(self) -> None:
         """Print available chromosome tables for each set of parameters."""
 
-        # TODO: Maybe find a prettier and more flexible way to print
-        # TODO: sort
+        # TODO: Maybe find a prettier, sorted and more flexible way to print
         try:
             with h5py.File(self.store, mode="r") as h5_handle:
                 tables_grp = h5_handle[self.root + "/hicona_tables"]
@@ -334,7 +328,7 @@ class HiconaCooler(Cooler):
             print(par_str)
 
         except KeyError:
-            print("No tables have been created yet.")
+            print("E: No tables have been created yet.")
 
     def tables(
         self,
@@ -386,10 +380,10 @@ class HiconaCooler(Cooler):
 
         # Define a list of partial URIs to valid tables
         with h5py.File(self.store, mode="r") as h5_handle:
-            tables_grp = h5_handle[self.root + "/chrom_tables"]
-            valid_groups = [g for g in tables_grp if grp_regex.match(g)]
+            tables_grp = h5_handle[self.root + "/hicona_tables"]
+            valid_grps = [g for g in tables_grp if grp_regex.match(g)]
             valid_tables = []
-            for grp in valid_groups:
+            for grp in valid_grps:
                 tabs = [grp + "/" + c for c in chroms if c in tables_grp[grp]]
                 valid_tables.extend(tabs)
 
@@ -472,9 +466,9 @@ class HiconaCooler(Cooler):
 
         # Check for no overlap in old and new annotations
         if in_file in self.annotation_list():
-            raise ValueError("'in file' annotation name already exists.")
-        if any([ann for ann in to_keep if ann in self.annotation_list()]):
-            raise ValueError("Overlap with old annotations, stopping.")
+            raise ValueError("E: 'in file' annotation name already exists.")
+        if any(ann in to_keep for ann in self.annotation_list()):
+            raise ValueError("E: Overlap with old annotations, stopping.")
 
         # Create the two bin df and merge on default bed columns
         # While reading, replace chrom, start, end of bed file with None.
@@ -484,7 +478,7 @@ class HiconaCooler(Cooler):
 
         # Check for overlapping annotations
         if len(ann_df) != len(bin_df):
-            raise ValueError("Overlapping annotations are not supported yet.")
+            raise ValueError("E: Overlapping annotations are not supported.")
 
         # Create OHE column where 1 = "intersection with annotation"
         if in_file:
@@ -511,9 +505,14 @@ class HiconaCooler(Cooler):
         """
 
         to_del = self._valid_bin_annotations(to_del)
+
         with h5py.File(self.store, mode="r+") as h5_handle:
             bin_grp = h5_handle[self.root + "/bins"]
-            delete(bin_grp, to_del)
+            for annot in to_del:
+                del bin_grp[annot]
+
+        if not any(to_del):
+            print("W: No valid annotation to delete was provided.")
 
     def ohe_bin_annotation(
         self,
@@ -562,7 +561,7 @@ class HiconaCooler(Cooler):
             too_many = [c for c in to_ohe if ann_df[c].nunique() > max_mods]
             if too_many:
                 raise ValueError(
-                    f"The variable(s) {', '.join(too_many)} has/have more "
+                    f"E: The variable(s) {', '.join(too_many)} has/have more "
                     f"than the default max number of modalities ({max_mods})."
                     f"\nThis could lead to a huge file size increase. To "
                     f"proceed anyway, rerun with force_annotation=True."
@@ -662,7 +661,7 @@ class HiconaCooler(Cooler):
             if alpha_thr == "optimal":
                 alpha_thr = ["optimal"] * len(chr_tables)
             else:
-                raise ValueError(f"Unknown filtering parameter: {alpha_thr}")
+                raise ValueError(f"E: Unknown filtering param: {alpha_thr}")
         elif isinstance(alpha_thr, float):
             alpha_thr = [alpha_thr] * len(chr_tables)
 
