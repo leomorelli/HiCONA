@@ -2,7 +2,6 @@
 
 from matplotlib.colors import LinearSegmentedColormap
 import matplotlib.pyplot as plt
-from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -99,7 +98,7 @@ def plot_annot_dynamics(
     ann_dynamics: pd.DataFrame,
     alpha_distr: pd.DataFrame,
     ann_name: str,
-    max_alpha: float = 0.6,
+    sort_rows: bool = True,
     img_path: str = None,
     show: bool = False,
 ):
@@ -121,47 +120,153 @@ def plot_annot_dynamics(
     ann_cols = [f"{ann_name}1", f"{ann_name}2"]
     table = ann_dynamics.copy()
 
+    # Quantiles threhsolding values
+    thresholds = table["alpha"].unique()
+
+    # Compute total background table
     bkg = table.groupby(ann_cols)["num_pixels"].sum().reset_index()
     bkg["num_pixels"] = bkg["num_pixels"] / bkg["num_pixels"].sum()
     bkg["annot"] = bkg.pop(ann_cols[0]) + "-" + bkg.pop(ann_cols[1])
     bkg.set_index(["annot"], inplace=True)
 
+    print(table.groupby("alpha")["num_pixels"].sum())
+    print(bkg)
+
+    # Change main table index
     table["annot"] = table.pop(ann_cols[0]) + "-" + table.pop(ann_cols[1])
     table = table.set_index(["annot", "alpha"]).squeeze().unstack()
-    table = table.drop(columns=[c for c in table.columns if c > max_alpha])
 
+    # Trasform main table in log2 fold change
     for col in table.columns:
         table[col] = table[col] / table[col].sum()
         table[col] = table[col].divide(bkg["num_pixels"], fill_value=0)
     table = np.log2(table)
-    table = table.iloc[get_row_order(table)]
+    print(table)
 
-    fig, axes = plt.subplots(2, 1, height_ratios=[1, 3])
+    # Whether to perform hierarchical clustering on the rows
+    if sort_rows:
+        table = table.iloc[get_row_order(table)]
 
+    fig, axes = plt.subplots(2, 1, height_ratios=[1, 3], figsize=(12, 9))
+
+    print(thresholds[-1] * 1.1)
     sns.lineplot(alpha_distr, ax=axes[0])
     axes[0].set(
         xlabel="Alpha",
         ylabel="Number of Pixels",
-        xticks=[0.05 * i for i in range(0, round(max_alpha / 0.05) + 1)],
-        xlim=(0, max_alpha),
+        # xticks=thresholds,
+        xlim=(0, thresholds[-1] * 1.01),
         ylim=(-max(alpha_distr) * 0.1, max(alpha_distr) * 1.1),
     )
+    # axes[0].set(xticklabels=[])
     axes[0].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
     axes[0].xaxis.set_label_coords(-0.05, -0.04)
+
+    for t in thresholds:
+        axes[0].axvline(t, color="red")
 
     sns.heatmap(
         table,
         robust=True,
         cmap=get_color_map(),
+        # cbar_kws={"pad": 0.05},
         cbar_kws={"location": "bottom", "shrink": 0.5, "pad": 0.05},
         ax=axes[1],
         yticklabels=table.index,
+        center=0,
+        # vmax=1.5,
+        # vmin=-1.5,
     )
-    axes[1].set(xlabel=None, ylabel=None, xticklabels=[])
+    axes[1].set(xlabel=None, ylabel=None)  # , xticklabels=[])
     axes[1].tick_params(bottom=False)
 
     fig.tight_layout(pad=0)
-    plt.show()
+
+    if img_path:
+        plt.savefig(img_path)
+
+    if show:
+        plt.show()
+
+
+# THRESHOLD, NON CUMULATIVE VERSION
+# def plot_annot_dynamics(
+#     ann_dynamics: pd.DataFrame,
+#     alpha_distr: pd.DataFrame,
+#     ann_name: str,
+#     sort_rows: bool = True,
+#     img_path: str = None,
+#     show: bool = False,
+# ):
+#     """Placeholder."""
+
+#     def get_color_map():
+#         """Placeholder"""
+#         cols = ["mediumblue", "blue", "white", "red", "firebrick"]
+#         vals = [0, 0.15, 0.5, 0.85, 1]
+#         cmap = LinearSegmentedColormap.from_list("rg", list(zip(vals, cols)))
+#         return cmap
+
+#     def get_row_order(dataf):
+#         """Placeholder"""
+#         link = linkage(dataf, optimal_ordering=True)
+#         dendro = dendrogram(link, no_plot=True)
+#         return dendro["leaves"]
+
+#     ann_cols = [f"{ann_name}1", f"{ann_name}2"]
+#     table = ann_dynamics.copy()
+
+#     bkg = table.groupby(ann_cols)["num_pixels"].sum().reset_index()
+#     bkg["num_pixels"] = bkg["num_pixels"] / bkg["num_pixels"].sum()
+#     bkg["annot"] = bkg.pop(ann_cols[0]) + "-" + bkg.pop(ann_cols[1])
+#     bkg.set_index(["annot"], inplace=True)
+
+#     table["annot"] = table.pop(ann_cols[0]) + "-" + table.pop(ann_cols[1])
+#     table = table.set_index(["annot", "alpha"]).squeeze().unstack()
+#     # table = table.drop(columns=[c for c in table.columns if c > max_alpha])
+
+#     for col in table.columns:
+#         table[col] = table[col] / table[col].sum()
+#         table[col] = table[col].divide(bkg["num_pixels"], fill_value=0)
+#     table = np.log2(table)
+
+#     if sort_rows:
+#         table = table.iloc[get_row_order(table)]
+
+#     fig, axes = plt.subplots(2, 1, height_ratios=[1, 3], figsize=(15, 10))
+
+#     sns.lineplot(alpha_distr, ax=axes[0])
+#     axes[0].set(
+#         xlabel="Alpha",
+#         ylabel="Number of Pixels",
+#         # xticks=[0.05 * i for i in range(0, round(max_alpha / 0.05) + 1)],
+#         # xlim=(0, max_alpha),
+#         ylim=(-max(alpha_distr) * 0.1, max(alpha_distr) * 1.1),
+#     )
+#     axes[0].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+#     axes[0].xaxis.set_label_coords(-0.05, -0.04)
+
+#     sns.heatmap(
+#         table,
+#         robust=True,
+#         cmap=get_color_map(),
+#         cbar_kws={"location": "bottom", "shrink": 0.5, "pad": 0.05},
+#         ax=axes[1],
+#         yticklabels=table.index,
+#         center=0,
+#         # vmax=1.5,
+#         # vmin=-1.5,
+#     )
+#     axes[1].set(xlabel=None, ylabel=None, xticklabels=[])
+#     axes[1].tick_params(bottom=False)
+
+#     fig.tight_layout(pad=0)
+
+#     if img_path:
+#         plt.savefig(img_path)
+
+#     if show:
+#         plt.show()
 
 
 # CUMULATIVE VERSION
