@@ -11,7 +11,8 @@ import numpy as np
 import pandas as pd
 import h5py
 
-from .utils import round_half_up, wait_hdf5_lock
+from .utils.decorators import wait_hdf5_lock
+from .utils.numeric import round_half_up
 
 
 class TableChunksIterator:
@@ -70,11 +71,11 @@ class TableChunksIterator:
         return table
 
 
-class ChromTablesIterator:
+class HiconaTablesIterator:
     """Iterator object of chromosome-level tables and respective information.
 
     For each table group specified in a list of URI strings, return a
-    :py:class:`ChromTable` object whose data attribute corresponds to all
+    :py:class:`HiconaTable` object whose data attribute corresponds to all
     tables in the group, while the preprocessing_params contains all the
     parameters used for processing plus the chromosome id.
 
@@ -108,10 +109,10 @@ class ChromTablesIterator:
         curr_uri = self._uri_list[self._uri_index]
         self._uri_index += 1
 
-        return SparChromTable(self._store, curr_uri)
+        return HiconaTable(self._store, curr_uri)
 
 
-class ChromTable:
+class _BaseTable:
     """Placeholder"""
 
     def __init__(
@@ -202,11 +203,7 @@ class ChromTable:
         return pd.concat(self.get_chunks(queries)).reset_index(drop=True)
 
 
-class RawChromTable(ChromTable):
-    """Placeholder"""
-
-
-class SparChromTable(ChromTable):
+class HiconaTable(_BaseTable):
     """Placeholder"""
 
     def __init__(self, *args, **kwargs):
@@ -401,7 +398,7 @@ class SparChromTable(ChromTable):
 
         return distr
 
-    def annotation_dynamics(self, annot: str, step: float = 0.05) -> pd.DataFrame:
+    def annotation_dynamics(self, annot: str) -> pd.DataFrame:
         """Placeholder"""
 
         def process_table(table, lower, upper):
@@ -409,8 +406,8 @@ class SparChromTable(ChromTable):
 
             ann1, ann2, alpha_col = table.columns  # Assumed for convenience
 
-            filt_table = table[table[alpha_col] <= upper]
-            filt_table.query(f"{alpha_col} > {lower}", inplace=True)
+            filt_table = table.loc[table[alpha_col] <= upper]
+            filt_table = filt_table.query(f"{alpha_col} > {lower}")
 
             out = filt_table.groupby([ann1, ann2]).count()
             out.reset_index(inplace=True)
@@ -418,10 +415,28 @@ class SparChromTable(ChromTable):
 
             return out
 
-        alphas = [round_half_up(n, 2) for n in np.arange(0, 1, step)]
+        def compute_quantiles(table):
+            """Placeholder"""
+
+            curve = pd.Series()
+            total = 0
+            for chunk in table.get_chunks():
+                total += len(chunk)
+                vals = chunk.groupby("alpha_min")["count"].count()
+                curve = curve.combine(vals, lambda x, y: x + y, fill_value=0)
+
+            num_pix = curve.sum()
+            cumulative = curve.cumsum()
+            quantiles = [0.1 * i * num_pix for i in range(1, 11)]
+            thrs = [cumulative[cumulative >= q].index[0] for q in quantiles]
+            thrs = [0] + thrs  # Added after since first index is not 0
+
+            return thrs
+
+        alphas = compute_quantiles(self)
         interv = [(alphas[i], alphas[i + 1]) for i in range(len(alphas) - 1)]
 
-        parent_store = self._table_uri.split("chrom_tables")[0].strip("/")
+        parent_store = self._table_uri.split("hicona_tables")[0].strip("/")
         parent_location = self._store_uri
         if parent_store:  # Non empty -> multires
             parent_location += f"::{parent_store}"
@@ -449,57 +464,102 @@ class SparChromTable(ChromTable):
         return out_df
 
 
-'''
+# THRESHOLD VERSION OF ANNOTATION DYNAMICS
+# def annotation_dynamics(self, annot: str, step: float = 0.05) -> pd.DataFrame:
+#     """Placeholder"""
+
+#     def process_table(table, lower, upper):
+#         """Placeholder"""
+
+#         ann1, ann2, alpha_col = table.columns  # Assumed for convenience
+
+#         filt_table = table.loc[table[alpha_col] <= upper]
+#         filt_table = filt_table.query(f"{alpha_col} > {lower}")
+
+#         out = filt_table.groupby([ann1, ann2]).count()
+#         out.reset_index(inplace=True)
+#         out["alpha"] = upper
+
+#         return out
+
+#     alphas = [round_half_up(n, 2) for n in np.arange(0, 1, step)]
+#     interv = [(alphas[i], alphas[i + 1]) for i in range(len(alphas) - 1)]
+
+#     parent_store = self._table_uri.split("hicona_tables")[0].strip("/")
+#     parent_location = self._store_uri
+#     if parent_store:  # Non empty -> multires
+#         parent_location += f"::{parent_store}"
+
+#     print(parent_location)
+#     parent_cooler = cooler.Cooler(parent_location)
+#     bins = parent_cooler.bins()[:]
+
+#     ann1, ann2 = f"{annot}1", f"{annot}2"
+#     ann_df = cooler.annotate(self.get_dataframe(), bins)
+#     ann_df = ann_df[[ann1, ann2, self._alpha_mod]]
+
+#     # Sort annotations alphabetically to make a triagular matrix later
+#     ann_df[ann1], ann_df[ann2] = np.where(
+#         ann_df[ann1] < ann_df[ann2],
+#         (ann_df[ann1], ann_df[ann2]),
+#         (ann_df[ann2], ann_df[ann1]),
+#     )
+
+#     out_df = pd.concat([process_table(ann_df, *i) for i in interv])
+
+#     out_df.reset_index(drop=True, inplace=True)
+#     out_df.rename(columns={self._alpha_mod: "num_pixels"}, inplace=True)
+
+#     return out_df
+
 # CUMULATIVE VERSION OF ANNOTATION DYNAMICS
-def annotation_dynamics(
-    self,
-    annot: str,
-    alphas: float | list[float],
-) -> pd.DataFrame:
-    """Placeholder"""
+# def annotation_dynamics(
+#     self,
+#     annot: str,
+#     alphas: float | list[float],
+# ) -> pd.DataFrame:
+#     """Placeholder"""
 
-    def process_table(table, alpha):
-        """Placeholder"""
+#     def process_table(table, alpha):
+#         """Placeholder"""
 
-        ann1, ann2, alpha_col = table.columns  # Assumed for convenience
-        table.query(f"{alpha_col} <= {alpha}", inplace=True)
-        table_size = len(table)
+#         ann1, ann2, alpha_col = table.columns  # Assumed for convenience
+#         table.query(f"{alpha_col} <= {alpha}", inplace=True)
+#         table_size = len(table)
 
-        out = table.groupby([ann1, ann2]).count()  # / table_size
-        print(alpha)
-        print(out)
-        out = out / table_size
-        out.reset_index(inplace=True)
-        out["alpha"] = alpha
+#         out = table.groupby([ann1, ann2]).count()  # / table_size
+#         print(alpha)
+#         print(out)
+#         out = out / table_size
+#         out.reset_index(inplace=True)
+#         out["alpha"] = alpha
 
-        return out
+#         return out
 
-    alphas = [alphas] if isinstance(alphas, float) else alphas
-    alphas.sort(reverse=True)
+#     alphas = [alphas] if isinstance(alphas, float) else alphas
+#     alphas.sort(reverse=True)
 
-    parent_store = self._table_uri.split("chrom_tables")[0].strip("/")
-    parent_location = self._store_uri
-    if parent_store:  # Non empty -> multires
-        parent_location += f"::{parent_store}"
+#     parent_store = self._table_uri.split("hicona_tables")[0].strip("/")
+#     parent_location = self._store_uri
+#     if parent_store:  # Non empty -> multires
+#         parent_location += f"::{parent_store}"
 
-    parent_cooler = cooler.Cooler(parent_location)
-    bins = parent_cooler.bins()[:]
-    # TODO: slightly memory demanding, maybe just fetch subset of bins
+#     parent_cooler = cooler.Cooler(parent_location)
+#     bins = parent_cooler.bins()[:]
 
-    ann1, ann2 = f"{annot}1", f"{annot}2"
-    ann_df = cooler.annotate(self.get_dataframe(), bins)
-    ann_df = ann_df[[ann1, ann2, self._alpha_mod]]
+#     ann1, ann2 = f"{annot}1", f"{annot}2"
+#     ann_df = cooler.annotate(self.get_dataframe(), bins)
+#     ann_df = ann_df[[ann1, ann2, self._alpha_mod]]
 
-    # Sort annotations alphabetically to make a triagular matrix later
-    ann_df[ann1], ann_df[ann2] = np.where(
-        ann_df[ann1] < ann_df[ann2],
-        (ann_df[ann1], ann_df[ann2]),
-        (ann_df[ann2], ann_df[ann1]),
-    )
+#     # Sort annotations alphabetically to make a triagular matrix later
+#     ann_df[ann1], ann_df[ann2] = np.where(
+#         ann_df[ann1] < ann_df[ann2],
+#         (ann_df[ann1], ann_df[ann2]),
+#         (ann_df[ann2], ann_df[ann1]),
+#     )
 
-    out_df = pd.concat([process_table(ann_df, a) for a in alphas])
-    out_df.reset_index(drop=True, inplace=True)
-    out_df.rename(columns={self._alpha_mod: "fraction"}, inplace=True)
+#     out_df = pd.concat([process_table(ann_df, a) for a in alphas])
+#     out_df.reset_index(drop=True, inplace=True)
+#     out_df.rename(columns={self._alpha_mod: "fraction"}, inplace=True)
 
-    return out_df
-'''
+#     return out_df

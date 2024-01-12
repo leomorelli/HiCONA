@@ -2,7 +2,7 @@
 
 Main object to handle .cool/.mcool files in order to perform all the
 pre-processing required to obtain chromosome level tables.
-Chromosome-level tables are stored in the ``/chrom_tables`` group and
+Chromosome-level tables are stored in the ``/hicona_tables`` group and
 can be retrieved to create filtered networks to analyze.
 """
 
@@ -17,7 +17,7 @@ import pandas as pd
 from pybedtools import BedTool
 import ray
 
-from .chrom_table import ChromTable, ChromTablesIterator
+from .hicona_table import HiconaTable, HiconaTablesIterator
 from .settings import HICONA_SETTINGS
 from .table_processor import TableProcessor
 from .utils import (
@@ -41,7 +41,7 @@ class HiconaCooler(Cooler):
     :py:class:`HiconaCooler` inherits from :py:class:`cooler.Cooler` and
     extends it by adding new functionalities, mainly revolving around
     the creation of chromosome-level tables to use for network analyses.
-    Tables are stored in a separate group (``chrom_tables``) of the
+    Tables are stored in a separate group (``hicona_tables``) of the
     :py:class:`h5py.File` and no method or property of the :py:class:`Cooler`
     is overwritten, therefore a :py:class:`HiconaCooler` object can always be
     used as a :py:class:`Cooler` one.
@@ -210,7 +210,7 @@ class HiconaCooler(Cooler):
             bin_idx = self.extent(region)
             pix_idx = get_pix_idx(bin_idx, self.store, self.root)
 
-            table = ChromTable(self.store, self.root + "/pixels", pix_idx)
+            table = HiconaTable(self.store, self.root + "/pixels", pix_idx)
             queries = get_queries(self.binsize, bin_idx[1], **filt_opts)
             processor = TableProcessor(table, queries)
 
@@ -232,7 +232,7 @@ class HiconaCooler(Cooler):
         with h5py.File(self.store, mode="r+") as h5_handle:
             root_template = HICONA_SETTINGS.conventions.table_uri_template
             table_root = root_template.format(dist_thr, count_thr, quant_thr)
-            table_root = self.root + "/chrom_tables/" + table_root
+            table_root = self.root + "/hicona_tables/" + table_root
 
             # Create container group if not already existent and set attrs
             table_grp = h5_handle.require_group(table_root)
@@ -329,7 +329,7 @@ class HiconaCooler(Cooler):
         # TODO: sort
         try:
             with h5py.File(self.store, mode="r") as h5_handle:
-                tables_grp = h5_handle[self.root + "/chrom_tables"]
+                tables_grp = h5_handle[self.root + "/hicona_tables"]
                 par_str = "PARAMETER SETS:"
                 for par_grp in tables_grp.values():
                     par_str += "\n" + "-" * 78
@@ -349,11 +349,11 @@ class HiconaCooler(Cooler):
         dist_thr: int = None,
         count_thr: int = None,
         quant_thr: float = None,
-    ) -> ChromTablesIterator:
+    ) -> HiconaTablesIterator:
         """Return an iterator of selected tables and respective information.
 
         Use the input parameters to define which tables to retrieve, then
-        return a :py:class:`ChromTablesIterator` where each item is a tuple in
+        return a :py:class:`HiconaTablesIterator` where each item is a tuple in
         the form ``(DataFrame, dict)``.
 
         Parameters
@@ -379,7 +379,7 @@ class HiconaCooler(Cooler):
 
         Returns
         -------
-        :py:class:`ChromTablesIterator`:
+        :py:class:`HiconaTablesIterator`:
         """
 
         # Create valid groups regex according to input parameters
@@ -400,8 +400,8 @@ class HiconaCooler(Cooler):
                 tabs = [grp + "/" + c for c in chroms if c in tables_grp[grp]]
                 valid_tables.extend(tabs)
 
-        valid_tables = [f"{self.root}/chrom_tables/{t}" for t in valid_tables]
-        return ChromTablesIterator(self.store, valid_tables)
+        valid_tables = [f"{self.root}/hicona_tables/{t}" for t in valid_tables]
+        return HiconaTablesIterator(self.store, valid_tables)
 
     # ////////////////////////////////////////////////////////////////////////
     # ///////////////////////// ANNOTATION FUNCTIONS /////////////////////////
@@ -632,7 +632,7 @@ class HiconaCooler(Cooler):
     def gen_sparsified_cooler(
         self,
         cool_uri: str,
-        chr_tables: ChromTablesIterator,
+        chr_tables: HiconaTablesIterator,
         alpha_thr: str | float | Iterable[float],
     ) -> None:
         """Create a cool/mcool file containing only sparsified pixels.
@@ -647,7 +647,7 @@ class HiconaCooler(Cooler):
         cool_uri : str
             Where to generate the new cooler. If the specified file does not
             exist it will be created.
-        chr_tables : :py:class:`ChromTablesIterator`
+        chr_tables : :py:class:`HiconaTablesIterator`
             Iterator of pixel tables to merge and use as pixels.
         alpha_thr : str, float or Iterable[float]
             Alpha values to use to filter the pixel tables. If string, compute

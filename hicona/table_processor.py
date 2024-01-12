@@ -7,14 +7,14 @@ from numpy import log2
 import pandas as pd
 from scipy import integrate
 
-from .chrom_table import ChromTable
 from .utils import round_half_up
+from .hicona_table import HiconaTable
 
 
 class TableProcessor:
     """Placeholder"""
 
-    def __init__(self, table: ChromTable, queries: dict, verbose: bool = True):
+    def __init__(self, table: HiconaTable, queries: dict, verbose: bool = True):
         quant = queries.pop("quantile_thr")
 
         self._table = table
