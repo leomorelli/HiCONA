@@ -13,7 +13,6 @@ import time
 from cooler import Cooler, create_cooler
 import h5py
 import pandas as pd
-import ray
 
 from .hicona_table import HiconaTable, HiconaTablesIterator
 from .settings import HICONA_SETTINGS
@@ -146,8 +145,6 @@ class HiconaCooler(Cooler):
     # // Functions to pass from full-pixel table to chromosome-level tables //
     # ////////////////////////////////////////////////////////////////////////
 
-    @ray.remote
-    # @console_log
     def _create_table(self, region, table_root, filt_opts):
         """Create chromosome-level table given the set of parameters."""
 
@@ -297,16 +294,8 @@ class HiconaCooler(Cooler):
         start = time.time()
 
         # Create chromosome-level groups and datasets
-        ray.init()
-        refs = []
-        self_id = ray.put(self)
         for region in parse_regions(chrom_selection, self._get_chrom_bed()):
-            refs.append(
-                self._create_table.remote(self_id, region, table_root, filt_opts)
-            )
-
-        ray.get(refs)
-        ray.shutdown()
+            self._create_table(region, table_root, filt_opts)
 
         print(f"Took {time.time()-start}s")
 
