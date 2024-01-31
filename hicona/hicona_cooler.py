@@ -118,7 +118,7 @@ class HiconaCooler(Cooler):
             lower += len(chunk)
 
     def _save_table(self, grp_path, table):
-        """Placeholder"""
+        """Convenience shorthand to initialize and place table at once."""
 
         self._init_table(grp_path, len(table), get_dataf_mapping(table))
         self._place_table(grp_path, table)
