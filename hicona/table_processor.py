@@ -9,177 +9,51 @@ from scipy import integrate
 
 from .hicona_table import HiconaTable
 from .utils.numeric import round_half_up
+from .utils.hdf5ops import resize_tab, write_data
 
 
-class TableProcessor:
+class _TableProcessor:
     """Placeholder"""
 
-    def __init__(self, table: HiconaTable, queries: dict, verbose: bool = True):
-        quant = queries.pop("quantile_thr")
-
+    def __init__(self, table, queries, norm_method):
         self._table = table
-        self._quant = quant
         self._queries = queries
-        self._verbose = verbose
+        self._norm_method = norm_method
 
-        # Computed once during the first iteration
-        self._table_size = None
-        self._norm_curve = None
-        self._quant_numb = None
-        self._node_stats = None
+    def _filter_table(self, queries):
+        """Remove pixels from the table not matching the filters."""
 
-    @property
-    def table_size(self) -> int:
-        """Number of rows of the processed table."""
+        final_size = 0
+        store, pixels = self._table.get_pixel_uris()
 
-        if not self._table_size:
-            if self._verbose:
-                print("Mock processing to compute table size, please wait.")
-
-            tot_size = 0
-            for chunk in self._get_quantile_chunks():
-                tot_size += len(chunk)
-
-            self._table_size = tot_size
-
-        return self._table_size
-
-    def _get_filtered_chunks(self):
-        """Iterator of table chunks which underwent initial filtering."""
-        # TODO: probably simplify using filtered table iterators
-
-        for chunk in self._table.get_chunks():
-            for query in self._queries.values():
+        for chunk in table.get_chunks():
+            for query in queries:
                 chunk.query(query, inplace=True)
-            yield chunk
 
-    def _compute_norm_curve(self):
-        """Compute curve for genomic distance normalization."""
+            write_data(store, pixels, chunk, final_size)
+            final_size += len(chunk)
 
-        curve = pd.Series()
-        for chunk in self._get_filtered_chunks():
-            chunk["bin_diff"] = chunk["bin2_id"] - chunk["bin1_id"]
-            vals = chunk.groupby("bin_diff")["count"].apply(list)
-            curve = curve.combine(vals, lambda x, y: x + y, fill_value=[])
+        resize_tab(store, pixels, final_size)
 
-        self._norm_curve = curve.apply(median).rename("dist_norm")
-
-    def _get_normalized_chunks(self):
-        """Iterator of table chunks normalized for genomic distance."""
-
-        if self._norm_curve is None:
-            self._compute_norm_curve()
-
-        for chunk in self._get_filtered_chunks():
-            # Compute expected ratios
-            chunk["bin_diff"] = chunk["bin2_id"] - chunk["bin1_id"]
-            chunk = chunk.join(self._norm_curve, on="bin_diff")
-            chunk["exp_ratio"] = log2(chunk["count"] / chunk["dist_norm"] + 1)
-            chunk.drop(["bin_diff", "dist_norm"], axis=1, inplace=True)
-
-            yield chunk
-
-    def _compute_quant_numb(self):
-        """Define the expected ratio cutoff to use for quantile filtering."""
-
-        curve = pd.Series()
-        for chunk in self._get_normalized_chunks():
-            vals = chunk.groupby("exp_ratio")["count"].count()
-            curve = curve.combine(vals, lambda x, y: x + y, fill_value=0)
-
-        threshold = curve.sum() * self._quant
-        threshold = curve.cumsum()[curve.cumsum() > threshold].index[0]
-
-        self._quant_numb = threshold
-
-    def _get_quantile_chunks(self):
-        """Filter chromsome pixels and store them in the table."""
-
-        if not self._quant_numb:
-            self._compute_quant_numb()
-
-        for chunk in self._get_normalized_chunks():
-            yield chunk[chunk["exp_ratio"] > self._quant_numb]
-
-    def _compute_node_stats(self):
-        """Compute sum of weights and degree for each node/bin."""
-
-        # Initialize empty containers
-        weights = pd.Series()
-        degrees = pd.Series()
-
-        for chunk in self._get_quantile_chunks():
-            for bin_col in ["bin1_id", "bin2_id"]:
-                # Compute metrics on chunk
-                grouped = chunk[[bin_col, "exp_ratio"]].groupby(bin_col)
-                chunk_weights = grouped.sum()["exp_ratio"]
-                chunk_degrees = grouped.count()["exp_ratio"]
-
-                # Increase counters
-                weights = weights.add(chunk_weights, fill_value=0)
-                degrees = degrees.add(chunk_degrees, fill_value=0)
-
-        node_stats = {"weight": weights, "degree": degrees}
-        self._node_stats = pd.DataFrame(node_stats)
-
-    def _get_sparsified_chunks(self):
-        """Compute alpha value as per Serrano et al. 2009."""
-
-        def compute_alpha(row):
-            """Given a (weight, degree) pair, compute the integral."""
-
-            weight, deg = row["norm_weight"], row["degree"]
-            res, _ = integrate.quad(lambda x: (1 - x) ** (deg - 2), 0, weight)
-            alpha = 1 - (deg - 1) * res
-
-            return round_half_up(alpha, 4)
-
-        def unique_alphas(dataf):
-            """Return alpha values of unique (norm_weight, deg) pairs."""
-
-            values = dataf[["degree", "norm_weight"]].drop_duplicates()
-            values[f"alpha_{num}"] = 1.0  # .0 needed to initialize as float
-            mask = values["degree"] != 1
-            alphas = values.loc[mask].apply(compute_alpha, axis=1)
-            values.loc[mask, f"alpha_{num}"] = alphas
-
-            return values
-
-        if not self._node_stats:
-            self._compute_node_stats()
-
-        # For each chunk of the chromosome-level pixel table
-        for chunk in self._get_quantile_chunks():
-            # For both bins composing the pixel
-            for num, bin_col in enumerate(["bin1_id", "bin2_id"]):
-                # Add node statistics and normalized weight for that bin
-                chunk = chunk.merge(
-                    self._node_stats,
-                    how="left",
-                    left_on=bin_col,
-                    right_index=True,
-                )
-                chunk["norm_weight"] = chunk["exp_ratio"] / chunk["weight"]
-
-                # Compute and add the alpha values for each row
-                chunk = chunk.merge(
-                    unique_alphas(chunk),
-                    how="left",
-                    on=["degree", "norm_weight"],
-                )
-
-                # Remove node specific information
-                tmp_cols = ["weight", "degree", "norm_weight"]
-                chunk.drop(tmp_cols, axis=1, inplace=True)
-
-            # Sort the values into min and max column, then remove tmp ones
-            chunk["alpha_min"] = chunk[["alpha_0", "alpha_1"]].min(axis=1)
-            chunk["alpha_max"] = chunk[["alpha_0", "alpha_1"]].max(axis=1)
-            chunk.drop(["alpha_0", "alpha_1"], axis=1, inplace=True)
-
-            yield chunk
-
-    def get_processed_chunks(self) -> Iterable[pd.DataFrame]:
+    def _normalize(self):
         """Placeholder"""
 
-        return self._get_sparsified_chunks()
+        # Select appropriate normalization function
+        norm_fun = None
+        match self._norm_method:
+            case "hicona":
+                norm_fun = hicona_norm
+            case "ice":
+                norm_fun = ice_norm
+
+        # Do the actual normalization
+
+    def _sparsify(self):
+        pass
+
+    def start(self):
+        # TODO: separate the queries
+        self._filter_table()
+        self._normalize()
+        self._filter_table()
+        self._sparsify()

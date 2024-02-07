@@ -4,92 +4,69 @@ Placeholder
 """
 
 from collections.abc import Iterable
-from math import dist
+from math import ceil, dist
 
 import cooler
 import numpy as np
 import pandas as pd
-import h5py
 
-from .utils.decorators import wait_hdf5_lock
 from .utils.numeric import round_half_up
+from .utils.hdf5ops import fetch_data
 
 
-class TableChunksIterator:
+class _TableChunks:
     """Return table chunks as pandas DataFrames."""
 
     def __init__(
         self,
-        store_uri,
-        table_uri,
-        idx_bounds,
-        chunk_size,
-        queries=None,
+        uris: [str, str],
+        intervals: Iterable[[int, int]],
+        chunk_size: int,
+        columns: Iterable[str] = None,
     ):
-        self._store_uri = store_uri
-        self._table_uri = table_uri
-        self._idx_bounds = idx_bounds
+        self._uris = uris
+        self._intervals = intervals
         self._chunk_size = chunk_size
-        self._queries = queries
-
-        # Set iteration properties
-        self._curr_chunk = 0
-        self._num_chunks = (idx_bounds[1] - idx_bounds[0]) // chunk_size
-        if (idx_bounds[1] - idx_bounds[0]) % chunk_size != 0:
-            self._num_chunks += 1
+        self._columns = columns
 
     def __iter__(self):
         return self
 
     def __next__(self):
-        if self._curr_chunk >= self._num_chunks:
+        # No more pixels available to iterate
+        if not self._intervals:
             raise StopIteration
 
-        # Fix boundaries of the region to fetch
-        lower = self._idx_bounds[0] + self._chunk_size * self._curr_chunk
-        upper = lower + self._chunk_size
-        if upper > self._idx_bounds[1]:
-            upper = self._idx_bounds[1]
+        out_interv = []  # Pixel intervals to include in the chunk
+        still_miss = self._chunk_size  # Pixels missing for a complete chunk
 
-        table = self._fetch_chunk(lower, upper)
+        # Iterate either till chunk size is reached or no intervals available
+        while still_miss > 0:
+            if not self._intervals:
+                break
 
-        self._curr_chunk += 1
+            lower, upper = self._intervals[0]
+            still_miss -= upper - lower
 
-        return table
+            # Get entire interval if it fits, else only get a part of it
+            if still_miss >= 0:
+                out_interv.append(self._intervals.pop(0))
+            else:
+                out_interv.append([lower, upper + still_miss])
+                self._intervals[0] = [lower - still_miss, upper]
 
-    @wait_hdf5_lock
-    def _fetch_chunk(self, lower, upper):
-        """Placeholder"""
-
-        with h5py.File(self._store_uri, mode="r") as h5_handle:
-            grp = h5_handle[self._table_uri]
-            table = pd.DataFrame({f: grp[f][lower:upper] for f in grp.keys()})
-
-        for query in self._queries:
-            table.query(query, inplace=True)
-
-        return table
+        # Fetch and concat pixel intervals
+        [store, pixel], keys = self._uris, self._columns
+        chunks = [fetch_data(store, pixel, l, u, keys) for l, u in out_interv]
+        return pd.concat(chunks)
 
 
-class HiconaTablesIterator:
-    """Iterator object of chromosome-level tables and respective information.
+class _TablesIterator:
+    """Iterator of HiconaTable objects."""
 
-    For each table group specified in a list of URI strings, return a
-    :py:class:`HiconaTable` object whose data attribute corresponds to all
-    tables in the group, while the preprocessing_params contains all the
-    parameters used for processing plus the chromosome id.
+    # TODO: Fix to because of regions and such
 
-    Parameters
-    ----------
-    store : str
-        Path to the cool/mcool file.
-    root : str
-        URI string to resolution of interest.
-    uris : list
-        List of URI strings to the table groups of interest.
-    """
-
-    def __init__(self, store, uris):
+    def __init__(self, store, root, uris):
         self._store = store
         self._uri_list = uris
 
@@ -113,50 +90,18 @@ class HiconaTablesIterator:
 
 
 class _BaseTable:
-    """Placeholder"""
+    """Base class to inherit from to handle tables created by Hicona."""
 
     def __init__(
         self,
-        store_uri: str,
-        table_uri: str,
-        idx_bounds: tuple[int] = None,
+        uris: dict,
+        regions: str | Iterable[str],
         chunk_size: int = 1_000_000,
     ):
-        @wait_hdf5_lock
-        def _fetch_binsize(store_uri, table_uri):
-            """Fetch bin size from the main file (needed for filtering)."""
-
-            with h5py.File(store_uri, mode="r") as h5_handle:
-                grp = h5_handle[table_uri]
-                binsize = grp.attrs.get("bin-size")
-
-            return binsize
-
-        @wait_hdf5_lock
-        def _fetch_bounds(store_uri, table_uri):
-            """Return tuple to use as table boundaries."""
-
-            with h5py.File(store_uri, mode="r") as h5_handle:
-                grp = h5_handle[table_uri]
-                size = len(grp["bin1_id"])
-
-            return (0, size)
-
-        self._store_uri = store_uri
-        self._table_uri = table_uri
+        self._uris = uris
         self._chunk_size = chunk_size
-        self._idx_bounds = idx_bounds or _fetch_bounds(store_uri, table_uri)
-        self._bin_size = _fetch_binsize(store_uri, table_uri)
-
-    @property
-    def store_uri(self):
-        """Uri string to the cooler of interest (includes resolution)."""
-        return self._store_uri
-
-    @property
-    def table_uri(self):
-        """Uri string to the table of interest from the main cooler."""
-        return self._table_uri
+        self._regions = regions
+        self._intervals = self._get_intervals(regions)
 
     @property
     def chunk_size(self):
@@ -170,83 +115,66 @@ class _BaseTable:
         else:
             print("W: invalid chunk size provided, value not updated.")
 
-    @property
-    def bin_size(self):
-        """Placeholder"""
-        return self._bin_size
+    def _get_intervals(self, regions):
+        """Return idx intervals with the bins matching the genomic regions."""
+        pass
 
-    def get_chunks(
-        self,
-        queries: str | Iterable[str] = None,
-    ) -> TableChunksIterator:
-        """Returns an iterator of table chunks (as pandas DataFrames)."""
+    def get_chunks(self, columns: Iterable[str] = None) -> _TableChunks:
+        """Returns an iterator of table chunks (as pandas DataFrames).
+
+        Parameters
+        ----------
+        columns: Iterable[str], optional
+            If provided, only fetch the specified columns. Default is None.
+
+        Returns
+        -------
+        An iterator of table chunks (as pandas DataFrames).
+        """
 
         queries = queries or []
         queries = [queries] if isinstance(queries, str) else queries
 
-        chunks = TableChunksIterator(
-            store_uri=self._store_uri,
-            table_uri=self._table_uri,
-            idx_bounds=self._idx_bounds,
+        chunks = _TableChunks(
+            uris=self.get_pixel_uris,
+            intervals=self._intervals,
             chunk_size=self._chunk_size,
-            queries=queries,
+            columns=columns,
         )
 
         return chunks
 
-    def get_dataframe(
-        self,
-        queries: str | Iterable[str] = None,
-    ) -> pd.DataFrame:
-        """Placeholder"""
+    def get_dataframe(self, columns: Iterable[str] = None) -> pd.DataFrame:
+        """Return all table chunks in a single pandas DataFrame.
 
-        return pd.concat(self.get_chunks(queries)).reset_index(drop=True)
+        Parameters
+        ----------
+        columns: Iterable[str], optional
+            If provided, only fetch the specified columns. Default is None.
+
+        Returns
+        -------
+        A pandas DataFrame with all table pixels.
+        """
+
+        return pd.concat(self.get_chunks(columns)).reset_index(drop=True)
+
+    def get_pixel_uris(self) -> (str, str):
+        """Returns the uri information split between store and pixels.
+
+        Returns
+        -------
+        A tuple containing store and pixels group partial uris.
+        """
+
+        store, root, table = self._uris
+        data = "/".join(root, table, "pixels")  # TODO: do not hardcode
+
+        return (store, data)
 
 
 class HiconaTable(_BaseTable):
     """Placeholder"""
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self._table_info = None
-        self._alpha_optimal = None
-        self._alpha_grid = None
-        self._alpha_mod = "alpha_min"
-
-        # TODO: Add attributes (such as filtering params)
-
-    @property
-    def table_info(self):
-        """Placeholder"""
-        return self._table_info
-
-    @property
-    def alpha_optimal(self):
-        """Placeholder"""
-        return self._alpha_optimal
-
-    @property
-    def alpha_grid(self):
-        """Placeholder"""
-        return self._alpha_grid
-
-    @property
-    def alpha_modality(self):
-        """Placeholder"""
-        modality = self._alpha_mod.split("_")[1]  # 'min'/'max'
-        return modality
-
-    @alpha_modality.setter
-    def alpha_modality(self, modality: str):
-        """Placeholder"""
-        if modality in ("min", "max"):
-            if self._alpha_mod.split("_")[1] != modality:
-                self._alpha_mod = f"alpha_{modality}"
-                self._alpha_grid = None
-                self._alpha_optimal = None
-        else:
-            print("W: ignored, only 'min' and 'max' modalities are allowed.")
 
     def _get_alpha_pts(self, thresholds):
         """Return dataframe with filtering statistics for a threshold grid."""
@@ -285,6 +213,7 @@ class HiconaTable(_BaseTable):
 
     def compute_opt_alpha(
         self,
+        modality: str = "min",
         decimals: int = 3,
         verbose: bool = True,
     ) -> float:
@@ -348,7 +277,7 @@ class HiconaTable(_BaseTable):
     def get_chunks(
         self,
         alpha: str | float = None,
-    ) -> TableChunksIterator:
+    ) -> TableChunks:
         """Returns an iterator of table chunks (as pandas DataFrames)."""
         # TODO: also make columns selectable
 
