@@ -16,16 +16,10 @@ import pandas as pd
 
 from .hicona_table import HiconaTable, HiconaTablesIterator
 from .settings import HICONA_SETTINGS
-from .table_processor import TableProcessor, get_norm_params
+from .processing import TableProcessor, get_norm_params, ProcessingFilters
 from .utils.bedops import ann_enriched, ann_fraction, bed_to_df, intersect_dfs
 from .utils.decorators import console_log
-from .utils.hdf5ops import (
-    init_table,
-    save_table,
-    require_table,
-    get_group_info,
-    set_attrs,
-)
+from .utils.hdf5ops import init_table, save_table, require_table, group_info, set_attrs
 from .utils.misc import parse_regions
 
 
@@ -64,7 +58,8 @@ class HiconaCooler(cooler.Cooler):
         # Mask deprecated root parameter from super-class
         super().__init__(store, **kwargs)
         self._chunk_size = HICONA_SETTINGS.parameters.base_pix_chunk
-        self._tables_root = "hicona_tables"  # TODO: move to configs probably
+        self._tables_root = "/".join(self.root, "hicona_tables")
+        # TODO: move tables root to configs probably
 
     @property
     def chunk_size(self):
@@ -78,7 +73,7 @@ class HiconaCooler(cooler.Cooler):
             raise ValueError(f"chunk_size must be: int >= {min_val}.")
         self._chunk_size = value
 
-    def bare_bins(self):
+    def _bare_bins(self):
         """Get full bin table without any annotation."""
         return self.bins()[["chrom", "start", "end"]][:]
 
@@ -92,45 +87,24 @@ class HiconaCooler(cooler.Cooler):
     def _require_tables_root(self):
         """Initialize the tables root if it does not exist already."""
 
-        tables_root = "/".join(self.root, self._tables_root)
-        require_table(self.store, tables_root, {"id_counter": 0})
+        require_table(self.store, self._tables_root, {"serial": 0})
 
-    def _get_table_id(self):
+    def _next_table_path(self):
         """Return the next free table name and update counter."""
 
-        tables_root = "/".join(self.root, self._tables_root)
-        tables_info = get_group_info(self.store, tables_root, "attrs")
-        counter_val = info["id_counter"]
+        serial = group_info(self.store, self._tables_root, "attrs")["serial"]
+        set_attrs(self.root, self._tables_root, {"serial": serial + 1})
+        return f"table_{counter_val.zfill(6)}"
 
-        table_id = f"table_{counter_val.zfill(6)}"
-        set_attrs(self.root, tables_root, {"id_counter": table_id + 1})
-
-        with h5py.File(self.store, mode="r+") as h5_handle:
-            tables_grp = h5_handle[self.root + "/" + self._tables_root]
-            next_name = f"table_{tables_grp.attrs['id_counter'].zfill(6)}"
-            tables_grp.attrs["id_counter"] += 1
-
-        return next_name
-
-    def _iterate_table_attrs(self):
+    def _iter_table_attrs(self):
         """Iterate through disctionaries containing table attributes."""
 
-        # Fetch list of uris of available tables
-        with h5py.File(self.store, mode="r") as h5_handle:
-            root_path = self.root + "/" + self._tables_root
-            tables_root = h5_handle[root_path]
-            tables_uris = [root_path + "/" + t for t in tables_root.keys()]
-
-        # For each table retrieve and return a dictionary of its attributes.
-        for uri in tables_uris:
-            with h5py.File(self.store, mode="r") as h5_handle:
-                table_grp = h5_handle[uri]
-                attrs = {k: v for k, v in table_grp.attrs.items()}
-
-            yield attrs
+        for table in group_info(self.root, self._tables_root, "keys"):
+            table_path = "/".join(self._tables_root, table)
+            yield group_info(self.root, table_path, "attrs")
 
     @console_log
-    def _create_table(self, norm_method, norm_kwargs):
+    def _create_table(self, norm_method, pre_filters, post_filters, keep_inter):
         """Create the table matching the given set of parameters."""
 
         # Update defaults with provided params + aggregate method to keywords
@@ -139,22 +113,19 @@ class HiconaCooler(cooler.Cooler):
         all_kwargs["normalization"] = norm_method
 
         # Check there is no table with all matching keywords
-        for tab_kwargs in self._iterate_table_attrs():
-            if all(item in tab_kwargs.items() for item in all_kwargs.items()):
+        for tab_kwargs in self._iter_table_attrs():
+            if tab_kwargs == all_kwargs:
                 raise ValueError("Requested table does already exist.")
 
+        # TODO: Fix from here
+
         # Initialize table
-        table_path = self._tables_root + "/" + self._get_next_table_id()
+        table_path = self._next_table_path()
         table_cols = HICONA_SETTINGS.conventions.table_columns
         init_table(self.root, table_path, self.info["nnz"], table_cols)
 
         # Create TableProcessor instance and run it
-        processor = _TableProcessor(
-            self.store,
-            self.root,
-            self.table_path,
-            all_kwargs,
-        )
+        processor = _TableProcessor(table)
         processor.start()
 
     def _get_valid_tables(self, filters, modality):
@@ -168,21 +139,25 @@ class HiconaCooler(cooler.Cooler):
 
     def create_table(
         self,
-        tab_filters: dict = None,
         norm_method: str = "hicona",
+        pre_filters: ProcessingFilters | str = "default",
+        post_filters: ProcessingFilters | str = "default",
+        keep_inter: bool = "default",
     ):
         """
         Create a normalized and sparsfied version of the pixels table.
         """
 
+        # TODO: logic to get filter object
+
         self._require_tables_root()
-        self._create_table(tab_filters, norm_kwargs)
+        self._create_table(pre_filters, norm_method, post_filters, keep_inter)
 
     def list_tables(self) -> None:
         """Print available chromosome tables for each set of parameters."""
 
         try:
-            for table in self._iterate_table_attrs():
+            for table in self._iter_table_attrs():
                 print("-" * 78)
                 for k, v in table.items():
                     print(f"- {k}: {v}")
@@ -297,7 +272,7 @@ class HiconaCooler(cooler.Cooler):
 
         # Create the two bin df and merge on default bed columns
         # While reading, replace chrom, start, end of bed file with None.
-        bin_df = self.bare_bins()
+        bin_df = self._bare_bins()
         ann_df = bed_to_df(bed_path, to_keep)
         ann_df = intersect_dfs(bin_df, ann_df, drop_none=False, loj=True)
 
@@ -440,7 +415,7 @@ class HiconaCooler(cooler.Cooler):
         annot_col, frac_col = f"{ann_name}_annot", f"{ann_name}_frac"
 
         ann_table = bed_to_df(ann_file, annot_col)
-        bin_table = self.bare_bins()
+        bin_table = self._bare_bins()
         bkg_table = get_chrom_bed(self)
 
         col_names = annot_col, frac_col
@@ -502,5 +477,5 @@ class HiconaCooler(cooler.Cooler):
             alpha_thr = [alpha_thr] * len(chr_tables)
 
         filt_pix = tables_generator(chr_tables, alpha_thr)
-        bare_bins = self.bare_bins()
+        bare_bins = self._bare_bins()
         cooler.create_cooler(cool_uri, bins=bare_bins, pixels=filt_pix)

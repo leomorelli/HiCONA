@@ -58,7 +58,7 @@ def save_table(store, path, table):
     write_chunk(store, path, table, 0)
 
 
-def get_group_info(store, path, info):
+def group_info(store, path, info):
     """Return some group information (keys or attrs for example)."""
 
     items = []
