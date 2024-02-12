@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 
 from .utils.numeric import round_half_up
-from .utils.hdf5ops import fetch_data
+from .utils.hdf5_ops import fetch_chunk
 
 
 class _TableChunks:
@@ -102,6 +102,9 @@ class _BaseTable:
         self._chunk_size = chunk_size
         self._regions = regions
         self._intervals = self._get_intervals(regions)
+
+        # TODO: add binsize
+        # TODO: add uris as individual properties
 
     @property
     def chunk_size(self):
@@ -277,7 +280,7 @@ class HiconaTable(_BaseTable):
     def get_chunks(
         self,
         alpha: str | float = None,
-    ) -> TableChunks:
+    ) -> _TableChunks:
         """Returns an iterator of table chunks (as pandas DataFrames)."""
         # TODO: also make columns selectable
 

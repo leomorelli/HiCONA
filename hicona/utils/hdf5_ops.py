@@ -2,7 +2,7 @@
 
 import h5py
 
-from .tableops import get_dataf_mapping
+from .table_ops import get_dataf_mapping
 
 
 def fetch_chunk(store, path, lower, upper, keys=None):

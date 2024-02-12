@@ -1,139 +1,102 @@
 """Placeholder"""
 
 from collections.abc import Iterable
+import importlib.resources as imp_res
 from statistics import median
 
 from numpy import log2
 import pandas as pd
 from scipy import integrate
 
+from . import table_filter_funs as ffuns
 from .hicona_table import HiconaTable
 from .utils.numeric import round_half_up
-from .utils.hdf5ops import resize_tab, write_data
+from .utils.hdf5_ops import resize_table, write_chunk
 
 
-class _PixelsFilter:
-    """Individual filter to apply to a pixel table."""
-
-    def __init__(self, infos, value, query):
-        self._infos = infos
-        self._value = value
-        self._query = query
-
-    @property
-    def infos(self):
-        """Brief description of the filter."""
-        return self._infos
-
-    @property
-    def value(self):
-        """Value to set the filter to."""
-        return self._value
-
-    @value.setter
-    def value(self, new):
-        self._value = new
-
-    @property
-    def query(self):
-        """Query string corresponding to the filter."""
-        if self._value == None:
-            return None
-        elif isinstance(self._value, bool):
-            return self._query if self._value else None
-        else:
-            return self._query.format(self._value)
+__all__ = ["get_processing_filters"]
 
 
-class ProcessingFilters:
-    """Object to select the filters to apply to a pixel table.
+# TODO: Move into a module?
+def apply_filter(table, filter_fun, **kwargs):
+    """Apply a filtering function to a table."""
 
-    Object meant to simplify the choice of filter to apply to a pixel table.
-    Each attribute of the class is an individual filter; to see all available
-    filters, and the current value they are set to, simply print the object.
-    To see a filter description access its infos attribute.
-    To change a filter value access its value attribute.
+    filt_table_size = 0
+    for chunk in filter_fun(table, **kwargs):
+        write_chunk(table.store, table.pixels_uri, chunk, filt_table_size)
+        filt_table_size += len(chunk)
+    resize_table(table.store, table.pixels_uri, filt_table_size)
 
-    Not meant for direct initialization.
 
-    Parameters
-    ----------
-    filters: dict[str, dict]
-        Dictionary of dictionaries representing the individual filters.
+class _FiltersManager:
+    """Pixels table filters scheduler.
+
+    Stores a list of filters to apply to a pixel table.
+    Filters are applied in the order they are provided.
+    A table filtering function is a function which takes as input a table
+    object and some other keywords, then yields filtered chunks of the table.
     """
 
-    def __init__(self, filters: dict[str, dict]):
-        for k, v in filters.items():
-            setattr(self, k, _PixelsFilter(**v))
+    def __init__(self):
+        self._filters = []
+        self._default = [f for f in dir(ffuns) if callable(getattr(ffuns, f))]
 
-    def __str__(self):
-        out = "Summary of the filters:"
-        for k, v in self.__dict__.items():
-            out += f"\n {k}: {v.value}"
-        return out
+    @property
+    def filters(self):
+        """Currently scheduled filters with respective parameters."""
+        return self._filters
+
+    def available_filters(self):
+        """Summary of the filter functions implemented by HiCONA."""
+
+        sep_line = "-" * 79 + "\n"
+        out = sep_line + "Available Filters\n" + sep_line
+        for func in self._default:
+            out += f"{func}:\n{getattr(ffuns, func).__doc__}\n"
+        out += sep_line
+        print(out.strip())
+
+    def add_filter(self, filter_fun, fun_kwargs):
+        """Add a filter to the workflow."""
+
+        if isinstance(filter_fun, str):
+            try:
+                filter_fun = getattr(ffun, filter_fun)
+            except AttributeError:
+                raise ValueError(f"{filter_fun} is not a filter function.")
+
+        self._filters.append([filter_fun, fun_kwargs])
+
+    def remove_filter(self, filter_fun):
+        """Remove all scheduled instances of the provided filter."""
+
+        if callable(filter_fun):
+            filter_fun = filter_fun.__name__
+
+        kept = [f for f in self._filters if f[0].__name__ != filter_fun]
+        self._filters = kept
 
     def reset_filters(self):
-        """Set all filters value to None (e.i. skip that filter)."""
+        """Reset all scheduled filters."""
 
-        for v in self.__dict__.values():
-            v.value = None
-
-    def get_queries(self) -> list[dict]:
-        """Return the queries to use with ```pd.DataFrame.query```."""
-
-        queries = []
-        for k, v in self.__dict__.items():
-            if v.query:
-                query = {"name": k, "query": v.query, "value": v.value}
-                queries.append(query)
-        return queries
-
-
-def get_processing_filters(method=None) -> ProcessingFilters:
-    """Return an object to use to specify the filters to apply.
-
-    Parameters
-    ----------
-    method: str, optional
-        If provided, return the default filters for that method, else
-        return an empty object to manually populate. Default is None.
-
-    Returns
-    -------
-    An instance of the ProcessingFilters class.
-    """
-
-    # TODO: all the logic to fetch the right dictionary.
-    
-    filters_dict = pass
-    filters_obj = ProcessingFilters(filters_dict)
-
-    return filters_obj
+        self._filters = []
 
 
 class _TableProcessor:
     """Placeholder"""
 
-    def __init__(self, table, pre_queries, norm_method, post_queries):
+    def __init__(self, table, pre_filters, norm_method, post_filters):
         self._table = table
-        self._pre_queries = pre_queries
+        self._pre_filters = pre_filters
         self._norm_method = norm_method
-        self._post_queries = post_queries
+        self._post_filters = post_filters
 
-    def _filter_table(self, queries):
-        """Remove pixels from the table not matching the filters."""
+    def _filter_table(self, pre_norm=True):
+        """Apply filters to a table."""
 
-        final_size = 0
-        store, pixels = self._table.get_pixel_uris()
-
-        for chunk in table.get_chunks():
-            for query in queries:
-                chunk.query(query, inplace=True)
-
-            write_data(store, pixels, chunk, final_size)
-            final_size += len(chunk)
-
-        resize_tab(store, pixels, final_size)
+        filters = self._pre_filters if pre_norm else self._post_filters
+        for filter_fun, fun_kwargs in filters:
+            apply_filter(self._table, filter_fun, fun_kwargs)
 
     def _normalize(self):
         """Placeholder"""
@@ -152,8 +115,9 @@ class _TableProcessor:
         pass
 
     def start(self):
-        # TODO: separate the queries
-        self._filter_table()
+        """Begin actual table processing."""
+
+        self._filter_table(pre_norm=True)
         self._normalize()
-        self._filter_table()
+        self._filter_table(pre_norm=False)
         self._sparsify()

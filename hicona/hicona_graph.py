@@ -11,7 +11,7 @@ import pandas as pd
 import graph_tool.all as gt
 
 from .utils.misc import annotation_combinations
-from .utils.tableops import pd_to_gt_dtype
+from .utils.table_ops import pd_to_gt_dtype
 
 __all__ = ["HiconaGraph"]
 
