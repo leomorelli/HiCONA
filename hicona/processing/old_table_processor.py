@@ -28,15 +28,6 @@ class TableProcessor:
         self._quant_numb = None
         self._node_stats = None
 
-    def _get_filtered_chunks(self):
-        """Iterator of table chunks which underwent initial filtering."""
-        # TODO: probably simplify using filtered table iterators
-
-        for chunk in self._table.get_chunks():
-            for query in self._queries.values():
-                chunk.query(query, inplace=True)
-            yield chunk
-
     def _compute_norm_curve(self):
         """Compute curve for genomic distance normalization."""
 

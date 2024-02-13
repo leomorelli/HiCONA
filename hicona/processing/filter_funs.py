@@ -1,5 +1,7 @@
 """Placeholder"""
 
+# TODO: check whether the table is normalized.
+
 
 def max_genomic_dist(table, max_dist):
     """
@@ -27,4 +29,31 @@ def norm_count_quant(table, quant):
         yield chunk
 
 
-# TODO: check that the table is normalized.
+def self_looping_pix(table):
+    """
+    Remove self-looping pixels (pixels where bin1_id == bin2_id).
+    Params:
+        - None
+    """
+
+    for chunk in table.chunks():
+        chunk = chunk.loc[chunk.bin1_id != chunk.bin2_id]
+        yield chunk
+
+
+def min_raw_counts(table, min_val):
+    """
+    Remove pixels whose raw count value is not greater than a threshold.
+    Params:
+        - min_val: remove pixels whose count is not greater than this value.
+    """
+    
+    for chunk in table.chunks():
+    chunk = chunk.loc[chunk.count > min_val]
+        yield chunk
+
+def rm_inter_chroms(table):
+    """
+    Remove inter chromosomal pixels.
+    """
+    pass

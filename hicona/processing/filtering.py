@@ -1,20 +1,10 @@
-"""Placeholder"""
+"""Placeholder."""
 
-from collections.abc import Iterable
 import importlib.resources as imp_res
-from statistics import median
-
-from numpy import log2
-import pandas as pd
-from scipy import integrate
 
 from . import table_filter_funs as ffuns
-from .hicona_table import HiconaTable
-from .utils.numeric import round_half_up
-from .utils.hdf5_ops import resize_table, write_chunk
-
-
-__all__ = ["get_processing_filters"]
+from ..utils.hdf5_ops import resize_table, write_chunk
+from ..utils.io_ops import read_resource
 
 
 # TODO: Move into a module?
@@ -28,7 +18,7 @@ def apply_filter(table, filter_fun, **kwargs):
     resize_table(table.store, table.pixels_uri, filt_table_size)
 
 
-class _FiltersManager:
+class FiltersManager:
     """Pixels table filters scheduler.
 
     Stores a list of filters to apply to a pixel table.
@@ -82,42 +72,31 @@ class _FiltersManager:
         self._filters = []
 
 
-class _TableProcessor:
-    """Placeholder"""
+def get_filter_manager(norm: str = None, pre: bool = True) -> FiltersManager:
+    """Return a filter manager already populated with the default filters.
 
-    def __init__(self, table, pre_filters, norm_method, post_filters):
-        self._table = table
-        self._pre_filters = pre_filters
-        self._norm_method = norm_method
-        self._post_filters = post_filters
+    Parameters
+    ----------
+    norm: str, optional
+        Name of the normalization for which to fetch the defaults filters.
+        Default is None.
+    pre: bool, optional
+        Whether to fetch the default filters for pre normalization filtering
+        (True) or post normalization filtering (False). Default is True.
 
-    def _filter_table(self, pre_norm=True):
-        """Apply filters to a table."""
+    Returns
+    -------
+    FiltersManager already populated with the default filters for the provided
+    situation (if any).
+    """
 
-        filters = self._pre_filters if pre_norm else self._post_filters
-        for filter_fun, fun_kwargs in filters:
-            apply_filter(self._table, filter_fun, fun_kwargs)
+    manager = FiltersManager()
 
-    def _normalize(self):
-        """Placeholder"""
+    defaults = read_resource("default_filters.json")  # TODO: settings?
+    pre_post = "pre" if pre is True else "post"
+    dict_name = "_".join(norm, pre_post)
+    if norm_dict := defaults.get(dict_name):
+        for fun_name, fun_kwargs in norm_dict.items():
+            manager.add_filter(fun_name, fun_kwargs)
 
-        # Select appropriate normalization function
-        norm_fun = None
-        match self._norm_method:
-            case "hicona":
-                norm_fun = hicona_norm
-            case "ice":
-                norm_fun = ice_norm
-
-        # Do the actual normalization
-
-    def _sparsify(self):
-        pass
-
-    def start(self):
-        """Begin actual table processing."""
-
-        self._filter_table(pre_norm=True)
-        self._normalize()
-        self._filter_table(pre_norm=False)
-        self._sparsify()
+    return manager

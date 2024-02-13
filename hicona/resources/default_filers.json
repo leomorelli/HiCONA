@@ -1,0 +1,10 @@
+{
+	"hicona_pre":{
+		"rm_inter_chroms": null,
+		"max_genomic_dist": {"dist": 200000000},
+		"self_looping_pix": null
+	},
+	"hicona_post":{
+		"norm_count_quant": 0.05
+	}
+}

@@ -16,7 +16,7 @@ import pandas as pd
 
 from .hicona_table import HiconaTable, _TablesIterator
 from .settings import HICONA_SETTINGS
-from .processing import _TableProcessor, get_processing_filters, ProcessingFilters
+from .processing import _TableProcessor, FiltersManager, get_filter_manager
 from .utils.bed_ops import ann_enriched, ann_fraction, bed_to_df, intersect_dfs
 from .utils.decorators import console_log
 from .utils.hdf5_ops import init_table, save_table, require_group, group_info, set_attrs
@@ -104,7 +104,7 @@ class HiconaCooler(cooler.Cooler):
             yield group_info(self.root, table_path, "attrs")
 
     @console_log
-    def _create_table(self, norm_method, pre_filters, post_filters, keep_inter):
+    def _create_table(self, norm_method, pre_man, post_man):
         """Create the table matching the given set of parameters."""
 
         # Update defaults with provided params + aggregate method to keywords
@@ -139,19 +139,25 @@ class HiconaCooler(cooler.Cooler):
 
     def create_table(
         self,
-        norm_method: str = "hicona",
-        pre_filters: ProcessingFilters | str = "default",
-        post_filters: ProcessingFilters | str = "default",
-        keep_inter: bool = "default",
+        norm_method: TableNorm | str = "hicona",
+        pre_filters: FiltersManager | str = "default",
+        post_filters: FiltersManager | str = "default",
     ):
         """
         Create a normalized and sparsfied version of the pixels table.
         """
 
-        # TODO: logic to get filter object
-
         self._require_tables_root()
-        self._create_table(pre_filters, norm_method, post_filters, keep_inter)
+
+        # Get pre normalization filter manager
+        pre_man = norm_method if pre_filters == "default" else pre_man
+        pre_man = get_filter_manager(pre_man, pre=True)
+
+        # Get post normalization filter manager
+        post_man = norm_method if post_filters == "default" else post_man
+        post_man = get_filter_manager(post_man, pre=False)
+
+        self._create_table(norm_method, pre_man, post_man)
 
     def list_tables(self) -> None:
         """Print available chromosome tables for each set of parameters."""
