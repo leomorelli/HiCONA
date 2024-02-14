@@ -137,27 +137,13 @@ class HiconaCooler(cooler.Cooler):
     # // Functions to create, inspect and retrieve chromosome-level tables ///
     # ////////////////////////////////////////////////////////////////////////
 
-    def create_table(
-        self,
-        norm_method: TableNorm | str = "hicona",
-        pre_filters: FiltersManager | str = "default",
-        post_filters: FiltersManager | str = "default",
-    ):
+    def create_table(self, method: str | ProcessScheduler = "hicona"):
         """
         Create a normalized and sparsfied version of the pixels table.
         """
 
         self._require_tables_root()
-
-        # Get pre normalization filter manager
-        pre_man = norm_method if pre_filters == "default" else pre_man
-        pre_man = get_filter_manager(pre_man, pre=True)
-
-        # Get post normalization filter manager
-        post_man = norm_method if post_filters == "default" else post_man
-        post_man = get_filter_manager(post_man, pre=False)
-
-        self._create_table(norm_method, pre_man, post_man)
+        self._create_table(method, pre_man, post_man)
 
     def list_tables(self) -> None:
         """Print available chromosome tables for each set of parameters."""

@@ -17,6 +17,7 @@ def fetch_chunk(store, path, lower, upper, keys=None):
 
 
 # TODO: Add lock
+# TODO: Maybe add full table version
 def write_chunk(store, path, chunk, lower, keys=None):
     """Write pandas dataframe data at the provided position in the table."""
 

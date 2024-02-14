@@ -1,5 +1,7 @@
 """Placeholder"""
 
+from ..utils.hdf5_ops import resize_table, write_chunk
+
 
 class _TableProcessor:
     """Placeholder"""
@@ -13,11 +15,20 @@ class _TableProcessor:
     def _filter_table(self, pre_norm=True):
         """Apply filters to a table."""
 
+        def apply_filter(table, filter_fun, **kwargs):
+            """Apply a filtering function to a table."""
+
+            tab_size = 0
+            for chunk in filter_fun(table, **kwargs):
+                write_chunk(table.store, table.pixels_uri, chunk, tab_size)
+                tab_size += len(chunk)
+            resize_table(table.store, table.pixels_uri, tab_size)
+
         filters = self._pre_filters if pre_norm else self._post_filters
         for filter_fun, fun_kwargs in filters:
             apply_filter(self._table, filter_fun, fun_kwargs)
 
-    def _normalize(self):
+    def _normalize_table(self):
         """Placeholder"""
 
         # Select appropriate normalization function

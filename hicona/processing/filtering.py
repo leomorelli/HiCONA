@@ -3,22 +3,10 @@
 import importlib.resources as imp_res
 
 from . import table_filter_funs as ffuns
-from ..utils.hdf5_ops import resize_table, write_chunk
 from ..utils.io_ops import read_resource
 
 
-# TODO: Move into a module?
-def apply_filter(table, filter_fun, **kwargs):
-    """Apply a filtering function to a table."""
-
-    filt_table_size = 0
-    for chunk in filter_fun(table, **kwargs):
-        write_chunk(table.store, table.pixels_uri, chunk, filt_table_size)
-        filt_table_size += len(chunk)
-    resize_table(table.store, table.pixels_uri, filt_table_size)
-
-
-class FiltersManager:
+class PixFilterManager:
     """Pixels table filters scheduler.
 
     Stores a list of filters to apply to a pixel table.

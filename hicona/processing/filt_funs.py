@@ -47,10 +47,11 @@ def min_raw_counts(table, min_val):
     Params:
         - min_val: remove pixels whose count is not greater than this value.
     """
-    
+
     for chunk in table.chunks():
-    chunk = chunk.loc[chunk.count > min_val]
+        chunk = chunk.loc[chunk.count > min_val]
         yield chunk
+
 
 def rm_inter_chroms(table):
     """
