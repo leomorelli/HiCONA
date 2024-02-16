@@ -1,6 +1,20 @@
-"""Placeholder"""
+"""Pixel table filtering functions to be applied through Scheduler objects.
 
-# TODO: check whether the table is normalized.
+This module contains functions which are loaded by the `FiltScheduler` class
+constructor and are thus able to be loaded in the pre-filtering or the
+post-filtering schedulers during pixels table normalization. For these reason
+the functions are not really mean for direct usage.
+
+All functions share a common interface/architecture:
+- a pixel table object must always be provided as first argument
+- other arguments might be present (but not always)
+- an iterator of processed pixel chunks is returned
+- defult arguments should be avoided (they can make filtering opaque)
+
+# TODO: Maybe add check that a function can be applied at that step
+"""
+
+from ..chunked_ops import get_col_quantiles
 
 
 def max_genomic_dist(table, max_dist):
@@ -23,7 +37,7 @@ def norm_count_quant(table, quant):
         - quant: remove pixels whose normalized value is below this quantile.
     """
 
-    quant_val = quant  # TODO: Compute table n-th quantile
+    quant_val = get_col_quantiles(table.get_pixels(), quant)
     for chunk in table.chunks():
         chunk = chunk.loc[chunk.norm > quant_val]
         yield chunk

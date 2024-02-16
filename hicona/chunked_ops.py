@@ -1,4 +1,9 @@
-"""Placehdlder"""
+"""Utility functions for DataFrame iterators yielding a single result.
+
+Set of utility functions which can be applied on a iterator of pandas
+DataFrames yielding a single aggregated result. This way it should be
+possible to apply these functions to bigger than memory dataframes.
+"""
 
 import pandas as pd
 

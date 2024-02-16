@@ -1,16 +1,72 @@
-"""Placeholder"""
+"""Scheduler object to customize normalization procedure.
+
+Module containing objects (Schedulers) used to customize the functions
+(Operations) to apply during pre-normalization filtering, normalization
+and post-normalization filtering. These objects are implemented as 
+generally as possible in order to allow for the usage of custom filtering
+or normalization functions.
+
+User is not meant to inteface with object constructors directly. Using the
+creator functions one can instantiate a `ProcedureScheduler`, whose attributes
+are Scheduler objects which can be modified.
+
+# TODO: add support for loading custom function from json procedure shedulers.
+"""
 
 import abc
 from collections.abc import Callable
+import functools
 import inspect
 
 
 import hicona.processing.filt_funs as ffuns
 import hicona.processing.norm_funs as nfuns
-from ..utils.io_ops import read_resource
+from ..utils.io_ops import read_resource, write_resource
+
+
+__all__ = ["default_scheduler", "load_scheduler"]
 
 
 SCHEDULERS_PATH = "schedulers.json"  # TODO: Settings?
+
+
+class Operation:
+    """Individual operation to perform on a table.
+
+    It is assumed that the `Callable` takes as first argument a pixel table,
+    and that the pixel table is not in kwargs.
+
+    Parameters
+    ----------
+    func: `Callable`
+        Function callable.
+    kwargs: dict
+        Kwargs to pass to the function call.
+    """
+
+    def __init__(self, func: Callable, kwargs: dict):
+        self._name = func.__name__
+        self._func = func
+        self._kwargs = kwargs
+
+    @property
+    def name(self) -> str:
+        """Shorthand for self.func.__name__"""
+        return self._name
+
+    @property
+    def func(self) -> Callable:
+        """Function callable."""
+        return self._func
+
+    @property
+    def kwargs(self) -> dict:
+        """Kwargs to pass to function call."""
+        return self._kwargs
+
+    def get_partial(self) -> functools.partial:
+        """Return function partial signature missing only table as arg."""
+        return functools.partial(self._func, **self._kwargs)
 
 
 class OpsScheduler(abc.ABC):
@@ -18,28 +74,29 @@ class OpsScheduler(abc.ABC):
 
     def __init__(self):
         self._scheduled = []
-        self._funcs_mod = self._load_module()
         self._available = self._load_available()
 
     @property
-    def scheduled(self) -> list[tuple[Callable, dict]]:
-        """Scheduled functions as list of (function, kwargs) pairs."""
-        return self._scheduled
+    def scheduled(self) -> dict[str, dict]:
+        """Scheduled functions as a dictionary {fun_name: fun_kwargs}."""
+        return {op.name: op.kwargs for op in self._scheduled}
 
     @property
     def available(self) -> dict[str, Callable]:
-        """Available functions as list of (name, function) pairs."""
-        return self._available
+        """Available functions as a dictionary {fun_name: fun_object}."""
+        return {op.name: op.func for op in self._available}
 
     def _load_available(self):
         """Fetch all functions available by default."""
-        return dict(inspect.getmembers(self._funcs_mod, inspect.isfunction))
+        fun_module = self._load_module()
+        funs = inspect.getmembers(fun_module, inspect.isfunction)
+        return [Operation(name, obj) for name, obj in funs]
 
     @abc.abstractmethod
     def _load_module(self):
         """Load the module to fetch the default functions from."""
 
-    def add_function(self, fun_obj: str | Callable, fun_kwargs: dict):
+    def add_operation(self, fun_obj: str | Callable, fun_kwargs: dict):
         """Add a function (with its arguments) to the schedule."""
 
         if isinstance(fun_obj, str):
@@ -48,18 +105,23 @@ class OpsScheduler(abc.ABC):
         if not inspect.isfunction(fun_obj):
             raise ValueError(f"{fun_obj} is not a function object.")
 
-        self._scheduled.append((fun_obj, fun_kwargs))
+        self._scheduled.append(Operation(fun_obj, fun_kwargs))
 
-    def remove_function(self, fun_obj: str | Callable):
+    def remove_operation(self, fun_obj: str | Callable):
         """Remove all instances of a function from the schedule."""
 
-        fun_obj = fun_obj if isinstance(fun_obj, str) else fun_obj.__name__
-        self._scheduled = [f for f in self._scheduled if f[0] != fun_obj]
+        name = fun_obj if isinstance(fun_obj, str) else fun_obj.__name__
+        self._scheduled = [op for op in self._scheduled if op.name != name]
 
-    def reset_schedule(self):
+    def reset_operations(self):
         """Remove all functions from the schedule."""
 
         self._scheduled = []
+
+    def get_partials(self) -> tuple(functools.partial):
+        """Return partial functions for all scheduled operations."""
+
+        return (op.get_partial() for op in self._scheduled)
 
 
 class FiltScheduler(OpsScheduler):
@@ -91,14 +153,34 @@ class NormScheduler(OpsScheduler):
 
 
 class ProcessScheduler:
-    """Class used to group operations schedulers for a sparsification run."""
+    """Class used to group operations schedulers for a sparsification run.
 
-    def __init__(self, json_data):
+    The attributes of this object are `Scheduler` objects, to which one can
+    add, modify or remove the operations to perform during sparsification.
+    Any function can be passed as a filter or normalization step as long as
+    it takes as first input a pixel table object and returns an iterator of
+    processed pixel chunks.
+
+    NOTE: This object is not meant for direct initialization but rather for
+    initialization through the `default_scheduler` and the `load_scheduler`
+    functions.
+
+    Parameters
+    ----------
+    json_data: dict
+        The data used to construct the schedulers, in json format.
+    """
+
+    def __init__(self, json_data: dict):
         self._pre_filters = FiltScheduler()
         self._norm_method = NormScheduler()
         self._post_filters = FiltScheduler()
 
-        pass
+        # Populate the schedules with the filters in the provided json data
+        for attr_name, ops in json_data.items():
+            sched = getattr(self, attr_name)
+            for op_name, op_kwargs in ops:
+                sched.add_operation(op_name, op_kwargs)
 
     @property
     def pre_filters(self) -> FiltScheduler:
@@ -117,7 +199,9 @@ class ProcessScheduler:
 
     def to_json(self, out_path: str):
         """Save the object to a json file for later retrieval."""
-        pass
+
+        data = {s: dict(o.scheduled) for s, o in self.__dict__.items()}
+        write_resource(out_path, data)
 
 
 def default_scheduler(norm_method: str | None = "hicona") -> ProcessScheduler:
@@ -135,14 +219,33 @@ def default_scheduler(norm_method: str | None = "hicona") -> ProcessScheduler:
 
     Returns
     -------
-    Dictionary with the schedulers as values.
+    A `ProcessScheduler` object with operations already initialized.
     """
 
-    defaults = read_resource(SCHEDULERS_PATH)
-    pass
+    default_json = read_resource(SCHEDULERS_PATH)
+    return ProcessScheduler(default_json.get(norm_method))
 
 
 def load_scheduler(json_path: str) -> ProcessScheduler:
-    """Placeholder"""
+    """Load a `ProcessScheduler` previously stored in a json file.
 
-    pass
+    Automatically instantiate a `ProcessScheduler` object using the data
+    coming from a json, which is an instance of `ProcessScheduler` which was
+    previously stored.
+
+    NOTE: currently only schedules with all operations corresponding to
+    default functions from HiCONA can be loaded from json. Loading custom
+    functions-containing schedules will be implemented in the future.
+
+    Parameters
+    ----------
+    json_path: str
+        Path to the json file containing the scheduler data.
+
+    Returns
+    -------
+    A `ProcessScheduler` object with operations already initialized.
+    """
+
+    custom_json = read_resource(json_path)
+    return ProcessScheduler(custom_json)

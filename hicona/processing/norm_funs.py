@@ -1,3 +1,5 @@
+"""Placeholder"""
+
 import math
 
 import cooler
@@ -82,5 +84,6 @@ class HiconaNorm:
 
 class PixNormManager:
     """Placeholder"""
-     
+
     def __init__(self):
+        pass
