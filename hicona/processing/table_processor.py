@@ -1,53 +1,84 @@
-"""Placeholder"""
+"""Placeholder
 
-from ..utils.hdf5_ops import resize_table, write_chunk
+Currently only one norm
+"""
+
+from .norm_funs import no_norm
+from .sparsification import sparsify_chunk
+from ..chunked_ops import get_node_stats
+from ..utils.hdf5_ops import init_table, resize_table, write_table
 
 
-class _TableProcessor:
+class TableProcessor:
     """Placeholder"""
 
-    def __init__(self, table, norm_method, pre_filters, post_filters):
-        self._table = table
-        self._norm_method = norm_method
-        self._pre_filters = pre_filters
-        self._post_filters = post_filters
+    def __init__(self, hico_cool, scheduler):
+        self._hico_cool = hico_cool
+        self._scheduler = scheduler
+        self._table = None
 
-    def _filter_table(self, pre_norm=True):
-        """Apply filters to a table."""
+    def _filt_table(self, partials):
+        """Apply filters to the table."""
 
-        def apply_filter(table, filter_fun, **kwargs):
-            """Apply a filtering function to a table."""
+        store_uri, pixels_uri = self._table.store, self._table.pixels_uri
+        for part in partials:
+            tab_size = write_table(store_uri, pixels_uri, part(table))
+            resize_table(store_uri, pixels_uri, tab_size)
 
-            tab_size = 0
-            for chunk in filter_fun(table, **kwargs):
-                write_chunk(table.store, table.pixels_uri, chunk, tab_size)
-                tab_size += len(chunk)
-            resize_table(table.store, table.pixels_uri, tab_size)
+    def _norm_table(self, partials):
+        """Apply normalizations to the table."""
 
-        filters = self._pre_filters if pre_norm else self._post_filters
-        for filter_fun, fun_kwargs in filters:
-            apply_filter(self._table, filter_fun, fun_kwargs)
+        # If no normalization is provided, copy filt data to norm column.
+        partials = partials if partials else [no_norm]
 
-    def _normalize_table(self):
-        """Placeholder"""
-
-        # Select appropriate normalization function
-        norm_fun = None
-        match self._norm_method:
-            case "hicona":
-                norm_fun = hicona_norm
-            case "ice":
-                norm_fun = ice_norm
-
-        # Do the actual normalization
+        store_uri, pixels_uri = self._table.store, self._table.pixels_uri
+        for part in partials:
+            write_table(store_uri, pixels_uri, part(table))
 
     def _sparsify(self):
-        pass
+        """Placeholder."""
+
+        store_uri, pixels_uri = self._table.store, self._table.pixels_uri
+        node_stats = get_node_stats(iterator, weight_col)
+
+        # NOTE: implemented this way to simplify breaking into parallel later
+        tab_size = 0
+        for chunk in self._table.get_chuks():
+            spar_chunk = sparsify_chunk(chunk)
+            write_chunk(store_uri, pixels_uri, spar_chunk, tab_size)
+            tab_size += len(spar_chunk)
 
     def start(self):
         """Begin actual table processing."""
 
-        self._filter_table(pre_norm=True)
-        self._normalize()
-        self._filter_table(pre_norm=False)
+        # Init table
+        # Add table attributes?
+
+        self._filt_table(self._scheduler._pre_filters.get_partials())
+        self._norm_table(self._scheduler._norm_method.get_partials())
+        self._filt_table(self._scheduler._post_filters.get_partials())
         self._sparsify()
+
+
+'''
+def _create_table(self, scheduler):
+    """Create the table matching the given set of parameters."""
+
+    # Check there is no table with all matching keywords
+
+    # Initialize table
+    table_path = self._next_table_path()
+    table_cols = HICONA_SETTINGS.conventions.table_columns
+    init_table(self.root, table_path, self.info["nnz"], table_cols)
+
+    # Create _TableProcessor instance and run it
+    processor = TableProcessor(table)
+    processor.start()
+
+
+self._require_tables_root()
+def _require_tables_root(self):
+    """Initialize the tables root if it does not exist already."""
+
+    require_group(self.store, self._tables_root, {"serial": 0})
+'''

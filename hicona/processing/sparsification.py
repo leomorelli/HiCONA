@@ -52,4 +52,6 @@ def sparsify_chunk(chunk, node_stats):
     chunk["alpha_max"] = chunk[["alpha_0", "alpha_1"]].max(axis=1)
     chunk.drop(["alpha_0", "alpha_1"], axis=1, inplace=True)
 
+    # TODO: Maybe return only alpha columns
+
     return chunk

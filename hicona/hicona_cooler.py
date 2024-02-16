@@ -16,7 +16,7 @@ import pandas as pd
 
 from .hicona_table import HiconaTable, _TablesIterator
 from .settings import HICONA_SETTINGS
-from .processing import _TableProcessor, FiltersManager, get_filter_manager
+from .processing import TableProcessor, default_scheduler
 from .utils.bed_ops import ann_enriched, ann_fraction, bed_to_df, intersect_dfs
 from .utils.decorators import console_log
 from .utils.hdf5_ops import init_table, save_table, require_group, group_info, set_attrs
@@ -84,11 +84,6 @@ class HiconaCooler(cooler.Cooler):
     # // Functions to pass from full-pixel table to chromosome-level tables //
     # ////////////////////////////////////////////////////////////////////////
 
-    def _require_tables_root(self):
-        """Initialize the tables root if it does not exist already."""
-
-        require_group(self.store, self._tables_root, {"serial": 0})
-
     def _next_table_path(self):
         """Return the next free table name and update counter."""
 
@@ -103,31 +98,6 @@ class HiconaCooler(cooler.Cooler):
             table_path = "/".join(self._tables_root, table)
             yield group_info(self.root, table_path, "attrs")
 
-    @console_log
-    def _create_table(self, norm_method, pre_man, post_man):
-        """Create the table matching the given set of parameters."""
-
-        # Update defaults with provided params + aggregate method to keywords
-        all_kwargs = get_processing_filters(norm_method)
-        all_kwargs.update(norm_kwargs)
-        all_kwargs["normalization"] = norm_method
-
-        # Check there is no table with all matching keywords
-        for tab_kwargs in self._iter_table_attrs():
-            if tab_kwargs == all_kwargs:
-                raise ValueError("Requested table does already exist.")
-
-        # TODO: Fix from here
-
-        # Initialize table
-        table_path = self._next_table_path()
-        table_cols = HICONA_SETTINGS.conventions.table_columns
-        init_table(self.root, table_path, self.info["nnz"], table_cols)
-
-        # Create _TableProcessor instance and run it
-        processor = __TableProcessor(table)
-        processor.start()
-
     def _get_valid_tables(self, filters, modality):
         """Returns"""
         pass
@@ -138,12 +108,16 @@ class HiconaCooler(cooler.Cooler):
     # ////////////////////////////////////////////////////////////////////////
 
     def create_table(self, method: str | ProcessScheduler = "hicona"):
-        """
-        Create a normalized and sparsfied version of the pixels table.
+        """Create a normalized and sparsfied version of the pixels table.
+
+        Placeholder
         """
 
-        self._require_tables_root()
-        self._create_table(method, pre_man, post_man)
+        if isinstance(method, str):
+            method = default_scheduler(method)
+
+        processor = TableCreator(self, method)
+        processor.start()
 
     def list_tables(self) -> None:
         """Print available chromosome tables for each set of parameters."""

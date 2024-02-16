@@ -51,6 +51,18 @@ def init_table(store, path, size, col_mapping):
             group.require_dataset(name, shape=(size,), dtype=dtype, **opts)
 
 
+# TODO: Add lock?
+def write_table(store, path, iterator, keys=None):
+    """Write chunk applied to iterator of chunks of the same table."""
+
+    tab_size = 0
+    for chunk in iterator:
+        write_chunk(store, path, chunk, tab_size)
+        tab_size += len(chunk)
+
+    return tab_size
+
+
 # TODO: Add lock
 def save_table(store, path, table):
     """Convenience shorthand to initialize and place table at once."""

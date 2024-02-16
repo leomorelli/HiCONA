@@ -15,7 +15,7 @@
             "bin1_id": "i8",
             "bin2_id": "i8",
             "count": "i4",
-            "exp_ratio": "f8",
+            "norm": "f8",
             "alpha_min": "f8",
             "alpha_max": "f8"
         },
