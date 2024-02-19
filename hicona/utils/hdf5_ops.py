@@ -1,8 +1,14 @@
 """Placeholder"""
 
 import h5py
+import pandas as pd
 
 from .table_ops import get_dataf_mapping
+
+
+# ////////////////////////////////////////////////////////////////////////////
+# ///////////////////////////// CHUNK OPERATIONS /////////////////////////////
+# ////////////////////////////////////////////////////////////////////////////
 
 
 def fetch_chunk(store, path, lower, upper, keys=None):
@@ -29,15 +35,9 @@ def write_chunk(store, path, chunk, lower, keys=None):
             group[key][lower:upper] = chunk[key]
 
 
-# TODO: Add lock
-def resize_table(store, path, size):
-    """Resize a table by cropping it at the provided index."""
-
-    with h5py.File(store, mode="r+") as h5_handle:
-        group = h5_handle[path]
-        keys = group.keys()
-        for key in keys:
-            group[key].resize((size,))
+# ////////////////////////////////////////////////////////////////////////////
+# ///////////////////////////// TABLE OPERATIONS /////////////////////////////
+# ////////////////////////////////////////////////////////////////////////////
 
 
 # TODO: Add lock
@@ -71,24 +71,20 @@ def save_table(store, path, table):
     write_chunk(store, path, table, 0)
 
 
-def group_info(store, path, info):
-    """Return some group information (keys or attrs for example)."""
+# TODO: Add lock
+def resize_table(store, path, size):
+    """Resize a table by cropping it at the provided index."""
 
-    items = []
-    try:
-        with h5py.File(store, mode="r") as h5_handle:
-            group = h5_handle[path]
+    with h5py.File(store, mode="r+") as h5_handle:
+        group = h5_handle[path]
+        keys = group.keys()
+        for key in keys:
+            group[key].resize((size,))
 
-            match info:
-                case "keys":
-                    items.extend(group.keys())
-                case "attrs":
-                    items.extend(group.attrs)
 
-    except KeyError:
-        pass
-
-    return items
+# ////////////////////////////////////////////////////////////////////////////
+# ///////////////////////////// GROUP OPERATIONS /////////////////////////////
+# ////////////////////////////////////////////////////////////////////////////
 
 
 # TODO: Add lock
@@ -114,3 +110,35 @@ def set_attrs(store, path, attrs_dict):
 
         for k, v in attrs_dict.items():
             group.attrs[k] = v
+
+
+def get_attrs(store, path):
+    """Fetch table attributes."""
+
+    with h5py.File(store, mode="r") as h5_handle:
+        group = h5_handle[path]
+        attrs = dict(group.attrs)
+
+    return attrs
+
+
+def get_keys(store, path):
+    """Fetch table keys."""
+
+    with h5py.File(store, mode="r") as h5_handle:
+        group = h5_handle[path]
+        keys = group.keys()
+
+    return keys
+
+
+# TODO: Remove
+def get_subgroups_attrs(store, path):
+    """Fetch attributes of all subgroups in a group."""
+
+    attrs = {}
+    for table in get_keys(store, path):
+        table_path = "/".join(path, table)
+        attrs[table] = get_attrs(store, table_path)
+
+    return attrs

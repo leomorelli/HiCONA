@@ -14,7 +14,7 @@ All functions share a common interface/architecture:
 # TODO: Maybe add check that a function can be applied at that step
 """
 
-from ..chunked_ops import get_col_quantiles
+from ..utils.chunked_ops import get_col_quantiles
 
 
 def max_genomic_dist(table, max_dist):

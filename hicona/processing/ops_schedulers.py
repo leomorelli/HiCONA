@@ -24,7 +24,7 @@ import hicona.processing.norm_funs as nfuns
 from ..utils.io_ops import read_resource, write_resource
 
 
-__all__ = ["default_scheduler", "load_scheduler"]
+__all__ = ["default_scheduler", "load_scheduler", "ProcessScheduler"]
 
 
 SCHEDULERS_PATH = "schedulers.json"  # TODO: Settings?
@@ -44,7 +44,7 @@ class Operation:
         Kwargs to pass to the function call.
     """
 
-    def __init__(self, func: Callable, kwargs: dict):
+    def __init__(self, func: Callable, kwargs: dict = None):
         self._name = func.__name__
         self._func = func
         self._kwargs = kwargs
@@ -90,7 +90,7 @@ class OpsScheduler(abc.ABC):
         """Fetch all functions available by default."""
         fun_module = self._load_module()
         funs = inspect.getmembers(fun_module, inspect.isfunction)
-        return [Operation(name, obj) for name, obj in funs]
+        return [Operation(obj) for _, obj in funs]
 
     @abc.abstractmethod
     def _load_module(self):
@@ -100,7 +100,10 @@ class OpsScheduler(abc.ABC):
         """Add a function (with its arguments) to the schedule."""
 
         if isinstance(fun_obj, str):
-            fun_obj = self._available.get(fun_obj)
+            print(self.available, fun_obj)
+            fun_obj = self.available.get(fun_obj)
+
+        print(fun_obj)
 
         if not inspect.isfunction(fun_obj):
             raise ValueError(f"{fun_obj} is not a function object.")
@@ -118,7 +121,7 @@ class OpsScheduler(abc.ABC):
 
         self._scheduled = []
 
-    def get_partials(self) -> tuple(functools.partial):
+    def get_partials(self) -> tuple[functools.partial]:
         """Return partial functions for all scheduled operations."""
 
         return (op.get_partial() for op in self._scheduled)
@@ -179,7 +182,7 @@ class ProcessScheduler:
         # Populate the schedules with the filters in the provided json data
         for attr_name, ops in json_data.items():
             sched = getattr(self, attr_name)
-            for op_name, op_kwargs in ops:
+            for op_name, op_kwargs in ops.items():
                 sched.add_operation(op_name, op_kwargs)
 
     @property

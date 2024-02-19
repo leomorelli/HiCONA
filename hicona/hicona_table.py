@@ -10,23 +10,50 @@ import cooler
 import numpy as np
 import pandas as pd
 
+from .uris import Uris
 from .utils.numeric import round_half_up
 from .utils.hdf5_ops import fetch_chunk
 
 
-class _TableChunks:
+def make_hicona_like():
+    pass
+
+
+def make_uscs_like():
+    pass
+
+
+class GenomicRegions:
+    """Placeholder."""
+
+    def __init__(self, cooler_uri, regions: str | list[str] = None):
+        self._regions = regions
+        self._cooler_uri = cool_uri
+
+    @property
+    def regions(self):
+        """Placeholder"""
+        return self._regions
+
+    @property
+    def bin_intervals(self):
+        """Placeholder"""
+        return [r.bin_interval(self._cooler_uri) for r in self._regions]
+
+
+class ChunksIterator:
     """Return table chunks as pandas DataFrames."""
 
     def __init__(
         self,
-        uris: [str, str],
-        intervals: Iterable[[int, int]],
+        uris: Uris,
         chunk_size: int,
+        intervals: Iterable[(int, int)] = None,
         columns: Iterable[str] = None,
     ):
         self._uris = uris
-        self._intervals = intervals
         self._chunk_size = chunk_size
+        self._intervals = intervals or [(0, 1000000)]  # TODO: tmp for testing
         self._columns = columns
 
     def __iter__(self):
@@ -56,40 +83,38 @@ class _TableChunks:
                 self._intervals[0] = [lower - still_miss, upper]
 
         # Fetch and concat pixel intervals
-        [store, pixel], keys = self._uris, self._columns
-        chunks = [fetch_data(store, pixel, l, u, keys) for l, u in out_interv]
+        [store, pixel], keys = self._uris.get_hdf5_uris(), self._columns
+        chunks = [fetch_chunk(store, pixel, l, u, keys) for l, u in out_interv]
         return pd.concat(chunks)
 
 
-class _TablesIterator:
-    """Iterator of HiconaTable objects."""
+class TableHandler:
+    """Placeholder"""
 
-    # TODO: Fix to because of regions and such
+    def __init__(self, uris, process_info, regions=None, chunk_size=100_000):
+        self._uris = uris
+        self._process_info = process_info
+        self._regions = regions
+        self._chunk_size = chunk_size
+        self._binsize = 10000  # TODO: change from hard-coded
 
-    def __init__(self, store, root, uris):
-        self._store = store
-        self._uri_list = uris
+    @property
+    def binsize(self):
+        return self._binsize
 
-        self._uri_index = 0
-        self._max_uri = len(uris)
+    @property
+    def uris(self):
+        return self._uris
 
-    def __len__(self):
-        return self._max_uri
+    def chunks(self):
+        """Placeholder"""
 
-    def __iter__(self):
-        return self
+        chunks = ChunksIterator(uris=self._uris, chunk_size=self._chunk_size)
 
-    def __next__(self):
-        if self._uri_index >= self._max_uri:
-            raise StopIteration
-
-        curr_uri = self._uri_list[self._uri_index]
-        self._uri_index += 1
-
-        return HiconaTable(self._store, curr_uri)
+        return chunks
 
 
-class _BaseTable:
+class BaseTable:
     """Base class to inherit from to handle tables created by Hicona."""
 
     def __init__(
@@ -122,7 +147,7 @@ class _BaseTable:
         """Return idx intervals with the bins matching the genomic regions."""
         pass
 
-    def get_chunks(self, columns: Iterable[str] = None) -> _TableChunks:
+    def get_chunks(self, columns: Iterable[str] = None) -> ChunksIterator:
         """Returns an iterator of table chunks (as pandas DataFrames).
 
         Parameters
@@ -138,7 +163,7 @@ class _BaseTable:
         queries = queries or []
         queries = [queries] if isinstance(queries, str) else queries
 
-        chunks = _TableChunks(
+        chunks = ChunksIterator(
             uris=self.get_pixel_uris,
             intervals=self._intervals,
             chunk_size=self._chunk_size,
@@ -162,21 +187,8 @@ class _BaseTable:
 
         return pd.concat(self.get_chunks(columns)).reset_index(drop=True)
 
-    def get_pixel_uris(self) -> (str, str):
-        """Returns the uri information split between store and pixels.
 
-        Returns
-        -------
-        A tuple containing store and pixels group partial uris.
-        """
-
-        store, root, table = self._uris
-        data = "/".join(root, table, "pixels")  # TODO: do not hardcode
-
-        return (store, data)
-
-
-class HiconaTable(_BaseTable):
+class HiconaTable(BaseTable):
     """Placeholder"""
 
     def _get_alpha_pts(self, thresholds):
@@ -280,7 +292,7 @@ class HiconaTable(_BaseTable):
     def get_chunks(
         self,
         alpha: str | float = None,
-    ) -> _TableChunks:
+    ) -> ChunksIterator:
         """Returns an iterator of table chunks (as pandas DataFrames)."""
         # TODO: also make columns selectable
 
@@ -495,3 +507,31 @@ class HiconaTable(_BaseTable):
 #     out_df.rename(columns={self._alpha_mod: "fraction"}, inplace=True)
 
 #     return out_df
+
+
+class _TablesIterator:
+    """Iterator of HiconaTable objects."""
+
+    # TODO: Fix to because of regions and such
+
+    def __init__(self, store, root, uris):
+        self._store = store
+        self._uri_list = uris
+
+        self._uri_index = 0
+        self._max_uri = len(uris)
+
+    def __len__(self):
+        return self._max_uri
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self._uri_index >= self._max_uri:
+            raise StopIteration
+
+        curr_uri = self._uri_list[self._uri_index]
+        self._uri_index += 1
+
+        return HiconaTable(self._store, curr_uri)

@@ -1,10 +1,14 @@
 {
-	"hicona_pre":{
-		"rm_inter_chroms": null,
-		"max_genomic_dist": {"dist": 200000000},
-		"self_looping_pix": null
-	},
-	"hicona_post":{
-		"norm_count_quant": 0.05
-	}
+    "hicona": {
+    	"_pre_filters": {
+    		"max_genomic_dist": {"max_dist": 200000000},
+    		"self_looping_pix": {}
+    	},
+    	"_norm_method": {
+    		"hicona_norm": {"apply_col": "count"}
+    	},
+    	"_post_filters": {
+    		"norm_count_quant": {"quant": 0.05}
+    	}
+    }
 }

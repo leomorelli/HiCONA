@@ -16,10 +16,11 @@ import pandas as pd
 
 from .hicona_table import HiconaTable, _TablesIterator
 from .settings import HICONA_SETTINGS
-from .processing import TableProcessor, default_scheduler
+from .processing import TableCreator, default_scheduler, ProcessScheduler
+from .uris import Uris
 from .utils.bed_ops import ann_enriched, ann_fraction, bed_to_df, intersect_dfs
 from .utils.decorators import console_log
-from .utils.hdf5_ops import init_table, save_table, require_group, group_info, set_attrs
+from .utils.hdf5_ops import get_subgroups_attrs, save_table, set_attrs
 from .utils.misc import parse_regions
 
 
@@ -73,6 +74,15 @@ class HiconaCooler(cooler.Cooler):
             raise ValueError(f"chunk_size must be: int >= {min_val}.")
         self._chunk_size = value
 
+    @property
+    def tables_root(self):
+        """Return partial uri of the pixel tables starting from root."""
+        return self._tables_root
+
+    def get_tables_uris(self):
+        """Return path to pixels tables broken into store and rest."""
+        return self.store, self._tables_root
+
     def _bare_bins(self):
         """Get full bin table without any annotation."""
         return self.bins()[["chrom", "start", "end"]][:]
@@ -80,32 +90,13 @@ class HiconaCooler(cooler.Cooler):
     # TODO: add tables_root public attribute
 
     # ////////////////////////////////////////////////////////////////////////
-    # /////////////////// PRIVATE PRE-PROCESSING FUNCTIONS ///////////////////
-    # // Functions to pass from full-pixel table to chromosome-level tables //
+    # /////////////////////////// PUBLIC TABLE API ///////////////////////////
+    # // Functions to create, inspect and retrieve spersified pixel tables ///
     # ////////////////////////////////////////////////////////////////////////
-
-    def _next_table_path(self):
-        """Return the next free table name and update counter."""
-
-        serial = group_info(self.store, self._tables_root, "attrs")["serial"]
-        set_attrs(self.root, self._tables_root, {"serial": serial + 1})
-        return f"table_{counter_val.zfill(6)}"
-
-    def _iter_table_attrs(self):
-        """Iterate through disctionaries containing table attributes."""
-
-        for table in group_info(self.store, self._tables_root, "keys"):
-            table_path = "/".join(self._tables_root, table)
-            yield group_info(self.root, table_path, "attrs")
 
     def _get_valid_tables(self, filters, modality):
         """Returns"""
         pass
-
-    # ////////////////////////////////////////////////////////////////////////
-    # /////////////////////////// PUBLIC TABLE API ///////////////////////////
-    # // Functions to create, inspect and retrieve chromosome-level tables ///
-    # ////////////////////////////////////////////////////////////////////////
 
     def create_table(self, method: str | ProcessScheduler = "hicona"):
         """Create a normalized and sparsfied version of the pixels table.
@@ -116,8 +107,9 @@ class HiconaCooler(cooler.Cooler):
         if isinstance(method, str):
             method = default_scheduler(method)
 
-        processor = TableCreator(self, method)
-        processor.start()
+        uris = Uris(self.store, self.root)
+        processor = TableCreator(uris, method)
+        processor.create_table(self.info["nnz"])
 
     def list_tables(self) -> None:
         """Print available chromosome tables for each set of parameters."""
@@ -125,7 +117,7 @@ class HiconaCooler(cooler.Cooler):
         out = ""
         separator = "-" * 78 + "\n"
 
-        for table in self._iter_table_attrs():
+        for table in get_subgroups_attrs(self.store, self._tables_root):
             out += separator
             for k, v in table.items():
                 out += f"- {k}: {v}"
@@ -155,11 +147,10 @@ class HiconaCooler(cooler.Cooler):
         :py:class:`_TablesIterator`:
         """
 
+        # Check that passed filters allow to univocally fetch tables.
+
         tables = self._get_valid_tables(filters, modality)
         return _TablesIterator(self.store, tables)
-
-    def filter_table():
-        pass
 
     # ////////////////////////////////////////////////////////////////////////
     # ///////////////////////// ANNOTATION FUNCTIONS /////////////////////////
