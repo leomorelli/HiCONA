@@ -16,21 +16,22 @@ def fetch_chunk(store, path, lower, upper, keys=None):
 
     with h5py.File(store, mode="r") as h5_handle:
         group = h5_handle[path]
-        keys = keys or group.keys()
+        keys = keys if keys is not None else group.keys()
         table = pd.DataFrame({f: group[f][lower:upper] for f in keys})
 
     return table
 
 
 # TODO: Add lock
-# TODO: Maybe add full table version
 def write_chunk(store, path, chunk, lower, keys=None):
     """Write pandas dataframe data at the provided position in the table."""
 
+    print(f"Writing chunk starting from {lower}")
+
     with h5py.File(store, mode="r+") as h5_handle:
         group = h5_handle[path]
-        upper = len(chunk)
-        keys = keys or group.keys()
+        upper = lower + len(chunk)
+        keys = keys if keys is not None else group.keys()
         for key in keys:
             group[key][lower:upper] = chunk[key]
 
@@ -77,9 +78,21 @@ def resize_table(store, path, size):
 
     with h5py.File(store, mode="r+") as h5_handle:
         group = h5_handle[path]
-        keys = group.keys()
-        for key in keys:
+        for key in group.keys():
             group[key].resize((size,))
+
+
+def get_table_size(store, path):
+    """Fetch table size."""
+
+    with h5py.File(store, mode="r") as h5_handle:
+        group = h5_handle[path]
+        size = set(len(group[k]) for k in group.keys())
+
+        if len(size) != 1:
+            raise ValueError("Inconsistent table size")
+
+    return size.pop()
 
 
 # ////////////////////////////////////////////////////////////////////////////

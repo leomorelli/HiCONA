@@ -4,7 +4,7 @@ Placeholder
 """
 
 from collections.abc import Iterable
-from math import ceil, dist
+from math import dist
 
 import cooler
 import numpy as np
@@ -12,54 +12,29 @@ import pandas as pd
 
 from .uris import Uris
 from .utils.numeric import round_half_up
-from .utils.hdf5_ops import fetch_chunk
-
-
-def make_hicona_like():
-    pass
-
-
-def make_uscs_like():
-    pass
-
-
-class GenomicRegions:
-    """Placeholder."""
-
-    def __init__(self, cooler_uri, regions: str | list[str] = None):
-        self._regions = regions
-        self._cooler_uri = cool_uri
-
-    @property
-    def regions(self):
-        """Placeholder"""
-        return self._regions
-
-    @property
-    def bin_intervals(self):
-        """Placeholder"""
-        return [r.bin_interval(self._cooler_uri) for r in self._regions]
+from .utils.hdf5_ops import fetch_chunk, get_table_size
+from .processing.ops_schedulers import ProcessScheduler
 
 
 class ChunksIterator:
-    """Return table chunks as pandas DataFrames."""
+    """Iterator of table chunks as pandas DataFrames."""
 
     def __init__(
         self,
         uris: Uris,
         chunk_size: int,
-        intervals: Iterable[(int, int)] = None,
-        columns: Iterable[str] = None,
+        intervals: list[tuple[int, int]],
+        columns: Iterable[str] | None = None,
     ):
         self._uris = uris
         self._chunk_size = chunk_size
-        self._intervals = intervals or [(0, 1000000)]  # TODO: tmp for testing
+        self._intervals = intervals
         self._columns = columns
 
     def __iter__(self):
         return self
 
-    def __next__(self):
+    def __next__(self) -> pd.DataFrame:
         # No more pixels available to iterate
         if not self._intervals:
             raise StopIteration
@@ -72,82 +47,77 @@ class ChunksIterator:
             if not self._intervals:
                 break
 
-            lower, upper = self._intervals[0]
+            (lower, upper) = self._intervals[0]
             still_miss -= upper - lower
 
             # Get entire interval if it fits, else only get a part of it
             if still_miss >= 0:
                 out_interv.append(self._intervals.pop(0))
             else:
-                out_interv.append([lower, upper + still_miss])
-                self._intervals[0] = [lower - still_miss, upper]
+                split_val = upper + still_miss
+                out_interv.append([lower, split_val])
+                self._intervals[0] = (split_val, upper)
 
         # Fetch and concat pixel intervals
-        [store, pixel], keys = self._uris.get_hdf5_uris(), self._columns
+        [store, pixel], keys = self._uris.hdf5_uris(), self._columns
         chunks = [fetch_chunk(store, pixel, l, u, keys) for l, u in out_interv]
+
         return pd.concat(chunks)
 
 
-class TableHandler:
-    """Placeholder"""
+class RawTable:
+    """Handler for a raw pixel table (copy of the original pixel table).
 
-    def __init__(self, uris, process_info, regions=None, chunk_size=100_000):
-        self._uris = uris
-        self._process_info = process_info
-        self._regions = regions
-        self._chunk_size = chunk_size
-        self._binsize = 10000  # TODO: change from hard-coded
-
-    @property
-    def binsize(self):
-        return self._binsize
-
-    @property
-    def uris(self):
-        return self._uris
-
-    def chunks(self):
-        """Placeholder"""
-
-        chunks = ChunksIterator(uris=self._uris, chunk_size=self._chunk_size)
-
-        return chunks
-
-
-class BaseTable:
-    """Base class to inherit from to handle tables created by Hicona."""
+    Object to handle the raw pixel table, meaning the original pixel table
+    simply copied to the table root location. It implements a creator method
+    for instances of the `ChunksIterator` class, inherited by `HiconaTable`.
+    """
 
     def __init__(
         self,
-        uris: dict,
-        regions: str | Iterable[str],
-        chunk_size: int = 1_000_000,
-    ):
-        self._uris = uris
-        self._chunk_size = chunk_size
-        self._regions = regions
-        self._intervals = self._get_intervals(regions)
+        uris: Uris,
+        scheduler: ProcessScheduler,
+        bin_size: int,
+        chunk_size: int,
+    ) -> None:
 
-        # TODO: add binsize
-        # TODO: add uris as individual properties
+        self._uris = uris
+        self._process_info = scheduler
+        self._bin_size = bin_size
+        self._chunk_size = chunk_size
 
     @property
-    def chunk_size(self):
+    def bin_size(self) -> int:
+        """Resolution of the original cooler (size of the bins in bp)."""
+        return self._bin_size
+
+    @property
+    def chunk_size(self) -> int:
         """Size of the chunks to retrieve during iteration."""
         return self._chunk_size
 
-    @chunk_size.setter
-    def chunk_size(self, size: int):
-        if isinstance(size, int):
-            self._chunk_size = size
-        else:
-            print("W: invalid chunk size provided, value not updated.")
+    @property
+    def process_info(self) -> ProcessScheduler:
+        """ProcessScheduler object containing all processing information."""
+        return self._process_info
 
-    def _get_intervals(self, regions):
-        """Return idx intervals with the bins matching the genomic regions."""
-        pass
+    @property
+    def uris(self) -> Uris:
+        """Uris object containing all table uris."""
+        return self._uris
 
-    def get_chunks(self, columns: Iterable[str] = None) -> ChunksIterator:
+    def _get_iterator(self, intervals, columns) -> ChunksIterator:
+        """Return chunks iterator with specified intervals and columns."""
+
+        chunks = ChunksIterator(
+            uris=self._uris,
+            chunk_size=self._chunk_size,
+            intervals=intervals,
+            columns=columns,
+        )
+        return chunks
+
+    def chunks(self, columns: Iterable[str] | None = None) -> ChunksIterator:
         """Returns an iterator of table chunks (as pandas DataFrames).
 
         Parameters
@@ -160,19 +130,48 @@ class BaseTable:
         An iterator of table chunks (as pandas DataFrames).
         """
 
-        queries = queries or []
-        queries = [queries] if isinstance(queries, str) else queries
+        return self._get_iterator([(0, self.get_table_size())], columns)
 
-        chunks = ChunksIterator(
-            uris=self.get_pixel_uris,
-            intervals=self._intervals,
-            chunk_size=self._chunk_size,
-            columns=columns,
-        )
+    def get_table_size(self) -> int:
+        """Fetch the total number of pixels in the table.
 
-        return chunks
+        Returns
+        -------
+        Total number of pixels in the table as an integer.
+        """
 
-    def get_dataframe(self, columns: Iterable[str] = None) -> pd.DataFrame:
+        return get_table_size(*self._uris.hdf5_uris())
+
+
+class HiconaTable(RawTable):
+    """Placeholder"""
+
+    def __init__(self, uris: Uris, regions: Iterable[str]) -> None:
+        """Placeholder"""
+
+        scheduler = None  # TODO: create fun to get this
+        super().__init__(uris, scheduler)
+
+        self._columns = None  # TODO: create fun to get this
+        self._regions = regions
+
+    def chunks(self, columns: Iterable[str] | None = None) -> ChunksIterator:
+        """Returns an iterator of table chunks (as pandas DataFrames).
+
+        Parameters
+        ----------
+        columns: Iterable[str], optional
+            If provided, only fetch the specified columns. Default is None.
+
+        Returns
+        -------
+        An iterator of table chunks (as pandas DataFrames).
+        """
+
+        intervals = None  # TODO: create fun to get this
+        return self._get_iterator(intervals, columns)
+
+    def dataframe(self, columns: Iterable[str] | None = None) -> pd.DataFrame:
         """Return all table chunks in a single pandas DataFrame.
 
         Parameters
@@ -185,12 +184,10 @@ class BaseTable:
         A pandas DataFrame with all table pixels.
         """
 
-        return pd.concat(self.get_chunks(columns)).reset_index(drop=True)
+        return pd.concat(self.chunks(columns)).reset_index(drop=True)
 
 
-class HiconaTable(BaseTable):
-    """Placeholder"""
-
+class ToFix:
     def _get_alpha_pts(self, thresholds):
         """Return dataframe with filtering statistics for a threshold grid."""
         # NOTE: Assumed that alpha thresholds are in decreasing order.

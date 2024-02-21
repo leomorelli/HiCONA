@@ -1,6 +1,7 @@
 {
     "hicona": {
     	"_pre_filters": {
+            "rm_inter_chroms": {},
     		"max_genomic_dist": {"max_dist": 200000000},
     		"self_looping_pix": {}
     	},

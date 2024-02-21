@@ -7,21 +7,26 @@ can be retrieved to create filtered networks to analyze.
 """
 
 from collections.abc import Iterable
-import re
-import time
 
 import cooler
 import h5py
 import pandas as pd
 
-from .hicona_table import HiconaTable, _TablesIterator
+from .hicona_table import RawTable, HiconaTable, _TablesIterator
 from .settings import HICONA_SETTINGS
-from .processing import TableCreator, default_scheduler, ProcessScheduler
+from .processing.table_processor import TableProcessor
+from .processing.ops_schedulers import default_scheduler, ProcessScheduler
 from .uris import Uris
 from .utils.bed_ops import ann_enriched, ann_fraction, bed_to_df, intersect_dfs
-from .utils.decorators import console_log
-from .utils.hdf5_ops import get_subgroups_attrs, save_table, set_attrs
-from .utils.misc import parse_regions
+from .utils.hdf5_ops import (
+    require_group,
+    get_attrs,
+    get_subgroups_attrs,
+    save_table,
+    set_attrs,
+    init_table,
+    write_chunk,
+)
 
 
 __all__ = ["HiconaCooler"]
@@ -59,8 +64,7 @@ class HiconaCooler(cooler.Cooler):
         # Mask deprecated root parameter from super-class
         super().__init__(store, **kwargs)
         self._chunk_size = HICONA_SETTINGS.parameters.base_pix_chunk
-        self._tables_root = "/".join([self.root, "hicona_tables"])
-        # TODO: move tables root to configs probably
+        self._tables_root = "hicona_tables"  # TODO: maybe move to configs
 
     @property
     def chunk_size(self):
@@ -79,10 +83,6 @@ class HiconaCooler(cooler.Cooler):
         """Return partial uri of the pixel tables starting from root."""
         return self._tables_root
 
-    def get_tables_uris(self):
-        """Return path to pixels tables broken into store and rest."""
-        return self.store, self._tables_root
-
     def _bare_bins(self):
         """Get full bin table without any annotation."""
         return self.bins()[["chrom", "start", "end"]][:]
@@ -96,7 +96,37 @@ class HiconaCooler(cooler.Cooler):
 
     def _get_valid_tables(self, filters, modality):
         """Returns"""
-        pass
+
+    def _init_raw_table(self) -> Uris:
+        """Placeholder"""
+
+        # Initialize the tables root if it does not exist already.
+        # TODO: Maybe do not hardcode the serial attribute
+        table_root_uris = Uris(self.store, self.root, self.tables_root)
+        require_group(*table_root_uris.hdf5_uris(), {"serial": 0})
+
+        # Get the next available table path
+        serial = get_attrs(*table_root_uris.hdf5_uris())["serial"]
+        set_attrs(*table_root_uris.hdf5_uris(), {"serial": serial + 1})
+        table_path = f"{self.tables_root}/table_{str(serial).zfill(6)}"
+        table_uris = Uris(self.store, self.root, table_path)
+
+        # TODO: Check there is no table with all matching keywords
+        # TODO: Add table attributes
+
+        # Initialize table
+        cols = HICONA_SETTINGS.conventions.table_columns
+        num_pix = self.info["nnz"]
+        init_table(*table_uris.hdf5_uris(), num_pix, cols)
+
+        # Copy pixel data to the new table
+        chunk_size = self._chunk_size
+        for lower in range(0, num_pix, chunk_size):
+            upper = min(lower + chunk_size, num_pix)
+            chunk = self.pixels()[lower:upper]
+            write_chunk(*table_uris.hdf5_uris(), chunk, lower, chunk.columns)
+
+        return table_uris
 
     def create_table(self, method: str | ProcessScheduler = "hicona"):
         """Create a normalized and sparsfied version of the pixels table.
@@ -107,9 +137,10 @@ class HiconaCooler(cooler.Cooler):
         if isinstance(method, str):
             method = default_scheduler(method)
 
-        uris = Uris(self.store, self.root)
-        processor = TableCreator(uris, method)
-        processor.create_table(self.info["nnz"])
+        table_uris = self._init_raw_table()
+        table = RawTable(table_uris, method, self.binsize, self._chunk_size)
+        processor = TableProcessor(table)
+        processor.create_table()
 
     def list_tables(self) -> None:
         """Print available chromosome tables for each set of parameters."""

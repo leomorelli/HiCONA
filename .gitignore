@@ -14,3 +14,7 @@ test.py
 
 # Ignore misc
 tables_tutorial.py
+
+# Ignore vscode files
+.vscode/
+

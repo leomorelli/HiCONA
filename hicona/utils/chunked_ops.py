@@ -13,7 +13,7 @@ DEFAULT_COL = "bin1_id"
 def get_col_quantiles(iterator, colname, quants):
     """Placeholder"""
 
-    quant = [quant] if isinstance(quant, float) else quant
+    quants = [quants] if isinstance(quants, float) else quants
 
     curve = pd.Series()
     for chunk in iterator:
@@ -26,7 +26,7 @@ def get_col_quantiles(iterator, colname, quants):
     values = []
     for quant in quants:
         threshold = tot_items * quant
-        values.append(cum_curve[cumulative > threshold].index[0])
+        values.append(cum_curve[cum_curve > threshold].index[0])
 
     return values
 

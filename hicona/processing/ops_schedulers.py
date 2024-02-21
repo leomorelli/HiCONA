@@ -100,10 +100,7 @@ class OpsScheduler(abc.ABC):
         """Add a function (with its arguments) to the schedule."""
 
         if isinstance(fun_obj, str):
-            print(self.available, fun_obj)
             fun_obj = self.available.get(fun_obj)
-
-        print(fun_obj)
 
         if not inspect.isfunction(fun_obj):
             raise ValueError(f"{fun_obj} is not a function object.")

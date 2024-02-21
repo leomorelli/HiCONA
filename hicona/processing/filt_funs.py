@@ -14,6 +14,7 @@ All functions share a common interface/architecture:
 # TODO: Maybe add check that a function can be applied at that step
 """
 
+from .auxiliary_funs import chrom_binned_pixels
 from ..utils.chunked_ops import get_col_quantiles
 
 
@@ -25,7 +26,7 @@ def max_genomic_dist(table, max_dist):
     """
 
     for chunk in table.chunks():
-        dist = (chunk.bin2_id - chunk.bin1_id) * table.binsize
+        dist = (chunk.bin2_id - chunk.bin1_id) * table.bin_size
         chunk = chunk.loc[dist <= max_dist]
         yield chunk
 
@@ -37,7 +38,7 @@ def norm_count_quant(table, quant):
         - quant: remove pixels whose normalized value is below this quantile.
     """
 
-    quant_val = get_col_quantiles(table.get_pixels(), quant)
+    quant_val = get_col_quantiles(table.chunks(), "norm", quant)
     for chunk in table.chunks():
         chunk = chunk.loc[chunk.norm > quant_val]
         yield chunk
@@ -70,5 +71,10 @@ def min_raw_counts(table, min_val):
 def rm_inter_chroms(table):
     """
     Remove inter chromosomal pixels.
+    Params:
+        None
     """
-    pass
+
+    for chunk in chrom_binned_pixels(table):
+        chunk = chunk.loc[chunk.bin1_chr == chunk.bin2_chr]
+        yield chunk
