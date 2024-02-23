@@ -53,7 +53,6 @@ class TableProcessor:
 
         self._filt_table(scheduler.pre_filters.get_partials())
         self._norm_table(scheduler.norm_method.get_partials())
-        print("DONE")
         self._filt_table(scheduler.post_filters.get_partials())
 
         self._spar_table()

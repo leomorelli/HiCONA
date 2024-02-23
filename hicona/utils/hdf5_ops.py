@@ -5,6 +5,8 @@ import pandas as pd
 
 from .table_ops import get_dataf_mapping
 
+# NOTE: during key selection, `is None` is used rather than `or` to avoid
+#       `ValueError: The truth value of a Index is ambiguous`
 
 # ////////////////////////////////////////////////////////////////////////////
 # ///////////////////////////// CHUNK OPERATIONS /////////////////////////////
@@ -16,7 +18,7 @@ def fetch_chunk(store, path, lower, upper, keys=None):
 
     with h5py.File(store, mode="r") as h5_handle:
         group = h5_handle[path]
-        keys = keys if keys is not None else group.keys()
+        keys = group.keys() if keys is None else keys
         table = pd.DataFrame({f: group[f][lower:upper] for f in keys})
 
     return table
@@ -26,12 +28,13 @@ def fetch_chunk(store, path, lower, upper, keys=None):
 def write_chunk(store, path, chunk, lower, keys=None):
     """Write pandas dataframe data at the provided position in the table."""
 
-    print(f"Writing chunk starting from {lower}")
-
     with h5py.File(store, mode="r+") as h5_handle:
         group = h5_handle[path]
         upper = lower + len(chunk)
-        keys = keys if keys is not None else group.keys()
+
+        if keys is None:
+            keys = [k for k in group.keys() if k in chunk.columns]
+
         for key in keys:
             group[key][lower:upper] = chunk[key]
 

@@ -1,8 +1,9 @@
 """Placeholder"""
 
-from statistics import median
-
+import pandas as pd
 from scipy import integrate
+
+from ..utils.numeric import round_half_up
 
 
 def compute_alpha(row):
@@ -15,43 +16,31 @@ def compute_alpha(row):
     return round_half_up(alpha, 4)
 
 
-def unique_alphas(chunk):
-    """Return alpha values of unique (norm_weight, deg) pairs."""
+def get_alphas(chunk, stats, i):
+    """Return the alpha values for the given chunk."""
 
-    values = chunk[["degree", "norm_weight"]].drop_duplicates()
-    values[f"alpha_{num}"] = 1.0  # .0 needed to initialize as float
+    # Add degree and norm_weight columns to the chunk
+    dataf = chunk.merge(stats, how="left", left_on=f"bin{i}_id", right_index=True)
+    dataf["norm_weight"] = dataf.norm / dataf.weight
 
-    mask = values["degree"] != 1
-    alphas = values.loc[mask].apply(compute_alpha, axis=1)
-    values.loc[mask, f"alpha_{num}"] = alphas
+    # Compute the alpha values
+    dedup = dataf[["degree", "norm_weight"]].drop_duplicates()
+    dedup["alpha"] = 1.0  # .0 needed to initialize as float
+    mask = dedup.degree != 1
+    dedup.loc[mask, "alpha"] = dedup.loc[mask].apply(compute_alpha, axis=1)
+
+    # Merge the alpha values back into the chunk
+    dataf = dataf.merge(dedup, how="left", on=["degree", "norm_weight"])
+
+    return dataf.alpha
 
 
 def sparsify_chunk(chunk, node_stats):
     """Return the sparsified chunk"""
 
-    for bin_col in ["bin1_id", "bin2_id"]:
-        # Add node statistics and normalized weight for that bin
-        chunk = chunk.merge(
-            node_stats,
-            how="left",
-            left_on=bin_col,
-            right_index=True,
-        )
-        chunk["norm_weight"] = chunk.norm / chunk.weight
-
-        # Compute and add the alpha values for each row
-        grp_cols = ["degree", "norm_weight"]
-        chunk = chunk.merge(unique_alphas(chunk), how="left", on=grp_cols)
-
-        # Remove node specific information
-        tmp_cols = ["weight", "degree", "norm_weight"]
-        chunk.drop(tmp_cols, axis=1, inplace=True)
+    alphas = {i: get_alphas(chunk, node_stats, i) for i in range(1, 3)}
+    alphas = pd.DataFrame(alphas)
 
     # Sort the values into min and max column, then remove tmp ones
-    chunk["alpha_min"] = chunk[["alpha_0", "alpha_1"]].min(axis=1)
-    chunk["alpha_max"] = chunk[["alpha_0", "alpha_1"]].max(axis=1)
-    chunk.drop(["alpha_0", "alpha_1"], axis=1, inplace=True)
-
-    # TODO: Maybe return only alpha columns
-
-    return chunk
+    res = {"alpha_min": alphas.min(axis=1), "alpha_max": alphas.max(axis=1)}
+    return pd.DataFrame(res)

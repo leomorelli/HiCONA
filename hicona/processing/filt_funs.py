@@ -27,7 +27,7 @@ def max_genomic_dist(table, max_dist):
 
     for chunk in table.chunks():
         dist = (chunk.bin2_id - chunk.bin1_id) * table.bin_size
-        chunk = chunk.loc[dist <= max_dist]
+        chunk = chunk.loc[dist < max_dist]
         yield chunk
 
 
@@ -38,7 +38,7 @@ def norm_count_quant(table, quant):
         - quant: remove pixels whose normalized value is below this quantile.
     """
 
-    quant_val = get_col_quantiles(table.chunks(), "norm", quant)
+    quant_val = get_col_quantiles(table.chunks(), "norm", quant)[0]
     for chunk in table.chunks():
         chunk = chunk.loc[chunk.norm > quant_val]
         yield chunk

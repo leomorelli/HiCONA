@@ -1,10 +1,10 @@
-"""Placeholder"""
+"""Operations on bed-like files (e.i. any operation using bedtools)."""
 
 import numpy as np
 from pybedtools import BedTool
 
 
-def bed_to_df(bed, non_def_names: str | list[str] = None):
+def bed_to_df(bed, non_def_names: str | list[str] | None = None):
     """Placeholder"""
 
     if isinstance(bed, str):

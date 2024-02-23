@@ -87,8 +87,6 @@ class HiconaCooler(cooler.Cooler):
         """Get full bin table without any annotation."""
         return self.bins()[["chrom", "start", "end"]][:]
 
-    # TODO: add tables_root public attribute
-
     # ////////////////////////////////////////////////////////////////////////
     # /////////////////////////// PUBLIC TABLE API ///////////////////////////
     # // Functions to create, inspect and retrieve spersified pixel tables ///
@@ -161,7 +159,7 @@ class HiconaCooler(cooler.Cooler):
 
     def tables(
         self,
-        filters: Iterable[str] = None,
+        filters: Iterable[str] | None = None,
         modality: str = "all",
     ) -> _TablesIterator:
         """Return an iterator of selected tables and respective information.

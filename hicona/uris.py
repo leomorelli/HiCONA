@@ -4,17 +4,10 @@
 class Uris:
     """Placeholder"""
 
-    def __init__(self, store: str, root: str = None, path: str = None):
+    def __init__(self, store: str, root: str, path: str | None = None):
         self._store = store
         self._root = root if root != "/" else ""
         self._path = path or ""
-
-    '''
-    def add_path_part(self, part: str):
-        """Add path part as the last one in the parts."""
-
-        self._path = "/".join([self._path, part])
-    '''
 
     def hdf5_uris(self):
         """Return store and path parts up to the last specified."""
