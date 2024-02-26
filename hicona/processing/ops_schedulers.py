@@ -198,11 +198,13 @@ class ProcessScheduler:
         """Scheduler of the post-normalization filters."""
         return self._post_filters
 
-    def to_json(self, out_path: str):
-        """Save the object to a json file for later retrieval."""
+    def as_json(self) -> dict:
+        """Return the object data in a json-like format."""
+        return {s: dict(o.scheduled) for s, o in self.__dict__.items()}
 
-        data = {s: dict(o.scheduled) for s, o in self.__dict__.items()}
-        write_resource(out_path, data)
+    def save_to_json(self, out_path: str):
+        """Save the object to a json file for later retrieval."""
+        write_resource(out_path, self.as_json())
 
 
 def default_scheduler(norm_method: str | None = "hicona") -> ProcessScheduler:
@@ -250,3 +252,35 @@ def load_scheduler(json_path: str) -> ProcessScheduler:
 
     custom_json = read_resource(json_path)
     return ProcessScheduler(custom_json)
+
+
+def mono_to_json(attrs_dict: dict[str, Any]) -> dict[str, Any]:
+    """Converts a dictionary of attributes to a json-like structure."""
+
+    new_dict: dict[str, Any] = {}
+
+    for key, value in attrs_dict.items():
+        curr_dict = new_dict
+        num_nests = len(key.split(":"))
+        for pos, key in enumerate(key.split(":")):
+            v = value if pos == num_nests - 1 else {}
+            _ = curr_dict.setdefault(key, v)
+            curr_dict = curr_dict[key]
+
+    return new_dict
+
+
+def json_to_mono(attrs_dict: dict[str, Any]) -> dict[str, Any]:
+    """Converts a json-like structure to a dictionary of attributes."""
+
+    new_dict: dict[str, Any] = {}
+
+    for key, value in attrs_dict.items():
+        if isinstance(value, dict):
+            nested_dict = json_to_mono(value)
+            for k, v in nested_dict.items():
+                new_dict[f"{key}:{k}"] = v
+        else:
+            new_dict[key] = value
+
+    return new_dict
