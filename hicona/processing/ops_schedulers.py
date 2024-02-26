@@ -11,6 +11,7 @@ creator functions one can instantiate a `ProcedureScheduler`, whose attributes
 are Scheduler objects which can be modified.
 
 # TODO: add support for loading custom function from json procedure shedulers.
+# TODO: move hardcoded paths to settings.
 """
 
 import abc
@@ -28,7 +29,7 @@ from ..utils.io_ops import read_resource, write_resource
 __all__ = ["default_scheduler", "load_scheduler", "ProcessScheduler"]
 
 
-SCHEDULERS_PATH = "schedulers.json"  # TODO: Settings?
+SCHEDULERS_PATH = "schedulers.json"
 
 
 class Operation:
@@ -172,15 +173,17 @@ class ProcessScheduler:
         The data used to construct the schedulers, in json format.
     """
 
-    def __init__(self, json_data: dict):
+    def __init__(self, json_data: dict | None = None):
         self._pre_filters = FiltScheduler()
         self._norm_method = NormScheduler()
         self._post_filters = FiltScheduler()
 
         # Populate the schedules with the filters in the provided json data
+        json_data = json_data or {}
         for attr_name, ops in json_data.items():
             sched = getattr(self, attr_name)
             for op_name, op_kwargs in ops.items():
+                op_kwargs = op_kwargs or {}
                 sched.add_operation(op_name, op_kwargs)
 
     @property
@@ -205,6 +208,21 @@ class ProcessScheduler:
     def save_to_json(self, out_path: str):
         """Save the object to a json file for later retrieval."""
         write_resource(out_path, self.as_json())
+
+    def __contains__(self, other: "ProcessScheduler") -> bool:
+        """Check if all operations in other are present in self."""
+
+        def is_subset(sub, sup):
+            """Recursively check nested dictionaries for subset relation."""
+            if isinstance(sub, dict):
+                return all(k in sup and is_subset(v, sup[k]) for k, v in sub.items())
+            return sub == sup
+
+        return is_subset(other.as_json(), self.as_json())
+
+    def __eq__(self, other: "ProcessScheduler") -> bool:
+        """Check equality among ProcessScheduler objects."""
+        return self.as_json() == other.as_json()
 
 
 def default_scheduler(norm_method: str | None = "hicona") -> ProcessScheduler:
@@ -264,6 +282,7 @@ def mono_to_json(attrs_dict: dict[str, Any]) -> dict[str, Any]:
         num_nests = len(key.split(":"))
         for pos, key in enumerate(key.split(":")):
             v = value if pos == num_nests - 1 else {}
+            v = v if v != "null" else {}
             _ = curr_dict.setdefault(key, v)
             curr_dict = curr_dict[key]
 
@@ -277,6 +296,11 @@ def json_to_mono(attrs_dict: dict[str, Any]) -> dict[str, Any]:
 
     for key, value in attrs_dict.items():
         if isinstance(value, dict):
+
+            if not value:
+                new_dict[key] = "null"
+                continue
+
             nested_dict = json_to_mono(value)
             for k, v in nested_dict.items():
                 new_dict[f"{key}:{k}"] = v

@@ -146,15 +146,6 @@ class RawTable:
 class HiconaTable(RawTable):
     """Placeholder"""
 
-    def __init__(self, uris: Uris, regions: Iterable[str]) -> None:
-        """Placeholder"""
-
-        scheduler = None  # TODO: create fun to get this
-        super().__init__(uris, scheduler)
-
-        self._columns = None  # TODO: create fun to get this
-        self._regions = regions
-
     def chunks(self, columns: Iterable[str] | None = None) -> ChunksIterator:
         """Returns an iterator of table chunks (as pandas DataFrames).
 

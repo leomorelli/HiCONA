@@ -7,6 +7,7 @@ can be retrieved to create filtered networks to analyze.
 """
 
 from collections.abc import Iterable
+from typing import Generator
 
 import cooler
 import h5py
@@ -15,13 +16,18 @@ import pandas as pd
 from .hicona_table import RawTable, HiconaTable, _TablesIterator
 from .settings import HICONA_SETTINGS
 from .processing.table_processor import TableProcessor
-from .processing.ops_schedulers import default_scheduler, ProcessScheduler
+from .processing.ops_schedulers import (
+    default_scheduler,
+    mono_to_json,
+    ProcessScheduler,
+    json_to_mono,
+)
 from .uris import Uris
 from .utils.bed_ops import ann_enriched, ann_fraction, bed_to_df, intersect_dfs
 from .utils.hdf5_ops import (
     require_group,
     get_attrs,
-    get_subgroups_attrs,
+    get_keys,
     save_table,
     set_attrs,
     init_table,
@@ -92,25 +98,27 @@ class HiconaCooler(cooler.Cooler):
     # // Functions to create, inspect and retrieve spersified pixel tables ///
     # ////////////////////////////////////////////////////////////////////////
 
-    def _get_valid_tables(self, filters, modality):
-        """Returns"""
+    def _iterate_tables(self) -> Generator[HiconaTable, None, None]:
+        """Iterate all saved tables as `HiconaTable` objects."""
 
-    def _init_raw_table(self) -> Uris:
-        """Placeholder"""
+        for tab in get_keys(self.store, f"{self.root}/{self._tables_root}"):
 
-        # Initialize the tables root if it does not exist already.
-        # TODO: Maybe do not hardcode the serial attribute
-        table_root_uris = Uris(self.store, self.root, self.tables_root)
-        require_group(*table_root_uris.hdf5_uris(), {"serial": 0})
+            # Get table uris
+            table_path = f"{self._tables_root}/{tab}"
+            table_uris = Uris(self.store, self.root, table_path)
 
-        # Get the next available table path
-        serial = get_attrs(*table_root_uris.hdf5_uris())["serial"]
-        set_attrs(*table_root_uris.hdf5_uris(), {"serial": serial + 1})
+            # Get table processing parameters
+            params_json = mono_to_json(get_attrs(*table_uris.hdf5_uris()))
+            params = ProcessScheduler(params_json)
+
+            yield HiconaTable(table_uris, params, self.binsize, self._chunk_size)
+
+    def _init_raw_table(self, serial: str, method: ProcessScheduler) -> Uris:
+        """Initialize a new raw table with the given parameters."""
+
+        # Get table uris
         table_path = f"{self.tables_root}/table_{str(serial).zfill(6)}"
         table_uris = Uris(self.store, self.root, table_path)
-
-        # TODO: Check there is no table with all matching keywords
-        # TODO: Add table attributes
 
         # Initialize table
         cols = HICONA_SETTINGS.conventions.table_columns
@@ -124,62 +132,106 @@ class HiconaCooler(cooler.Cooler):
             chunk = self.pixels()[lower:upper]
             write_chunk(*table_uris.hdf5_uris(), chunk, lower, chunk.columns)
 
+        # Set table attributes
+        table_attrs = json_to_mono(method.as_json())
+        print(table_attrs)
+        set_attrs(*table_uris.hdf5_uris(), table_attrs)
+
         return table_uris
 
-    def create_table(self, method: str | ProcessScheduler = "hicona"):
+    def create_table(self, method: str | ProcessScheduler = "hicona") -> HiconaTable:
         """Create a normalized and sparsfied version of the pixels table.
 
-        Placeholder
+        Create a new table using the specified normalization procedure,
+        then add the sparsification scores to all pixels of said table.
+        The filters and normalization methods can be either provided via
+        a ProcessScheduler object or as a string, in which case the default
+        scheduler for the corresponding method is used.
+
+        Parameters
+        ----------
+        method : str or ProcessScheduler, optional
+            Method to use to filter and normalize the table. If a string is
+            provided, the default scheduler for the corresponding method is used.
+            (default is "hicona")
+
+        Returns
+        -------
+        HiconaTable :
+            The newly created table as a HiconaTable object.
         """
 
+        # Convert any default string to the corresponding scheduler
         if isinstance(method, str):
             method = default_scheduler(method)
 
-        table_uris = self._init_raw_table()
+        # Initialize the tables root if it does not exist already.
+        # TODO: Maybe do not hardcode the serial attribute
+        table_root_uris = Uris(self.store, self.root, self.tables_root)
+        require_group(*table_root_uris.hdf5_uris(), {"serial": 0})
+
+        # Check there is no table with all matching keywords
+        for table in self._iterate_tables():
+            if table.process_info == method:
+                raise ValueError("E: Table with matching parameters already exists.")
+
+        # Get the next available table path
+        serial = get_attrs(*table_root_uris.hdf5_uris())["serial"]
+        set_attrs(*table_root_uris.hdf5_uris(), {"serial": serial + 1})
+
+        table_uris = self._init_raw_table(serial, method)
         table = RawTable(table_uris, method, self.binsize, self._chunk_size)
         processor = TableProcessor(table)
-        processor.create_table()
+        return processor.create_table()
+
+    def fetch_table(self, method: str | ProcessScheduler = "hicona") -> HiconaTable:
+        """Retrieve an previously created `HiconaTable` object.
+
+        Retrieve a previously created table using the specified method.
+        The method can be either provided via a ProcessScheduler object or as
+        string, in which case the default scheduler for the corresponding
+        method is used.
+
+        Parameters
+        ----------
+        method : str or ProcessScheduler
+            Method used to filter and normalize the table. If a string is
+            provided, the default scheduler for the corresponding method is used.
+            (default is "hicona").
+
+        Returns
+        -------
+        HiconaTable :
+            The requested table as a HiconaTable object.
+        """
+
+        method = default_scheduler(method) if isinstance(method, str) else method
+        tables = [t for t in self._iterate_tables() if t.process_info == method]
+
+        if len(tables) > 1:  # NOTE: This should never happen
+            raise ValueError("E: Multiple tables with matching parameters found.")
+        if not tables:
+            raise ValueError("E: No table with matching parameters was found.")
+
+        return tables.pop()
 
     def list_tables(self) -> None:
         """Print available chromosome tables for each set of parameters."""
+        # TODO: Add a better printout
 
         out = ""
         separator = "-" * 78 + "\n"
 
-        for table in get_subgroups_attrs(self.store, self._tables_root):
+        for table in self._iterate_tables():
             out += separator
-            for k, v in table.items():
-                out += f"- {k}: {v}"
+            for k, v in table.process_info.as_json().items():
+                out += f"- {k}: {v}\n"
 
         if not out:
             out = "No tables available yet.\n"
 
         out = separator + out + separator
         print(out.strip())
-
-    def tables(
-        self,
-        filters: Iterable[str] | None = None,
-        modality: str = "all",
-    ) -> _TablesIterator:
-        """Return an iterator of selected tables and respective information.
-
-        Use the input parameters to define which tables to retrieve, then
-        return a :py:class:`_TablesIterator` where each item is a tuple in
-        the form ``(DataFrame, dict)``.
-
-        Parameters
-        ----------
-        # TODO: To fix
-        Returns
-        -------
-        :py:class:`_TablesIterator`:
-        """
-
-        # Check that passed filters allow to univocally fetch tables.
-
-        tables = self._get_valid_tables(filters, modality)
-        return _TablesIterator(self.store, tables)
 
     # ////////////////////////////////////////////////////////////////////////
     # ///////////////////////// ANNOTATION FUNCTIONS /////////////////////////
