@@ -65,21 +65,24 @@ def no_norm(table):
     """
 
     for chunk in table.chunks():
-        # TODO: yield filt table chunks
-
-        pass
+        yield chunk
 
 
-def ice_norm(table, colname, apply_col):
+def binwise_norm(table, colname, apply_col, divisive):
     """
-    Apply ICE, or any bin-wise, multiplicative normalization, to a table.
+    Apply a bin-wise normalization (one norm factor per each bin) to a table.
     Params:
         - colname: bin table column to use as the normalization vector.
         - apply_col: column to apply the normalization to.
+        - divisive: whether to divide or multiply by the norm factor.
     """
 
-    handle = cooler.Cooler(table.cooler_uri())
-    norm_vector = handle.bins()[:][colname]
+    # NOTE: This function mimicks ice normalization in cooler.
 
+    bins = cooler.Cooler(table.uris.cooler_uri()).bins()[:]
     for chunk in table.chunks():
-        pass
+        chunk = cooler.annotate(chunk, bins, replace=False)
+        if divisive:
+            chunk[f"{colname}1"] = 1 / chunk[f"{colname}1"]
+            chunk[f"{colname}2"] = 1 / chunk[f"{colname}2"]
+        yield chunk[apply_col] * chunk[f"{colname}1"] * chunk[f"{colname}2"]
