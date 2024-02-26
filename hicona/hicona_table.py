@@ -79,7 +79,7 @@ class RawTable:
         scheduler: ProcessScheduler,
         bin_size: int,
         chunk_size: int,
-    ) -> None:
+    ):
 
         self._uris = uris
         self._process_info = scheduler

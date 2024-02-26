@@ -17,6 +17,7 @@ import abc
 from collections.abc import Callable
 import functools
 import inspect
+from typing import Any
 
 
 import hicona.processing.filt_funs as ffuns
@@ -44,10 +45,10 @@ class Operation:
         Kwargs to pass to the function call.
     """
 
-    def __init__(self, func: Callable, kwargs: dict = None):
+    def __init__(self, func: Callable, kwargs: dict | None = None):
         self._name = func.__name__
         self._func = func
-        self._kwargs = kwargs
+        self._kwargs = kwargs or {}
 
     @property
     def name(self) -> str:
@@ -100,7 +101,7 @@ class OpsScheduler(abc.ABC):
         """Add a function (with its arguments) to the schedule."""
 
         if isinstance(fun_obj, str):
-            fun_obj = self.available.get(fun_obj)
+            fun_obj = self.available[fun_obj]
 
         if not inspect.isfunction(fun_obj):
             raise ValueError(f"{fun_obj} is not a function object.")
@@ -118,10 +119,10 @@ class OpsScheduler(abc.ABC):
 
         self._scheduled = []
 
-    def get_partials(self) -> tuple[functools.partial]:
+    def get_partials(self) -> tuple[functools.partial, ...]:
         """Return partial functions for all scheduled operations."""
 
-        return (op.get_partial() for op in self._scheduled)
+        return tuple(op.get_partial() for op in self._scheduled)
 
 
 class FiltScheduler(OpsScheduler):

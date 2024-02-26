@@ -1,6 +1,7 @@
 """Placeholder"""
 
 import math
+from typing import Generator
 
 import cooler
 import numpy as np
@@ -26,7 +27,7 @@ def get_chrom_binning(cooler_uri):
     return bin_bounds, handle.chromnames
 
 
-def chrom_binned_pixels(table):
+def chrom_binned_pixels(table) -> Generator[pd.DataFrame, None, None]:
     """Placeholder"""
 
     bins, names = get_chrom_binning(table.uris.cooler_uri())

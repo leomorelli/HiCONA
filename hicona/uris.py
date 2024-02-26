@@ -9,12 +9,12 @@ class Uris:
         self._root = root if root != "/" else ""
         self._path = path or ""
 
-    def hdf5_uris(self):
+    def hdf5_uris(self) -> tuple[str, str]:
         """Return store and path parts up to the last specified."""
 
         return (self._store, "/".join([self._root, self._path]))
 
-    def cooler_uri(self):
+    def cooler_uri(self) -> str:
         """Return a uri to use to create a cooler handle."""
 
         return "::".join([self._store, self._root])

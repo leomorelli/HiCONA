@@ -1,5 +1,7 @@
 """Placeholder"""
 
+from typing import Any
+
 import h5py
 import pandas as pd
 
@@ -13,7 +15,7 @@ from .table_ops import get_dataf_mapping
 # ////////////////////////////////////////////////////////////////////////////
 
 
-def fetch_chunk(store, path, lower, upper, keys=None):
+def fetch_chunk(store, path, lower, upper, keys=None) -> pd.DataFrame:
     """Retrieve a subset of the table as a pandas dataframe."""
 
     with h5py.File(store, mode="r") as h5_handle:
@@ -56,12 +58,12 @@ def init_table(store, path, size, col_mapping):
 
 
 # TODO: Add lock?
-def write_table(store, path, iterator, keys=None):
+def write_table(store, path, iterator, keys=None) -> int:
     """Write chunk applied to iterator of chunks of the same table."""
 
     tab_size = 0
     for chunk in iterator:
-        write_chunk(store, path, chunk, tab_size)
+        write_chunk(store, path, chunk, tab_size, keys)
         tab_size += len(chunk)
 
     return tab_size
@@ -85,7 +87,7 @@ def resize_table(store, path, size):
             group[key].resize((size,))
 
 
-def get_table_size(store, path):
+def get_table_size(store, path) -> int:
     """Fetch table size."""
 
     with h5py.File(store, mode="r") as h5_handle:
@@ -128,7 +130,7 @@ def set_attrs(store, path, attrs_dict):
             group.attrs[k] = v
 
 
-def get_attrs(store, path):
+def get_attrs(store, path) -> dict[str, Any]:
     """Fetch table attributes."""
 
     with h5py.File(store, mode="r") as h5_handle:
@@ -138,23 +140,23 @@ def get_attrs(store, path):
     return attrs
 
 
-def get_keys(store, path):
+def get_keys(store, path) -> list[str]:
     """Fetch table keys."""
 
     with h5py.File(store, mode="r") as h5_handle:
         group = h5_handle[path]
-        keys = group.keys()
+        keys = list(group.keys())
 
     return keys
 
 
 # TODO: Remove
-def get_subgroups_attrs(store, path):
+def get_subgroups_attrs(store, path) -> dict[str, dict[str, Any]]:
     """Fetch attributes of all subgroups in a group."""
 
     attrs = {}
     for table in get_keys(store, path):
-        table_path = "/".join(path, table)
+        table_path = "/".join([path, table])
         attrs[table] = get_attrs(store, table_path)
 
     return attrs
