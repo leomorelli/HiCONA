@@ -22,6 +22,7 @@ from .uris import Uris
 from .utils.bed_ops import ann_enriched, ann_fraction, bed_to_df, intersect_dfs
 from .utils.hdf5_ops import (
     require_group,
+    del_keys,
     get_attrs,
     get_keys,
     save_table,
@@ -200,8 +201,11 @@ class HiconaCooler(cooler.Cooler):
             The requested table as a HiconaTable object.
         """
 
-        method = default_scheduler(method) if isinstance(method, str) else method
-        tables = [t for t in self._iterate_tables() if t.process_info == method]
+        try:
+            method = default_scheduler(method) if isinstance(method, str) else method
+            tables = [t for t in self._iterate_tables() if t.process_info == method]
+        except ValueError as exc:
+            raise ValueError("E: No table has been generated yet.") from exc
 
         if len(tables) > 1:  # NOTE: This should never happen
             raise ValueError("E: Multiple tables with matching parameters found.")
@@ -233,7 +237,7 @@ class HiconaCooler(cooler.Cooler):
     # ////////////////// Add/process bin annotation columns //////////////////
     # ////////////////////////////////////////////////////////////////////////
 
-    def _valid_bin_annotations(self, names: str | Iterable[str]):
+    def _valid_bin_annotations(self, names: str | Iterable[str]) -> list[str]:
         """Return only valid bin annotation names as iterable of strings"""
 
         names = names or []
@@ -242,7 +246,7 @@ class HiconaCooler(cooler.Cooler):
 
         return names
 
-    def annotation_list(self) -> Iterable[str]:
+    def annotation_list(self) -> list[str]:
         """Return an iterable of available bin annotation columns.
 
         Return an iterable of all available bin annotation columns (that is,
@@ -255,9 +259,7 @@ class HiconaCooler(cooler.Cooler):
             Iterable of bin annotation names in alphabetical order.
         """
 
-        with h5py.File(self.store, mode="r") as h5_handle:
-            bins_grp = h5_handle[self.root + "/bins"]
-            ann_list = tuple(bins_grp.keys())
+        ann_list = get_keys(self.store, self.root + "/bins")
         ann_list = [k for k in ann_list if k not in ["chrom", "start", "end"]]
         ann_list.sort()
 
@@ -266,8 +268,8 @@ class HiconaCooler(cooler.Cooler):
     def add_bin_annotation(
         self,
         bed_path: str,
-        in_file: str = None,
-        to_keep: str | None | Iterable[str | None] = None,
+        in_file: str | None = None,
+        to_keep: str | list[str | None] | None = None,
     ) -> None:
         """Add bin annotation(s) using a bed-like file.
 
@@ -284,7 +286,7 @@ class HiconaCooler(cooler.Cooler):
             Name of the 0/1 annotation column, containing 1 if the bin has at
             least one overlap with any interval in the bed-file, 0 otherwise.
             If None, no such column is created. (default is None)
-        to_keep : str | None | Iterable[str | None], optional
+        to_keep : str | None | list[str | None], optional
             Names for the columns of the bed-like file to add to the bins
             group. Names are assigned from left to right (ignoring ``chrom``,
             ``start``, ``end``), and any column that receives a name is kept.
@@ -299,13 +301,13 @@ class HiconaCooler(cooler.Cooler):
         """
 
         # Convert to_keep to None if all elements are None
-        to_keep = list(to_keep) if isinstance(to_keep, tuple) else to_keep
-        to_keep = to_keep if isinstance(to_keep, list) else [to_keep]
+        to_keep = [to_keep] if isinstance(to_keep, str) else to_keep
+        # to_keep = to_keep if any(to_keep) and to_keep else None
 
         # Check for no overlap in old and new annotations
         if in_file in self.annotation_list():
             raise ValueError("E: 'in file' annotation name already exists.")
-        if any(ann in to_keep for ann in self.annotation_list()):
+        if to_keep and any(ann in to_keep for ann in self.annotation_list()):
             raise ValueError("E: Overlap with old annotations, stopping.")
 
         # Create the two bin df and merge on default bed columns
@@ -325,7 +327,7 @@ class HiconaCooler(cooler.Cooler):
 
         # Save new annotation columns
         ann_df = ann_df.drop(labels=[None] + list(bin_df.columns), axis=1)
-        save_table(self.store, "/".join(self.root, "bins"), ann_df)
+        save_table(self.store, "/".join([self.root, "bins"]), ann_df)
 
     def del_bin_annotation(self, to_del: str | Iterable[str]) -> None:
         """Remove bin annotation columns.
@@ -388,7 +390,8 @@ class HiconaCooler(cooler.Cooler):
 
         # Select and retrieve needed annotation columns
         to_ohe = self._valid_bin_annotations(to_ohe)
-        ann_df = self.bins()[to_ohe][:]
+        ann_df: pd.DataFrame = self.bins()[to_ohe][:]  # type: ignore
+        # NOTE: currently suppressing type due to messy overloading in cooler
 
         # If force, skip modalities number check
         if not force_annotation:
@@ -406,10 +409,10 @@ class HiconaCooler(cooler.Cooler):
         ohe_df = pd.get_dummies(ann_df, columns=to_ohe)
 
         if remove_nan_mod:
-            columns = [c for c in ohe_df if not c.lower().endswith("_nan")]
+            columns = [c for c in ohe_df if not str(c).lower().endswith("_nan")]
             ohe_df = ohe_df[columns]
 
-        save_table(self.store, "/".join(self.root, "bins"), ohe_df)
+        save_table(self.store, "/".join([self.root, "bins"]), ohe_df)
 
         # Remove original columns if selected
         if remove_original:
@@ -449,7 +452,7 @@ class HiconaCooler(cooler.Cooler):
         # Compute annotation fractions for both background and query
         annot_col, frac_col = f"{ann_name}_annot", f"{ann_name}_frac"
 
-        ann_table = bed_to_df(ann_file, annot_col)
+        ann_table = bed_to_df(ann_file, [annot_col])
         bin_table = self._bare_bins()
         bkg_table = get_chrom_bed(self)
 
@@ -460,7 +463,7 @@ class HiconaCooler(cooler.Cooler):
         out_table = ann_enriched(bin_table, bkg_table, col_names)
         out_table.rename(columns={annot_col: ann_name})
 
-        save_table(self.store, "/".join(self.root, "bins"), out_table)
+        save_table(self.store, "/".join([self.root, "bins"]), out_table)
 
     # ////////////////////////////////////////////////////////////////////////
     # /////////////////////// MISCELLANEOUS FUNCTIONS ////////////////////////
@@ -471,7 +474,7 @@ class HiconaCooler(cooler.Cooler):
         self,
         cool_uri: str,
         chr_tables: _TablesIterator,
-        alpha_thr: str | float | Iterable[float],
+        alpha_thr: str | float | Iterable[float | str],
     ) -> None:
         """Create a cool/mcool file containing only sparsified pixels.
 
@@ -487,7 +490,7 @@ class HiconaCooler(cooler.Cooler):
             exist it will be created.
         chr_tables : :py:class:`_TablesIterator`
             Iterator of pixel tables to merge and use as pixels.
-        alpha_thr : str, float or Iterable[float]
+        alpha_thr : str, float or Iterable[float | str]
             Alpha values to use to filter the pixel tables. If string, compute
             alphas using the specified method (only "optimal" currently). If
             float, use that value as threshold for all tables. If iterable,

@@ -1,32 +1,40 @@
 """Operations on bed-like files (e.i. any operation using bedtools)."""
 
 import numpy as np
+import pandas as pd
 from pybedtools import BedTool
 
 
-def bed_to_df(bed, non_def_names: str | list[str] | None = None):
-    """Placeholder"""
+def bed_to_df(
+    bed: str | BedTool,
+    col_names: list[str | None] | None = None,
+) -> pd.DataFrame:
+    """Convert bed file to pandas dataframe, with custom column names.
+
+    Convert a bed file to a pandas dataframe, with the following caveats:
+    - Replace "." with np.NaN
+    - Set the first three column names to "chrom", "start", "end"
+    - Set all other columns to the provided names, or None if not provided
+    """
 
     if isinstance(bed, str):
         bed = BedTool(bed)
 
-    if isinstance(non_def_names, str):
-        non_def_names = [non_def_names]
-
     colnames = ["chrom", "start", "end"]
-    if non_def_names:
-        colnames += non_def_names
+    if col_names:
+        colnames += col_names
 
     # Pad with None columns
-    num_columns = bed.field_count()
-    if len(colnames) < num_columns:
-        colnames += [None] * (num_columns - len(colnames))
+    num_columns = int(bed.field_count())
+    if (empty_fields := num_columns - len(colnames)) > 0:
+        colnames += [None] * empty_fields
 
     dataf = bed.to_dataframe(
         disable_auto_names=True,
         comment="#",
         header=None,
     )
+    dataf = pd.DataFrame(dataf) if not isinstance(dataf, pd.DataFrame) else dataf
     dataf.columns = colnames  # Set after to allow duplicate names
 
     # "." is the empty intersection for bedtools loj
