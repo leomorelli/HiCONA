@@ -8,6 +8,7 @@ can be retrieved to create filtered networks to analyze.
 
 from collections.abc import Iterable
 from typing import Generator
+import json
 
 import cooler
 import h5py
@@ -16,12 +17,7 @@ import pandas as pd
 from .hicona_table import RawTable, HiconaTable, _TablesIterator
 from .settings import HICONA_SETTINGS
 from .processing.table_processor import TableProcessor
-from .processing.ops_schedulers import (
-    default_scheduler,
-    mono_to_json,
-    ProcessScheduler,
-    json_to_mono,
-)
+from .processing.ops_schedulers import default_scheduler, ProcessScheduler
 from .uris import Uris
 from .utils.bed_ops import ann_enriched, ann_fraction, bed_to_df, intersect_dfs
 from .utils.hdf5_ops import (
@@ -108,8 +104,8 @@ class HiconaCooler(cooler.Cooler):
             table_uris = Uris(self.store, self.root, table_path)
 
             # Get table processing parameters
-            params_json = mono_to_json(get_attrs(*table_uris.hdf5_uris()))
-            params = ProcessScheduler(params_json)
+            table_attrs = get_attrs(*table_uris.hdf5_uris())
+            params = ProcessScheduler(json.loads(table_attrs["process_info"]))
 
             yield HiconaTable(table_uris, params, self.binsize, self._chunk_size)
 
@@ -133,8 +129,7 @@ class HiconaCooler(cooler.Cooler):
             write_chunk(*table_uris.hdf5_uris(), chunk, lower, chunk.columns)
 
         # Set table attributes
-        table_attrs = json_to_mono(method.as_json())
-        print(table_attrs)
+        table_attrs = {"process_info": json.dumps(method.as_json())}
         set_attrs(*table_uris.hdf5_uris(), table_attrs)
 
         return table_uris

@@ -18,8 +18,6 @@ import abc
 from collections.abc import Callable
 import functools
 import inspect
-from typing import Any
-
 
 import hicona.processing.filt_funs as ffuns
 import hicona.processing.norm_funs as nfuns
@@ -270,41 +268,3 @@ def load_scheduler(json_path: str) -> ProcessScheduler:
 
     custom_json = read_resource(json_path)
     return ProcessScheduler(custom_json)
-
-
-def mono_to_json(attrs_dict: dict[str, Any]) -> dict[str, Any]:
-    """Converts a dictionary of attributes to a json-like structure."""
-
-    new_dict: dict[str, Any] = {}
-
-    for key, value in attrs_dict.items():
-        curr_dict = new_dict
-        num_nests = len(key.split(":"))
-        for pos, key in enumerate(key.split(":")):
-            v = value if pos == num_nests - 1 else {}
-            v = v if v != "null" else {}
-            _ = curr_dict.setdefault(key, v)
-            curr_dict = curr_dict[key]
-
-    return new_dict
-
-
-def json_to_mono(attrs_dict: dict[str, Any]) -> dict[str, Any]:
-    """Converts a json-like structure to a dictionary of attributes."""
-
-    new_dict: dict[str, Any] = {}
-
-    for key, value in attrs_dict.items():
-        if isinstance(value, dict):
-
-            if not value:
-                new_dict[key] = "null"
-                continue
-
-            nested_dict = json_to_mono(value)
-            for k, v in nested_dict.items():
-                new_dict[f"{key}:{k}"] = v
-        else:
-            new_dict[key] = value
-
-    return new_dict
