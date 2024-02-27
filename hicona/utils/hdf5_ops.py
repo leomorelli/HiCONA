@@ -140,6 +140,16 @@ def get_attrs(store, path) -> dict[str, Any]:
     return attrs
 
 
+def del_keys(store, path, keys_list):
+    """Deletes one or more table keys."""
+
+    with h5py.File(store, mode="r+") as h5_handle:
+        group = h5_handle[path]
+
+        for key in keys_list:
+            del group[key]
+
+
 def get_keys(store, path) -> list[str]:
     """Fetch table keys."""
 

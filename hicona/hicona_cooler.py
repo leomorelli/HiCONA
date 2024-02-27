@@ -344,13 +344,10 @@ class HiconaCooler(cooler.Cooler):
 
         to_del = self._valid_bin_annotations(to_del)
 
-        with h5py.File(self.store, mode="r+") as h5_handle:
-            bin_grp = h5_handle[self.root + "/bins"]
-            for annot in to_del:
-                del bin_grp[annot]
-
         if not any(to_del):
             print("W: No valid annotation to delete was provided.")
+
+        del_keys(self.store, self.root + "/bins", to_del)
 
     def ohe_bin_annotation(
         self,
