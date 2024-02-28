@@ -1,15 +1,30 @@
 {
     "hicona": {
-    	"_pre_filters": {
-            "rm_inter_chroms": {},
-    		"max_genomic_dist": {"max_dist": 200000000},
-    		"self_looping_pix": {}
-    	},
-    	"_norm_method": {
-    		"hicona_norm": {"apply_col": "count"}
-    	},
-    	"_post_filters": {
-    		"norm_count_quant": {"quant": 0.05}
-    	}
-    }
+		"0": {
+			"name": "rm_inter_chroms", 
+			"kwargs": {}
+		},
+		"1": {
+			"name": "self_looping_pix", 
+			"kwargs": {}
+		},
+		"2": {
+			"name": "max_genomic_dist", 
+			"kwargs": {"max_dist": 200000000}
+		},
+        "3": {
+			"name": "distance_norm", 
+			"kwargs": {"apply_col": "count"}
+		},
+		"4": {
+			"name": "norm_count_quant", 
+			"kwargs": {"quant": 0.05}
+		}
+    },
+    "ice": {
+		"0": {
+			"name": "binwise_norm", 
+			"kwargs": {"apply_col": "count", "colname": "weight", "divisive": false}
+		}
+	}
 }

@@ -16,8 +16,8 @@ import pandas as pd
 
 from .hicona_table import RawTable, HiconaTable, _TablesIterator
 from .settings import HICONA_SETTINGS
+from .processing.processing_flow import ProcessingFlow
 from .processing.table_processor import TableProcessor
-from .processing.ops_schedulers import default_scheduler, ProcessScheduler
 from .uris import Uris
 from .utils.bed_ops import ann_enriched, ann_fraction, bed_to_df, intersect_dfs
 from .utils.hdf5_ops import (
@@ -106,11 +106,12 @@ class HiconaCooler(cooler.Cooler):
 
             # Get table processing parameters
             table_attrs = get_attrs(*table_uris.hdf5_uris())
-            params = ProcessScheduler(json.loads(table_attrs["process_info"]))
+            flow_json = json.loads(table_attrs["process_info"])
+            params = ProcessingFlow.from_json(flow_json)
 
             yield HiconaTable(table_uris, params, self.binsize, self._chunk_size)
 
-    def _init_raw_table(self, serial: str, method: ProcessScheduler) -> Uris:
+    def _init_raw_table(self, serial: str, method: ProcessingFlow) -> Uris:
         """Initialize a new raw table with the given parameters."""
 
         # Get table uris
@@ -135,18 +136,18 @@ class HiconaCooler(cooler.Cooler):
 
         return table_uris
 
-    def create_table(self, method: str | ProcessScheduler = "hicona") -> HiconaTable:
+    def create_table(self, method: str | ProcessingFlow = "hicona") -> HiconaTable:
         """Create a normalized and sparsfied version of the pixels table.
 
         Create a new table using the specified normalization procedure,
         then add the sparsification scores to all pixels of said table.
         The filters and normalization methods can be either provided via
-        a ProcessScheduler object or as a string, in which case the default
+        a ProcessingFlow object or as a string, in which case the default
         scheduler for the corresponding method is used.
 
         Parameters
         ----------
-        method : str or ProcessScheduler, optional
+        method : str or ProcessingFlow, optional
             Method to use to filter and normalize the table. If a string is
             provided, the default scheduler for the corresponding method is used.
             (default is "hicona")
@@ -159,7 +160,7 @@ class HiconaCooler(cooler.Cooler):
 
         # Convert any default string to the corresponding scheduler
         if isinstance(method, str):
-            method = default_scheduler(method)
+            method = ProcessingFlow.from_default(method)
 
         # Initialize the tables root if it does not exist already.
         # TODO: Maybe do not hardcode the serial attribute
@@ -180,17 +181,17 @@ class HiconaCooler(cooler.Cooler):
         processor = TableProcessor(table)
         return processor.create_table()
 
-    def fetch_table(self, method: str | ProcessScheduler = "hicona") -> HiconaTable:
+    def fetch_table(self, method: str | ProcessingFlow = "hicona") -> HiconaTable:
         """Retrieve an previously created `HiconaTable` object.
 
         Retrieve a previously created table using the specified method.
-        The method can be either provided via a ProcessScheduler object or as
+        The method can be either provided via a ProcessingFlow object or as
         string, in which case the default scheduler for the corresponding
         method is used.
 
         Parameters
         ----------
-        method : str or ProcessScheduler
+        method : str or ProcessingFlow
             Method used to filter and normalize the table. If a string is
             provided, the default scheduler for the corresponding method is used.
             (default is "hicona").
@@ -201,8 +202,10 @@ class HiconaCooler(cooler.Cooler):
             The requested table as a HiconaTable object.
         """
 
+        if isinstance(method, str):
+            method = ProcessingFlow.from_default(method)
+
         try:
-            method = default_scheduler(method) if isinstance(method, str) else method
             tables = [t for t in self._iterate_tables() if t.process_info == method]
         except ValueError as exc:
             raise ValueError("E: No table has been generated yet.") from exc

@@ -13,7 +13,7 @@ import pandas as pd
 from .uris import Uris
 from .utils.numeric import round_half_up
 from .utils.hdf5_ops import fetch_chunk, get_table_size
-from .processing.ops_schedulers import ProcessScheduler
+from .processing.processing_flow import ProcessingFlow
 
 
 class ChunksIterator:
@@ -76,7 +76,7 @@ class RawTable:
     def __init__(
         self,
         uris: Uris,
-        scheduler: ProcessScheduler,
+        scheduler: ProcessingFlow,
         bin_size: int,
         chunk_size: int,
     ):
@@ -97,8 +97,8 @@ class RawTable:
         return self._chunk_size
 
     @property
-    def process_info(self) -> ProcessScheduler:
-        """ProcessScheduler object containing all processing information."""
+    def process_info(self) -> ProcessingFlow:
+        """ProcessingFlow object containing all processing information."""
         return self._process_info
 
     @property

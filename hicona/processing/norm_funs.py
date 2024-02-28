@@ -23,7 +23,7 @@ import pandas as pd
 from .auxiliary_funs import chrom_binned_pixels
 
 
-def hicona_norm(table, apply_col):
+def distance_norm(table, apply_col):
     """
     Apply default HiCONA normalization to a table (genomic distance).
     Params:
@@ -77,7 +77,7 @@ def binwise_norm(table, colname, apply_col, divisive):
         - divisive: whether to divide or multiply by the norm factor.
     """
 
-    # NOTE: This function mimicks ice normalization in cooler.
+    # NOTE: This function mimicks matrix balancing normalization in cooler.
 
     bins = cooler.Cooler(table.uris.cooler_uri()).bins()[:]
     for chunk in table.chunks():
@@ -85,4 +85,5 @@ def binwise_norm(table, colname, apply_col, divisive):
         if divisive:
             chunk[f"{colname}1"] = 1 / chunk[f"{colname}1"]
             chunk[f"{colname}2"] = 1 / chunk[f"{colname}2"]
-        yield chunk[apply_col] * chunk[f"{colname}1"] * chunk[f"{colname}2"]
+        res = chunk[apply_col] * chunk[f"{colname}1"] * chunk[f"{colname}2"]
+        yield pd.DataFrame({"norm": res})
