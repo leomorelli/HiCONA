@@ -1,7 +1,6 @@
 """Object to process a table according to the given operations."""
 
 from ..hicona_table import RawTable, HiconaTable
-from .norm_funs import no_norm
 from .sparsification import sparsify_chunk
 from ..utils.chunked_ops import get_node_stats
 from ..utils.hdf5_ops import resize_table, write_table, write_chunk
@@ -16,22 +15,13 @@ class TableProcessor:
     def __init__(self, table: RawTable):
         self._table = table
 
-    def _filt_table(self, partials):
-        """Apply filters to the table."""
+    def _apply_functions(self):
+        """ "Apply all filtering and normalization functions to the table."""
 
         store, path = self._table.uris.hdf5_uris()
-        for partial in partials:
-            tab_size = write_table(store, path, partial(self._table))
+        for op in self._table.process_info.get_partials():
+            tab_size = write_table(store, path, op(self._table))
             resize_table(store, path, tab_size)
-
-    def _norm_table(self, partials):
-        """Apply normalizations to the table."""
-
-        partials = partials if partials else [no_norm]
-
-        store, path = self._table.uris.hdf5_uris()
-        for partial in partials:
-            write_table(store, path, partial(self._table))
 
     def _spar_table(self):
         """Sparsify the chunks and save the results."""
@@ -49,12 +39,7 @@ class TableProcessor:
     def create_table(self) -> HiconaTable:
         """Begin actual table processing."""
 
-        scheduler = self._table.process_info
-
-        self._filt_table(scheduler.pre_filters.get_partials())
-        self._norm_table(scheduler.norm_method.get_partials())
-        self._filt_table(scheduler.post_filters.get_partials())
-
+        self._apply_functions()
         self._spar_table()
 
         # TODO: Return table object

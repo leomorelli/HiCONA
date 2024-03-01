@@ -10,6 +10,7 @@ import cooler
 import numpy as np
 import pandas as pd
 
+import hicona.hicona_cooler as hicooler  # For circular import
 from .uris import Uris
 from .utils.numeric import round_half_up
 from .utils.hdf5_ops import fetch_chunk, get_table_size
@@ -25,11 +26,17 @@ class ChunksIterator:
         chunk_size: int,
         intervals: list[tuple[int, int]],
         columns: Iterable[str] | None = None,
+        annotated: bool = False,
     ):
         self._uris = uris
         self._chunk_size = chunk_size
         self._intervals = intervals
         self._columns = columns
+        self._annotated = annotated
+
+        if self._annotated:
+            cool = hicooler.HiconaCooler(self._uris.cooler_uri())
+            self._annotated = cool.bare_bins()
 
     def __iter__(self):
         return self
@@ -61,8 +68,13 @@ class ChunksIterator:
         # Fetch and concat pixel intervals
         [store, pixel], keys = self._uris.hdf5_uris(), self._columns
         chunks = [fetch_chunk(store, pixel, l, u, keys) for l, u in out_interv]
+        chunks = pd.concat(chunks)
 
-        return pd.concat(chunks)
+        # Annotate if required
+        if self._annotated:
+            chunks = cooler.annotate(chunks, self._annotated, replace=False)
+
+        return chunks
 
 
 class RawTable:
@@ -106,7 +118,7 @@ class RawTable:
         """Uris object containing all table uris."""
         return self._uris
 
-    def _get_iterator(self, intervals, columns) -> ChunksIterator:
+    def _get_iterator(self, intervals, columns, annotated) -> ChunksIterator:
         """Return chunks iterator with specified intervals and columns."""
 
         chunks = ChunksIterator(
@@ -114,23 +126,31 @@ class RawTable:
             chunk_size=self._chunk_size,
             intervals=intervals,
             columns=columns,
+            annotated=annotated,
         )
         return chunks
 
-    def chunks(self, columns: Iterable[str] | None = None) -> ChunksIterator:
+    def chunks(
+        self,
+        columns: Iterable[str] | None = None,
+        annotated: bool = False,
+    ) -> ChunksIterator:
         """Returns an iterator of table chunks (as pandas DataFrames).
 
         Parameters
         ----------
         columns: Iterable[str], optional
             If provided, only fetch the specified columns. Default is None.
+        annotated: bool, optional
+            Whether to annotate with the bin information. Default is False.
 
         Returns
         -------
         An iterator of table chunks (as pandas DataFrames).
         """
 
-        return self._get_iterator([(0, self.get_table_size())], columns)
+        intervals = [(0, self.get_table_size())]
+        return self._get_iterator(intervals, columns, annotated)
 
     def get_table_size(self) -> int:
         """Fetch the total number of pixels in the table.

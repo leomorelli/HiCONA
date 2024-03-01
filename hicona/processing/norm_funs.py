@@ -14,50 +14,36 @@ All functions share a common interface/architecture:
 # but the current implementation does not allow for that yet.
 """
 
-import statistics as stat
-
-import cooler
 import numpy as np
 import pandas as pd
 
 from .auxiliary_funs import chrom_binned_pixels
+from ..hicona_table import RawTable
+from ..utils.chunked_ops import groupwise_median
 
 
-def distance_norm(table, apply_col):
+def distance_norm(table: RawTable, apply_col: str):
     """
     Apply default HiCONA normalization to a table (genomic distance).
     Params:
         - apply_col: column to apply the normalization to.
     """
 
-    def get_norm_curve(table):
-        """Compute the normalization curve for a table.
-
-        The normalization curve is the median of the counts for each genomic
-        distance, for each chromosome, in the table.
-        """
-
-        curve = pd.Series()
-
+    def chunks_with_distance(table):
         for chunk in chrom_binned_pixels(table):
             chunk["diff"] = chunk.bin2_id - chunk.bin1_id
-            grp_cols = ["diff", "bin1_chr"]
-            part = chunk.groupby(grp_cols, observed=True)["count"].apply(list)
-            curve = curve.combine(part, lambda x, y: x + y, fill_value=[])
+            yield chunk
 
-        curve = curve.rename_axis(index=["diff", "bin1_chr"])
-        return curve.apply(stat.median).rename("dist_norm")
+    grouping_cols = ["diff", "bin1_chr"]
+    norm_curve = groupwise_median(chunks_with_distance(table), grouping_cols, apply_col)
 
-    norm_curve = get_norm_curve(table)
-
-    for chunk in chrom_binned_pixels(table):
-        chunk["diff"] = chunk.bin2_id - chunk.bin1_id
-        chunk = chunk.merge(norm_curve, how="left", on=["diff", "bin1_chr"])
+    for chunk in chunks_with_distance(table):
+        chunk = chunk.merge(norm_curve, how="left", on=grouping_cols)
         norm_col = np.log2(chunk[apply_col] / chunk["dist_norm"] + 1)
         yield pd.DataFrame({"norm": norm_col})
 
 
-def no_norm(table):
+def no_norm(table: RawTable):
     """
     Do not apply any normalization, just copy raw values to norm column.
     Params:
@@ -65,10 +51,16 @@ def no_norm(table):
     """
 
     for chunk in table.chunks():
-        yield chunk
+        yield pd.DataFrame({"norm": chunk["count"]})
 
 
-def binwise_norm(table, colname, apply_col, divisive):
+def binwise_norm(
+    table: RawTable,
+    apply_col: str,
+    colname: str,
+    divisive: bool = False,
+    drop_nas: bool = False,
+):
     """
     Apply a bin-wise normalization (one norm factor per each bin) to a table.
     Params:
@@ -79,11 +71,17 @@ def binwise_norm(table, colname, apply_col, divisive):
 
     # NOTE: This function mimicks matrix balancing normalization in cooler.
 
-    bins = cooler.Cooler(table.uris.cooler_uri()).bins()[:]
-    for chunk in table.chunks():
-        chunk = cooler.annotate(chunk, bins, replace=False)
+    col1, col2 = f"{colname}1", f"{colname}2"
+
+    for chunk in table.chunks(annotated=True):
         if divisive:
-            chunk[f"{colname}1"] = 1 / chunk[f"{colname}1"]
-            chunk[f"{colname}2"] = 1 / chunk[f"{colname}2"]
-        res = chunk[apply_col] * chunk[f"{colname}1"] * chunk[f"{colname}2"]
-        yield pd.DataFrame({"norm": res})
+            chunk[col1] = 1 / chunk[col1]
+            chunk[col2] = 1 / chunk[col2]
+        chunk["norm"] = chunk[apply_col] * chunk[col1] * chunk[col2]
+
+        if drop_nas:
+            chunk.dropna(inplace=True)
+        else:
+            chunk = chunk[["norm"]]
+
+        yield chunk

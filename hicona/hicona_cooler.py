@@ -86,7 +86,7 @@ class HiconaCooler(cooler.Cooler):
         """Return partial uri of the pixel tables starting from root."""
         return self._tables_root
 
-    def _bare_bins(self):
+    def bare_bins(self):
         """Get full bin table without any annotation."""
         return self.bins()[["chrom", "start", "end"]][:]
 
@@ -315,7 +315,7 @@ class HiconaCooler(cooler.Cooler):
 
         # Create the two bin df and merge on default bed columns
         # While reading, replace chrom, start, end of bed file with None.
-        bin_df = self._bare_bins()
+        bin_df = self.bare_bins()
         ann_df = bed_to_df(bed_path, to_keep)
         ann_df = intersect_dfs(bin_df, ann_df, drop_none=False, loj=True)
 
@@ -456,7 +456,7 @@ class HiconaCooler(cooler.Cooler):
         annot_col, frac_col = f"{ann_name}_annot", f"{ann_name}_frac"
 
         ann_table = bed_to_df(ann_file, [annot_col])
-        bin_table = self._bare_bins()
+        bin_table = self.bare_bins()
         bkg_table = get_chrom_bed(self)
 
         col_names = annot_col, frac_col
@@ -518,5 +518,5 @@ class HiconaCooler(cooler.Cooler):
             alpha_thr = [alpha_thr] * len(chr_tables)
 
         filt_pix = tables_generator(chr_tables, alpha_thr)
-        bare_bins = self._bare_bins()
+        bare_bins = self.bare_bins()
         cooler.create_cooler(cool_uri, bins=bare_bins, pixels=filt_pix)

@@ -6,11 +6,12 @@ possible to apply these functions to bigger than memory dataframes.
 """
 
 import pandas as pd
+import numpy as np
 
 DEFAULT_COL = "bin1_id"
 
 
-def get_col_quantiles(iterator, colname, quants):
+def col_quants(iterator, colname, quants) -> list[float]:
     """Placeholder"""
 
     quants = [quants] if isinstance(quants, float) else quants
@@ -49,3 +50,19 @@ def get_node_stats(iterator, weight_col):
             degrees = degrees.add(chunk_degrees, fill_value=0)
 
     return pd.DataFrame({"weight": weights, "degree": degrees})
+
+
+def groupwise_median(iterator, group_cols: list[str], value_col: str):
+    """Compute the median of a value column for each group."""
+
+    curve = pd.Series()
+
+    for chunk in iterator:
+        parts = chunk.groupby(group_cols, observed=True)[value_col].apply(list)
+        curve = curve.combine(parts, lambda x, y: x + y, fill_value=[])  # type: ignore
+        # NOTE: [] is not an explicitely supported value, but it works
+        # TODO: Maybe change to a better solution (also lists might be slow)
+
+    curve = curve.rename_axis(index=group_cols)
+
+    return curve.apply(np.median).rename(value_col)

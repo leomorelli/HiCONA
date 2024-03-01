@@ -1,20 +1,9 @@
-"""Scheduler object to customize normalization procedure.
-
-Module containing objects (Schedulers) used to customize the functions
-(Operations) to apply during pre-normalization filtering, normalization
-and post-normalization filtering. These objects are implemented as 
-generally as possible in order to allow for the usage of custom filtering
-or normalization functions.
-
-User is not meant to inteface with object constructors directly. Using the
-creator functions one can instantiate a `ProcedureScheduler`, whose attributes
-are Scheduler objects which can be modified.
-"""
+"""Placeholder."""
 
 from collections.abc import Callable
 from functools import partial
 from importlib import import_module
-from inspect import getmembers, isfunction
+from inspect import getmembers
 from typing import Any, Generator
 
 from ..utils.io_ops import read_resource, write_resource
@@ -38,7 +27,8 @@ class ProcessingFlow:
 
         for mod in DEFAULT_MODULES:
             mod = import_module(mod, package="hicona")
-            self._source_default.update(dict(getmembers(mod, isfunction)))
+            funs = {k: v for k, v in getmembers(mod) if k in mod.__all__}
+            self._source_default.update(funs)
 
     def __eq__(self, other: "ProcessingFlow") -> bool:
         """Check equality among ProceProcessingFlow objects."""
@@ -173,6 +163,9 @@ class ProcessingFlow:
         """Add a new operation to the operations flow."""
 
         _ = self._get_from_source(fun_name)  # Raise error is not available
+
+        # TODO: Complete kwargs with default values, to prevent json mismatch due to omission.
+
         self._ops_flow.append([fun_name, fun_kwargs])
 
     def ops_remove(self, fun_name: str) -> None:
@@ -210,7 +203,7 @@ class ProcessingFlow:
             fun_obj = self._get_from_source(fun_name)
             yield partial(fun_obj, **fun_kwargs)
 
-    def as_json(self) -> dict[int, dict[str, Any]]:
+    def as_json(self) -> dict[str, dict[str, Any]]:
         """Return the flow in a json-like dictionary.
 
         Convert the flow to a json-like dictionary, where the keys are the
@@ -222,7 +215,11 @@ class ProcessingFlow:
         A dictionary with the operations flow in json-like format.
         """
 
-        return {i: {"name": n, "kwargs": k} for i, (n, k) in enumerate(self._ops_flow)}
+        json_res = {
+            str(i): {"name": n, "kwargs": k} for i, (n, k) in enumerate(self._ops_flow)
+        }
+
+        return json_res
 
     def save_to_json(self, json_path: str) -> None:
         """Save the operations flow to a json file.
