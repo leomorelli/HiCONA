@@ -1,4 +1,9 @@
-"""Placeholder."""
+"""Module to handle filtering and normalization functions for a table.
+
+This module contains the `ProcessingFlow` class, which is used to schedule
+and retrieve the operations applied to a pixel table in order to filter and
+normalize it.
+"""
 
 from collections.abc import Callable
 from functools import partial
@@ -18,7 +23,14 @@ DEFAULT_MODULES: list[str] = [".processing.filt_funs", ".processing.norm_funs"]
 
 
 class ProcessingFlow:
-    """Placeholder."""
+    """Class to handle filtering and normalization functions for a table.
+
+    This class is used to schedule and retrieve the operations applied to a
+    pixel table in order to filter and normalize it. The object can be
+    initialized empty (default class constructor), with a default flow (using
+    the `from_default` method), from a json-like dictionary (using the
+    `from_json` method) or from a file containing a previously saved flow
+    (using the `from_file` method)."""
 
     def __init__(self):
         self._ops_flow: list = []
@@ -227,7 +239,8 @@ class ProcessingFlow:
         """
 
         json_res = {
-            str(i): {"name": n, "kwargs": k} for i, (n, k) in enumerate(self._ops_flow)
+            str(order): {"name": fun_name, "kwargs": fun_kwargs}
+            for order, (fun_name, fun_kwargs) in enumerate(self._ops_flow)
         }
 
         return json_res
