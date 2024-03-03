@@ -3,7 +3,7 @@
 from collections.abc import Callable
 from functools import partial
 from importlib import import_module
-from inspect import getmembers
+from inspect import getmembers, Parameter, signature
 from typing import Any, Generator
 
 from ..utils.io_ops import read_resource, write_resource
@@ -162,9 +162,20 @@ class ProcessingFlow:
     def ops_add(self, fun_name: str, fun_kwargs: dict) -> None:
         """Add a new operation to the operations flow."""
 
-        _ = self._get_from_source(fun_name)  # Raise error is not available
+        # Fetch function signature and raise error if it is not available
+        fun_sig = signature(self._get_from_source(fun_name))
 
-        # TODO: Complete kwargs with default values, to prevent json mismatch due to omission.
+        # Complete kwargs with default values, for non provided ones
+        # This is done to avoid json mismatch due to implied defaults
+        def_kwargs = {
+            name: value.default
+            for name, value in fun_sig.parameters.items()
+            if value.default is not Parameter.empty
+        }
+        def_kwargs.update(fun_kwargs)
+
+        # NOTE: no check on mandatory arguments, since an error would be
+        # raised at runtime anyway if they are not provided
 
         self._ops_flow.append([fun_name, fun_kwargs])
 
