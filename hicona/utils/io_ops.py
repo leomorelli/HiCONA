@@ -1,18 +1,28 @@
-"""Placeholder"""
+"""Module containing function to simplify I/O operations with resources."""
 
 import importlib.resources as imp_res
-import os
 import json
+import os
+import pathlib
+from typing import Any
 
 from .. import resources
 
 
-def read_resource(res_path):
-    """Load a static resource."""
+def _get_path(res_path: str, is_static: bool) -> str:
+    """Modify path if it belongs to a static resource, else return as is."""
 
-    folder = imp_res.files(resources)
-    full_path = os.path.join(folder, res_path)
+    if is_static:
+        folder: pathlib.PosixPath = imp_res.files(resources)  # type: ignore
+        return os.path.join(folder, res_path)
 
+    return res_path
+
+
+def read_resource(res_path: str, is_static: bool = False) -> Any:
+    """Load a resource from file."""
+
+    full_path = _get_path(res_path, is_static)
     with open(full_path, "r", encoding="utf-8") as handle:
         ext = os.path.splitext(full_path)[1]
 
@@ -25,17 +35,15 @@ def read_resource(res_path):
     return out
 
 
-def write_resource(res_path, content):
-    """Write to a static resource."""
+def write_resource(res_path: str, content: Any, is_static: bool = False) -> None:
+    """Write a resource to file."""
 
-    folder = imp_res.files(resources)
-    full_path = path.join(folder, res_path)
-
+    full_path = _get_path(res_path, is_static)
     with open(full_path, "w", encoding="utf-8") as handle:
         ext = os.path.splitext(full_path)[1]
 
         match ext:
             case ".json":
-                json.dump(settings_json, handle, indent=4)
+                json.dump(content, handle, indent=4)
             case _:
                 raise ValueError("Currently unknown extension.")
