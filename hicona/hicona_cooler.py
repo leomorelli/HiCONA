@@ -86,9 +86,9 @@ class HiconaCooler(cooler.Cooler):
         """Return partial uri of the pixel tables starting from root."""
         return self._tables_root
 
-    def bare_bins(self):
+    def bare_bins(self) -> pd.DataFrame:
         """Get full bin table without any annotation."""
-        return self.bins()[["chrom", "start", "end"]][:]
+        return self.bins()[["chrom", "start", "end"]][:]  # type: ignore
 
     # ////////////////////////////////////////////////////////////////////////
     # /////////////////////////// PUBLIC TABLE API ///////////////////////////
@@ -170,6 +170,7 @@ class HiconaCooler(cooler.Cooler):
         # Check there is no table with all matching keywords
         for table in self._iterate_tables():
             if table.process_info == method:
+                continue
                 raise ValueError("E: Table with matching parameters already exists.")
 
         # Get the next available table path

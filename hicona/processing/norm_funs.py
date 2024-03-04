@@ -1,77 +1,106 @@
-"""Pixel table normalization functions to be applied through a Scheduler.
-
-This module contains functions which are loaded by the `NormScheduler` class
-constructor and are thus able to be loaded in the normalization scheduler. 
-For these reason the functions are not really mean for direct usage.
-
-All functions share a common interface/architecture:
-- a pixel table object must always be provided as first argument
-- other arguments might be present (but not always)
-- an iterator of processed pixel chunks is returned
-- defult arguments should be avoided (they can make normalization opaque)
-
-# TODO: Ideally multiple normalization functions should be able to be applied,
-# but the current implementation does not allow for that yet.
-"""
+"""Default functions for pixel table normalization."""
 
 import numpy as np
 import pandas as pd
 
-from .auxiliary_funs import chrom_binned_pixels
 from ..hicona_table import RawTable
 from ..utils.chunked_ops import groupwise_median
+from ..utils.dtypes import PdChunks
 
 
-def distance_norm(table: RawTable, apply_col: str):
+__all__ = ["norm_genomic_dist", "norm_none", "norm_binwise"]
+
+
+def norm_genomic_dist(table: RawTable, apply_col: str) -> PdChunks:
+    """Apply default HiCONA normalization to a table (genomic distance).
+
+    The normalized value is computed as the log2 of 1 plus the ratio of the
+    value of the bin and some normalization factor. The normalization factor
+    is computed as the median of the values of the bins at a given distance.
+
+    Parameters
+    ----------
+    table: RawTable
+        Pixel table to normalize.
+    apply_col: str
+        Column to apply the normalization to.
+
+    Returns
+    -------
+    A generator of filtered pixel chunks.
     """
-    Apply default HiCONA normalization to a table (genomic distance).
-    Params:
-        - apply_col: column to apply the normalization to.
-    """
 
-    def chunks_with_distance(table):
-        for chunk in chrom_binned_pixels(table):
+    def chunks_with_dist(table: RawTable):
+        for chunk in table.chunks(annotated=True):
             chunk["diff"] = chunk.bin2_id - chunk.bin1_id
             yield chunk
 
-    grouping_cols = ["diff", "bin1_chr"]
-    norm_curve = groupwise_median(chunks_with_distance(table), grouping_cols, apply_col)
+    grp_cols = ["diff", "chrom1"]
+    norm_curve = groupwise_median(chunks_with_dist(table), grp_cols, apply_col)
+    norm_curve.rename("dist_norm", inplace=True)
 
-    for chunk in chunks_with_distance(table):
-        chunk = chunk.merge(norm_curve, how="left", on=grouping_cols)
+    for chunk in chunks_with_dist(table):
+        chunk = chunk.merge(norm_curve, how="left", on=grp_cols)
         norm_col = np.log2(chunk[apply_col] / chunk["dist_norm"] + 1)
         yield pd.DataFrame({"norm": norm_col})
 
 
-def no_norm(table: RawTable):
-    """
-    Do not apply any normalization, just copy raw values to norm column.
-    Params:
-        - None
+def norm_none(table: RawTable) -> PdChunks:
+    """Apply no normalization to a table.
+
+    Do not apply any normalization to the table, just return the original
+    count values as the normalized values. This is used to copy the raw
+    values to the normalized column.
+
+    Parameters
+    ----------
+    table: RawTable
+        Pixel table to normalize.
+
+    Returns
+    -------
+    A generator of filtered pixel chunks.
     """
 
     for chunk in table.chunks():
         yield pd.DataFrame({"norm": chunk["count"]})
 
 
-def binwise_norm(
+def norm_binwise(
     table: RawTable,
     apply_col: str,
-    colname: str,
+    ann_name: str,
     divisive: bool = False,
     drop_nas: bool = False,
-):
-    """
-    Apply a bin-wise normalization (one norm factor per each bin) to a table.
-    Params:
-        - colname: bin table column to use as the normalization vector.
-        - apply_col: column to apply the normalization to.
-        - divisive: whether to divide or multiply by the norm factor.
+) -> PdChunks:
+    """Apply a binwise normalization to a table.
+
+    The normalization factors to use for normalization must be preemtively
+    added to the cooler as a column in the bin table.
+
+    Parameters
+    ----------
+    table: RawTable
+        Pixel table to normalize.
+    apply_col: str
+        Column to apply the normalization to.
+    ann_name: str
+        Name of the column in the bin table to use for normalization.
+    divisive: bool, optional
+        If True, divide the values by the normalization factor, else multiply.
+        Default is False.
+    drop_nas: bool, optional
+        If True, drop rows with NaN values after normalization.
+        Default is False.
+
+    Returns
+    -------
+    A generator of filtered pixel chunks.
     """
 
     # NOTE: This function mimicks matrix balancing normalization in cooler.
 
-    col1, col2 = f"{colname}1", f"{colname}2"
+    col1, col2 = f"{ann_name}1", f"{ann_name}2"
 
     for chunk in table.chunks(annotated=True):
         if divisive:

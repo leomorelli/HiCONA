@@ -1,4 +1,4 @@
-"""Placeholder"""
+"""Default functions for pixel table sparsification."""
 
 import pandas as pd
 from scipy import integrate
@@ -6,7 +6,7 @@ from scipy import integrate
 from ..utils.numeric import round_half_up
 
 
-def compute_alpha(row):
+def _compute_alpha(row: pd.Series) -> float:
     """Given a (weight, degree) pair, compute the integral."""
 
     weight, deg = row["norm_weight"], row["degree"]
@@ -16,18 +16,18 @@ def compute_alpha(row):
     return round_half_up(alpha, 4)
 
 
-def get_alphas(chunk, stats, i):
+def _get_alphas(chunk: pd.DataFrame, stats: pd.DataFrame, col: str) -> pd.Series:
     """Return the alpha values for the given chunk."""
 
     # Add degree and norm_weight columns to the chunk
-    dataf = chunk.merge(stats, how="left", left_on=f"bin{i}_id", right_index=True)
+    dataf = chunk.merge(stats, how="left", left_on=col, right_index=True)
     dataf["norm_weight"] = dataf.norm / dataf.weight
 
     # Compute the alpha values
     dedup = dataf[["degree", "norm_weight"]].drop_duplicates()
     dedup["alpha"] = 1.0  # .0 needed to initialize as float
     mask = dedup.degree != 1
-    dedup.loc[mask, "alpha"] = dedup.loc[mask].apply(compute_alpha, axis=1)
+    dedup.loc[mask, "alpha"] = dedup.loc[mask].apply(_compute_alpha, axis=1)
 
     # Merge the alpha values back into the chunk
     dataf = dataf.merge(dedup, how="left", on=["degree", "norm_weight"])
@@ -35,10 +35,10 @@ def get_alphas(chunk, stats, i):
     return dataf.alpha
 
 
-def sparsify_chunk(chunk, node_stats):
+def sparsify_chunk(chunk: pd.DataFrame, node_stats: pd.DataFrame) -> pd.DataFrame:
     """Return the sparsified chunk"""
 
-    alphas = {i: get_alphas(chunk, node_stats, i) for i in range(1, 3)}
+    alphas = {i: _get_alphas(chunk, node_stats, f"bin{i}_id") for i in range(1, 3)}
     alphas = pd.DataFrame(alphas)
 
     # Sort the values into min and max column, then remove tmp ones

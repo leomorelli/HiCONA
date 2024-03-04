@@ -5,11 +5,10 @@ and retrieve the operations applied to a pixel table in order to filter and
 normalize it.
 """
 
-from collections.abc import Callable
 from functools import partial
 from importlib import import_module
 from inspect import getmembers, Parameter, signature
-from typing import Any, Generator
+from typing import Any, Callable, Generator
 
 from ..utils.io_ops import read_resource, write_resource
 
@@ -18,8 +17,58 @@ __all__ = ["ProcessingFlow"]
 
 
 # TODO: move hardcoded paths to settings.
-SCHEDULERS_PATH: str = "schedulers.json"
+DEFAULT_FLOWS: str = "flows.json"
 DEFAULT_MODULES: list[str] = [".processing.filt_funs", ".processing.norm_funs"]
+
+
+class Operation:
+    """Individual filtering or normalization operation.
+
+    Object to store, handle and retrieve information about a single filtering
+    or normalization operation to apply on a table.
+
+    Parameters
+    ----------
+    fun_obj: Callable
+        The function object to be applied to the table.
+    fun_kwargs: dict[str, Any]
+        The kwargs to be passed to the function object.
+    """
+
+    def __init__(self, fun_obj: Callable, fun_kwargs: dict[str, Any]):
+        self._fun_name = fun_obj.__name__
+        self._fun_obj = fun_obj
+
+        # Complete kwargs with default values, for non provided ones
+        # This is done to avoid json mismatch due to implied defaults
+        def_kwargs = {
+            name: value.default
+            for name, value in signature(fun_obj).parameters.items()
+            if value.default is not Parameter.empty
+        }
+        def_kwargs.update(fun_kwargs)
+        self._fun_kwargs = def_kwargs
+
+        # NOTE: no check on mandatory arguments, since an error would be
+        # raised at runtime anyway if they are not provided
+
+    @property
+    def fun_name(self) -> str:
+        """Get function name in string form."""
+        return self._fun_name
+
+    @property
+    def fun_kwargs(self) -> dict[str, Any]:
+        """Get function kwargs."""
+        return self._fun_kwargs
+
+    def partial(self) -> partial:
+        """Return a partial function for the operation."""
+        return partial(self._fun_obj, **self._fun_kwargs)
+
+    def json(self) -> dict[str, Any]:
+        """Return the operation in a json-like dictionary."""
+        return {"name": self._fun_name, "kwargs": self._fun_kwargs}
 
 
 class ProcessingFlow:
@@ -30,10 +79,16 @@ class ProcessingFlow:
     initialized empty (default class constructor), with a default flow (using
     the `from_default` method), from a json-like dictionary (using the
     `from_json` method) or from a file containing a previously saved flow
-    (using the `from_file` method)."""
+    (using the `from_file` method).
+
+    Any custom function can be added to the workflow as long as:
+    - It takes a table object as its first argument
+    - All other arguments are JSON data-types
+    - It returns an iterator of processed chunks
+    """
 
     def __init__(self):
-        self._ops_flow: list = []
+        self._ops_flow: list[Operation] = []
         self._source_default: dict[str, Callable] = {}
         self._source_custom: dict[str, Callable] = {}
 
@@ -45,6 +100,21 @@ class ProcessingFlow:
     def __eq__(self, other: "ProcessingFlow") -> bool:
         """Check equality among ProceProcessingFlow objects."""
         return self.as_json() == other.as_json()
+
+    def __str__(self) -> str:
+        """Return the operations flow as a string."""
+
+        out_str = "Operations flow:\n"
+
+        any_op = False
+        for op in self._ops_flow:
+            any_op = True
+            out_str += f" - {op.fun_name} -> {op.fun_kwargs}\n"
+
+        if not any_op:
+            out_str += " - No operations added yet."
+
+        return out_str.strip()
 
     @classmethod
     def from_json(
@@ -138,7 +208,7 @@ class ProcessingFlow:
         A `ProcessingFlow` object with the default operations flow.
         """
 
-        default_json = read_resource(SCHEDULERS_PATH)
+        default_json = read_resource(DEFAULT_FLOWS, is_static=True)
         return cls.from_json(default_json[default_name])
 
     def _get_from_source(self, fun_name: str) -> Callable:
@@ -153,43 +223,49 @@ class ProcessingFlow:
         return fun_obj
 
     def source_add(self, fun_obj: Callable) -> None:
-        """Add a custom function to the available ones."""
+        """Add a custom function to the available operations.
+
+        Custom functions must be added as a source in order to be added to
+        the operations flow. See class constructor documentation for the
+        requirements of a custom function to be added to the flow.
+
+        Parameters
+        ----------
+        fun_obj: Callable
+            The custom function to add to the available sources.
+        """
 
         self._source_custom[fun_obj.__name__] = fun_obj
 
     def ops_show(self) -> None:
         """Display the operations flow."""
 
-        out_str = "Operations flow:\n"
-        for op in self._ops_flow:
-            out_str += f"{op.name} -> {op.kwargs}\n"
-
-        print(out_str)
+        print(self)
 
     def ops_reset(self) -> None:
         """Reset the operations flow."""
 
         self._ops_flow = []
 
-    def ops_add(self, fun_name: str, fun_kwargs: dict) -> None:
-        """Add a new operation to the operations flow."""
+    def ops_add(self, fun_name: str, fun_kwargs: dict | None = None) -> None:
+        """Add a new operation to the operations flow.
 
-        # Fetch function signature and raise error if it is not available
-        fun_sig = signature(self._get_from_source(fun_name))
+        Add a new operation to the operations flow. The function name should
+        be one of the available ones, otherwise an error is raised. The kwargs
+        are optional and should be provided as a dictionary.
 
-        # Complete kwargs with default values, for non provided ones
-        # This is done to avoid json mismatch due to implied defaults
-        def_kwargs = {
-            name: value.default
-            for name, value in fun_sig.parameters.items()
-            if value.default is not Parameter.empty
-        }
-        def_kwargs.update(fun_kwargs)
+        Parameters
+        ----------
+        fun_name: str
+            The name of the function to add to the operations flow.
+        fun_kwargs: dict or None, optional
+            The kwargs to pass to the function. Default is None.
+        """
 
-        # NOTE: no check on mandatory arguments, since an error would be
-        # raised at runtime anyway if they are not provided
-
-        self._ops_flow.append([fun_name, fun_kwargs])
+        # Fetch function and raise error if it is not available
+        fun_obj = self._get_from_source(fun_name)
+        fun_kwargs = fun_kwargs or {}
+        self._ops_flow.append(Operation(fun_obj, fun_kwargs))
 
     def ops_remove(self, fun_name: str) -> None:
         """Remove the last occurrence of a function from the flow.
@@ -204,7 +280,7 @@ class ProcessingFlow:
         """
 
         for i in range(len(self._ops_flow) - 1, -1, -1):
-            if self._ops_flow[i][0] == fun_name:
+            if self._ops_flow[i].fun_name == fun_name:
                 del self._ops_flow[i]
                 break
 
@@ -222,9 +298,8 @@ class ProcessingFlow:
         A generator of partial functions for all operations in the flow.
         """
 
-        for fun_name, fun_kwargs in self._ops_flow:
-            fun_obj = self._get_from_source(fun_name)
-            yield partial(fun_obj, **fun_kwargs)
+        for fun_obj in self._ops_flow:
+            yield fun_obj.partial()
 
     def as_json(self) -> dict[str, dict[str, Any]]:
         """Return the flow in a json-like dictionary.
@@ -239,8 +314,8 @@ class ProcessingFlow:
         """
 
         json_res = {
-            str(order): {"name": fun_name, "kwargs": fun_kwargs}
-            for order, (fun_name, fun_kwargs) in enumerate(self._ops_flow)
+            str(order): {"name": op.fun_name, "kwargs": op.fun_kwargs}
+            for order, op in enumerate(self._ops_flow)
         }
 
         return json_res
@@ -253,4 +328,4 @@ class ProcessingFlow:
         be provided as a list of functions to the `from_file` method.
         """
 
-        write_resource(json_path, self.as_json())
+        write_resource(json_path, self.as_json(), is_static=False)

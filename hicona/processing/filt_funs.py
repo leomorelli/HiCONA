@@ -1,36 +1,19 @@
-"""Pixel table filtering functions to be applied through Scheduler objects.
-
-This module contains functions which are loaded by the `FiltScheduler` class
-constructor and are thus able to be loaded in the pre-filtering or the
-post-filtering schedulers during pixels table normalization. For these reason
-the functions are not really mean for direct usage.
-
-All functions share a common interface/architecture:
-- a pixel table object must always be provided as first argument
-- other arguments might be present (but not always)
-- an iterator of processed pixel chunks is returned
-- defult arguments should be avoided (they can make filtering opaque)
-
-TODO: Only None as default
-"""
-
-from typing import Generator
+"""Default functions for pixel table filtering."""
 
 import pandas as pd
 
 from ..hicona_table import RawTable
 from ..utils.chunked_ops import col_quants
+from ..utils.dtypes import PdChunks
 
 
 __all__ = [
-    "filter_genomic_dist",
-    "filter_column_quant",
-    "filter_column_value",
-    "filter_inter_chroms",
+    "filt_genomic_dist",
+    "filt_column_quant",
+    "filt_column_value",
+    "filt_inter_chroms",
+    "filt_self_looping",
 ]
-
-
-PdChunks = Generator[pd.DataFrame, None, None]
 
 
 def _inclusive_filter(
@@ -61,7 +44,7 @@ def _exclusive_filter(
     return table
 
 
-def filter_genomic_dist(
+def filt_genomic_dist(
     table: RawTable,
     min_dist: int | None = None,
     max_dist: int | None = None,
@@ -74,7 +57,7 @@ def filter_genomic_dist(
     Genomic distance is computed only within the same chromosome.
 
     Parameters
-    -----------
+    ----------
     table: RawTable
         The table to be filtered.
     min_dist: int or None, optional
@@ -93,12 +76,12 @@ def filter_genomic_dist(
     # Workaround: set inter-chromosomal distances to set value in interval
     for chunk in table.chunks(annotated=True):
         chunk["dist"] = (chunk.bin2_id - chunk.bin1_id) * table.bin_size
-        chunk.loc[chunk.chrom1 == chunk.chrom2, "dist"] = min_dist
+        chunk.loc[chunk.chrom1 != chunk.chrom2, "dist"] = min_dist
         chunk = _inclusive_filter(chunk, "dist", min_dist, max_dist)
         yield chunk[["bin1_id", "bin2_id", "count"]]
 
 
-def filter_column_quant(
+def filt_column_quant(
     table: RawTable,
     apply_col: str,
     lower_quant: float | None = None,
@@ -114,7 +97,7 @@ def filter_column_quant(
     10%. This is done to avoid arbitrary tie breaks.
 
     Parameters
-    -----------
+    ----------
     table: RawTable
         The table to be filtered.
     apply_col: str
@@ -129,6 +112,8 @@ def filter_column_quant(
     A generator of filtered pixel chunks.
     """
 
+    # TODO: Make it chrom-wise
+
     if not any([lower_quant, upper_quant]):
         raise ValueError("At least one quantile threshold must be provided.")
 
@@ -140,7 +125,7 @@ def filter_column_quant(
         yield _exclusive_filter(chunk, apply_col, lo, hi)
 
 
-def filter_column_value(
+def filt_column_value(
     table: RawTable,
     apply_col: str,
     lower_value: float | int | None = None,
@@ -152,7 +137,7 @@ def filter_column_value(
     certain threshold (extrema are kept). Column must be numeric.
 
     Parameters
-    -----------
+    ----------
     table: RawTable
         The table to be filtered.
     apply_col: str
@@ -174,13 +159,13 @@ def filter_column_value(
         yield _inclusive_filter(chunk, apply_col, lower_value, upper_value)
 
 
-def filter_inter_chroms(table: RawTable) -> PdChunks:
+def filt_inter_chroms(table: RawTable) -> PdChunks:
     """Remove inter-chromosomal pixels from the table.
 
     Remove pixels whose bin1_id and bin2_id are on different chromosomes.
 
     Parameters
-    -----------
+    ----------
     table: RawTable
         The table to be filtered.
 
@@ -191,4 +176,24 @@ def filter_inter_chroms(table: RawTable) -> PdChunks:
 
     for chunk in table.chunks(annotated=True):
         chunk = chunk.loc[chunk.chrom1 == chunk.chrom2]
+        yield chunk[["bin1_id", "bin2_id", "count"]]
+
+
+def filt_self_looping(table: RawTable) -> PdChunks:
+    """Remove self-looping pixels from the table.
+
+    Remove pixels whose bin1_id and bin2_id are the same.
+
+    Parameters
+    ----------
+    table: RawTable
+        The table to be filtered.
+
+    Returns
+    -------
+    A generator of filtered pixel chunks.
+    """
+
+    for chunk in table.chunks():
+        chunk = chunk.loc[chunk.bin1_id != chunk.bin2_id]
         yield chunk[["bin1_id", "bin2_id", "count"]]

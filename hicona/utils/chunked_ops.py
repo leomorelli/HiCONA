@@ -1,23 +1,31 @@
-"""Utility functions for DataFrame iterators yielding a single result.
+"""Utility functions for DataFrame chunkss yielding a single result.
 
-Set of utility functions which can be applied on a iterator of pandas
+Set of utility functions which can be applied on a chunks of pandas
 DataFrames yielding a single aggregated result. This way it should be
 possible to apply these functions to bigger than memory dataframes.
 """
 
+from typing import Iterable
+
 import pandas as pd
 import numpy as np
+
 
 DEFAULT_COL = "bin1_id"
 
 
-def col_quants(iterator, colname, quants) -> list[float]:
+def col_quants(
+    chunks: Iterable[pd.DataFrame],
+    colname: str,
+    quants: list[float] | float,
+) -> list[float]:
     """Placeholder"""
 
-    quants = [quants] if isinstance(quants, float) else quants
+    # NOTE: workaround for assumed bug in type hinting
+    qvals: list[float] = [quants] if isinstance(quants, float) else quants  # type: ignore
 
     curve = pd.Series()
-    for chunk in iterator:
+    for chunk in chunks:
         vals = chunk.groupby(colname)[DEFAULT_COL].count()
         curve = curve.combine(vals, lambda x, y: x + y, fill_value=0)
 
@@ -25,20 +33,23 @@ def col_quants(iterator, colname, quants) -> list[float]:
     cum_curve = curve.cumsum()
 
     values = []
-    for quant in quants:
+    for quant in qvals:
         threshold = tot_items * quant
         values.append(cum_curve[cum_curve > threshold].index[0])
 
     return values
 
 
-def get_node_stats(iterator, weight_col):
+def get_node_stats(
+    chunks: Iterable[pd.DataFrame],
+    weight_col: str,
+) -> pd.DataFrame:
     """Compute sum of weights and degree for each node/bin."""
 
     weights = pd.Series()
     degrees = pd.Series()
 
-    for chunk in iterator:
+    for chunk in chunks:
         for bin_col in ["bin1_id", "bin2_id"]:
             # Compute metrics on chunk
             grouped = chunk.groupby(bin_col)
@@ -52,12 +63,16 @@ def get_node_stats(iterator, weight_col):
     return pd.DataFrame({"weight": weights, "degree": degrees})
 
 
-def groupwise_median(iterator, group_cols: list[str], value_col: str):
+def groupwise_median(
+    chunks: Iterable[pd.DataFrame],
+    group_cols: list[str],
+    value_col: str,
+) -> pd.Series:
     """Compute the median of a value column for each group."""
 
     curve = pd.Series()
 
-    for chunk in iterator:
+    for chunk in chunks:
         parts = chunk.groupby(group_cols, observed=True)[value_col].apply(list)
         curve = curve.combine(parts, lambda x, y: x + y, fill_value=[])  # type: ignore
         # NOTE: [] is not an explicitely supported value, but it works

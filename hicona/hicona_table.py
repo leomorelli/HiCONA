@@ -33,10 +33,11 @@ class ChunksIterator:
         self._intervals = intervals
         self._columns = columns
         self._annotated = annotated
+        self._bins = pd.DataFrame()
 
         if self._annotated:
             cool = hicooler.HiconaCooler(self._uris.cooler_uri())
-            self._annotated = cool.bare_bins()
+            self._bins = cool.bare_bins()
 
     def __iter__(self):
         return self
@@ -68,13 +69,13 @@ class ChunksIterator:
         # Fetch and concat pixel intervals
         [store, pixel], keys = self._uris.hdf5_uris(), self._columns
         chunks = [fetch_chunk(store, pixel, l, u, keys) for l, u in out_interv]
-        chunks = pd.concat(chunks)
+        chunk = pd.concat(chunks)
 
         # Annotate if required
         if self._annotated:
-            chunks = cooler.annotate(chunks, self._annotated, replace=False)
+            chunk = cooler.annotate(chunk, self._bins, replace=False)
 
-        return chunks
+        return chunk
 
 
 class RawTable:
@@ -118,7 +119,12 @@ class RawTable:
         """Uris object containing all table uris."""
         return self._uris
 
-    def _get_iterator(self, intervals, columns, annotated) -> ChunksIterator:
+    def _get_iterator(
+        self,
+        intervals: list[tuple[int, int]],
+        columns: list[str] | None,
+        annotated: bool,
+    ) -> ChunksIterator:
         """Return chunks iterator with specified intervals and columns."""
 
         chunks = ChunksIterator(
@@ -132,7 +138,7 @@ class RawTable:
 
     def chunks(
         self,
-        columns: Iterable[str] | None = None,
+        columns: list[str] | None = None,
         annotated: bool = False,
     ) -> ChunksIterator:
         """Returns an iterator of table chunks (as pandas DataFrames).
@@ -149,7 +155,7 @@ class RawTable:
         An iterator of table chunks (as pandas DataFrames).
         """
 
-        intervals = [(0, self.get_table_size())]
+        intervals: list[tuple[int, int]] = [(0, self.get_table_size())]
         return self._get_iterator(intervals, columns, annotated)
 
     def get_table_size(self) -> int:
@@ -166,23 +172,11 @@ class RawTable:
 class HiconaTable(RawTable):
     """Placeholder"""
 
-    def chunks(self, columns: Iterable[str] | None = None) -> ChunksIterator:
-        """Returns an iterator of table chunks (as pandas DataFrames).
-
-        Parameters
-        ----------
-        columns: Iterable[str], optional
-            If provided, only fetch the specified columns. Default is None.
-
-        Returns
-        -------
-        An iterator of table chunks (as pandas DataFrames).
-        """
-
-        intervals = None  # TODO: create fun to get this
-        return self._get_iterator(intervals, columns)
-
-    def dataframe(self, columns: Iterable[str] | None = None) -> pd.DataFrame:
+    def dataframe(
+        self,
+        columns: Iterable[str] | None = None,
+        annotated: bool = False,
+    ) -> pd.DataFrame:
         """Return all table chunks in a single pandas DataFrame.
 
         Parameters
