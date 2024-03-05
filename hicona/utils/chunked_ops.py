@@ -50,6 +50,8 @@ def get_node_stats(
     degrees = pd.Series()
 
     for chunk in chunks:
+        print("COMPUTING NODE STATS")
+        print(chunk)
         for bin_col in ["bin1_id", "bin2_id"]:
             # Compute metrics on chunk
             grouped = chunk.groupby(bin_col)
@@ -81,3 +83,24 @@ def groupwise_median(
     curve = curve.rename_axis(index=group_cols)
 
     return curve.apply(np.median).rename(value_col)
+
+
+def groupwise_quants(
+    chunks: Iterable[pd.DataFrame],
+    group_cols: list[str],
+    value_col: str,
+    quants: list[float] | float,
+) -> pd.Series:
+    """Compute the quantiles of a value column for each group."""
+
+    curve = pd.Series()
+
+    for chunk in chunks:
+        parts = chunk.groupby(group_cols, observed=True)[value_col].apply(list)
+        curve = curve.combine(parts, lambda x, y: x + y, fill_value=[])  # type: ignore
+        # NOTE: [] is not an explicitely supported value, but it works
+        # TODO: Maybe change to a better solution (also lists might be slow)
+
+    curve = curve.rename_axis(index=group_cols)
+
+    return curve.apply(np.quantile, args=(quants,)).rename(value_col)

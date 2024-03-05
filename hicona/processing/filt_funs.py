@@ -3,7 +3,7 @@
 import pandas as pd
 
 from ..hicona_table import RawTable
-from ..utils.chunked_ops import col_quants
+from ..utils.chunked_ops import col_quants, groupwise_quants
 from ..utils.dtypes import PdChunks
 
 
@@ -86,6 +86,7 @@ def filt_column_quant(
     apply_col: str,
     lower_quant: float | None = None,
     upper_quant: float | None = None,
+    chrom_wise: bool = True,
 ) -> PdChunks:
     """Remove pixels with column value outside a certain quantile range.
 
@@ -106,23 +107,55 @@ def filt_column_quant(
         Remove pixels whose column value is not greater than this quantile.
     upper_quant: float or None, optional
         Remove pixels whose column value is not smaller than this quantile.
+    chrom_wise: bool, optional
+        If True, compute quantiles for each chromosome separately. A pixel
+        is removed if it is outside of the quantile range for at least one
+        of the two chromosomes. Default is True.
 
     Returns
     -------
     A generator of filtered pixel chunks.
     """
 
-    # TODO: Make it chrom-wise
+    def unordered_pix(table: RawTable) -> PdChunks:
+        """Extended generator to ignore the order of bin1_id and bin2_id."""
 
-    if not any([lower_quant, upper_quant]):
+        col_swap = {"chrom1": "chrom2", "chrom2": "chrom1"}
+        for chunk in table.chunks(annotated=True):
+            yield chunk
+            yield chunk.rename(columns=col_swap)
+
+    quant_cols = (lower_quant, upper_quant)
+    if not any(quant_cols):
         raise ValueError("At least one quantile threshold must be provided.")
 
-    lo, hi = lower_quant, upper_quant
-    lo = None if lo is None else col_quants(table.chunks(), apply_col, lo)[0]
-    hi = None if hi is None else col_quants(table.chunks(), apply_col, hi)[0]
+    if chrom_wise:
 
-    for chunk in table.chunks():
-        yield _exclusive_filter(chunk, apply_col, lo, hi)
+        # Compute quantiles for each chromosome
+        vals = [v if v is not None else 1 for v in quant_cols]
+        vals = groupwise_quants(unordered_pix(table), ["chrom1"], apply_col, vals)
+        vals = pd.DataFrame.from_dict(dict(zip(vals.index, vals.values))).T
+        vals.columns = ["lower", "upper"]
+
+        for chunk in table.chunks(annotated=True):
+            chunk = chunk.merge(vals, how="left", left_on="chrom1", right_index=True)
+            chunk = chunk.merge(vals, how="left", left_on="chrom2", right_index=True)
+
+            col = apply_col  # Alias for readability
+            if lower_quant is not None:
+                chunk.query(f"{col} > lower_x and {col} > lower_y", inplace=True)
+            if upper_quant is not None:
+                chunk.query(f"{col} < upper_x and {col} < upper_y", inplace=True)
+
+            yield chunk[["bin1_id", "bin2_id", "count", "norm"]]
+
+    else:
+        lo, hi = lower_quant, upper_quant
+        lo = None if lo is None else col_quants(table.chunks(), apply_col, lo)[0]
+        hi = None if hi is None else col_quants(table.chunks(), apply_col, hi)[0]
+
+        for chunk in table.chunks():
+            yield _exclusive_filter(chunk, apply_col, lo, hi)
 
 
 def filt_column_value(
