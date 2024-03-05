@@ -78,7 +78,8 @@ def filt_genomic_dist(
         chunk["dist"] = (chunk.bin2_id - chunk.bin1_id) * table.bin_size
         chunk.loc[chunk.chrom1 != chunk.chrom2, "dist"] = min_dist
         chunk = _inclusive_filter(chunk, "dist", min_dist, max_dist)
-        yield chunk[["bin1_id", "bin2_id", "count"]]
+
+        yield chunk[["bin1_id", "bin2_id", "count", "norm"]]
 
 
 def filt_column_quant(
@@ -209,7 +210,7 @@ def filt_inter_chroms(table: RawTable) -> PdChunks:
 
     for chunk in table.chunks(annotated=True):
         chunk = chunk.loc[chunk.chrom1 == chunk.chrom2]
-        yield chunk[["bin1_id", "bin2_id", "count"]]
+        yield chunk[["bin1_id", "bin2_id", "count", "norm"]]
 
 
 def filt_self_looping(table: RawTable) -> PdChunks:
@@ -229,4 +230,4 @@ def filt_self_looping(table: RawTable) -> PdChunks:
 
     for chunk in table.chunks():
         chunk = chunk.loc[chunk.bin1_id != chunk.bin2_id]
-        yield chunk[["bin1_id", "bin2_id", "count"]]
+        yield chunk[["bin1_id", "bin2_id", "count", "norm"]]

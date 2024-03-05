@@ -1,7 +1,6 @@
 """Default functions for pixel table normalization."""
 
 import numpy as np
-import pandas as pd
 
 from ..hicona_table import RawTable
 from ..utils.chunked_ops import groupwise_median
@@ -41,8 +40,9 @@ def norm_genomic_dist(table: RawTable, apply_col: str) -> PdChunks:
 
     for chunk in chunks_with_dist(table):
         chunk = chunk.merge(norm_curve, how="left", on=grp_cols)
-        norm_col = np.log2(chunk[apply_col] / chunk["dist_norm"] + 1)
-        yield pd.DataFrame({"norm": norm_col})
+        chunk["norm"] = np.log2(chunk[apply_col] / chunk["dist_norm"] + 1)
+
+        yield chunk[["bin1_id", "bin2_id", "count", "norm"]]
 
 
 def norm_none(table: RawTable) -> PdChunks:
@@ -63,7 +63,8 @@ def norm_none(table: RawTable) -> PdChunks:
     """
 
     for chunk in table.chunks():
-        yield pd.DataFrame({"norm": chunk["count"]})
+        chunk["norm"] = chunk["count"]
+        yield chunk[["bin1_id", "bin2_id", "count", "norm"]]
 
 
 def norm_binwise(
@@ -110,7 +111,5 @@ def norm_binwise(
 
         if drop_nas:
             chunk.dropna(inplace=True)
-        else:
-            chunk = chunk[["norm"]]
 
-        yield chunk
+        yield chunk[["bin1_id", "bin2_id", "count", "norm"]]

@@ -37,7 +37,7 @@ class ChunksIterator:
 
         if self._annotated:
             cool = hicooler.HiconaCooler(self._uris.cooler_uri())
-            self._bins = cool.bare_bins()
+            self._bins = cool.bins()[:]
 
     def __iter__(self):
         return self

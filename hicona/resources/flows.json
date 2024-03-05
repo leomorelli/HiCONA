@@ -21,10 +21,22 @@
 			"kwargs": {"apply_col": "norm", "lower_quant": 0.05}
 		}
     },
-    "ice": {
+    "ice": { 
 		"0": {
 			"name": "norm_binwise", 
-			"kwargs": {"apply_col": "count", "colname": "weight", "divisive": false}
+			"kwargs": {"apply_col": "count", "ann_name": "weight", "divisive": false, "drop_nas": true}
+		},
+		"1": {
+			"name": "filt_inter_chroms", 
+			"kwargs": {}
+		},
+		"2": {
+			"name": "filt_self_looping", 
+			"kwargs": {}
+		},
+		"3": {
+			"name": "filt_genomic_dist", 
+			"kwargs": {"max_dist": 50000000}
 		}
 	}
 }
