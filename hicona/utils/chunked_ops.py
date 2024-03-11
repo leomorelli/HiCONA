@@ -5,53 +5,21 @@ DataFrames yielding a single aggregated result. This way it should be
 possible to apply these functions to bigger than memory dataframes.
 """
 
-from typing import Iterable
-
 import pandas as pd
-import numpy as np
 
+from .iterable_ops import change_breaks
+from .dtypes import PdChunks, T
 
 DEFAULT_COL = "bin1_id"
 
 
-def col_quants(
-    chunks: Iterable[pd.DataFrame],
-    colname: str,
-    quants: list[float] | float,
-) -> list[float]:
-    """Placeholder"""
-
-    # NOTE: workaround for assumed bug in type hinting
-    qvals: list[float] = [quants] if isinstance(quants, float) else quants  # type: ignore
-
-    curve = pd.Series()
-    for chunk in chunks:
-        vals = chunk.groupby(colname)[DEFAULT_COL].count()
-        curve = curve.combine(vals, lambda x, y: x + y, fill_value=0)
-
-    tot_items = curve.sum()
-    cum_curve = curve.cumsum()
-
-    values = []
-    for quant in qvals:
-        threshold = tot_items * quant
-        values.append(cum_curve[cum_curve > threshold].index[0])
-
-    return values
-
-
-def get_node_stats(
-    chunks: Iterable[pd.DataFrame],
-    weight_col: str,
-) -> pd.DataFrame:
+def get_node_stats(chunks: PdChunks, weight_col: str) -> pd.DataFrame:
     """Compute sum of weights and degree for each node/bin."""
 
     weights = pd.Series()
     degrees = pd.Series()
 
     for chunk in chunks:
-        print("COMPUTING NODE STATS")
-        print(chunk)
         for bin_col in ["bin1_id", "bin2_id"]:
             # Compute metrics on chunk
             grouped = chunk.groupby(bin_col)
@@ -65,42 +33,52 @@ def get_node_stats(
     return pd.DataFrame({"weight": weights, "degree": degrees})
 
 
-def groupwise_median(
-    chunks: Iterable[pd.DataFrame],
-    group_cols: list[str],
-    value_col: str,
-) -> pd.Series:
-    """Compute the median of a value column for each group."""
+def chunked_quants(
+    iterator: PdChunks,
+    column: str,
+    quants: float | list[float],
+    split_on: None | str | list[str] = None,
+    group_by: None | str | list[str] = None,
+) -> pd.DataFrame:
+    """Compute quantiles on an Iterable of chunks.
 
-    curve = pd.Series()
+    Compute quantiles for a table provided as an iterator of chunks. The
+    quantiles can be computed on an entire column or on subsets of it defined
+    by groupby operations. Since groupby is a costly operation, the parameter
+    `split_on` can be used as a faster alternative when the groups are
+    ordered (even if they are split into chunks).
 
-    for chunk in chunks:
-        parts = chunk.groupby(group_cols, observed=True)[value_col].apply(list)
-        curve = curve.combine(parts, lambda x, y: x + y, fill_value=[])  # type: ignore
-        # NOTE: [] is not an explicitely supported value, but it works
-        # TODO: Maybe change to a better solution (also lists might be slow)
+    NOTE: `group_by` without `split_on` can be very memory intensive,
+    especially when applied to a full genome pixel table.
+    """
 
-    curve = curve.rename_axis(index=group_cols)
+    def to_list(item: None | T | list[T]) -> list[T]:
+        """Convert to list of strings if not already"""
+        item = item or []
+        return item if isinstance(item, list) else [item]
 
-    return curve.apply(np.median).rename(value_col)
+    quants = to_list(quants)
+    split_on = to_list(split_on)
+    group_by = to_list(group_by)
 
+    results: list[pd.DataFrame] = []
+    intervals = change_breaks(iterator, split_on, [column] + group_by)
+    for interval in intervals:
 
-def groupwise_quants(
-    chunks: Iterable[pd.DataFrame],
-    group_cols: list[str],
-    value_col: str,
-    quants: list[float] | float,
-) -> pd.Series:
-    """Compute the quantiles of a value column for each group."""
+        if group_by:
+            qvals = interval.groupby(group_by)[column].quantile(quants)
+            col_fix = {"level_1": "quant"}
+        else:
+            qvals = interval[column].quantile(quants)
+            col_fix = {"index": "quant"}
 
-    curve = pd.Series()
+        quants_df = qvals.reset_index()
+        quants_df.rename(columns=col_fix, inplace=True)
 
-    for chunk in chunks:
-        parts = chunk.groupby(group_cols, observed=True)[value_col].apply(list)
-        curve = curve.combine(parts, lambda x, y: x + y, fill_value=[])  # type: ignore
-        # NOTE: [] is not an explicitely supported value, but it works
-        # TODO: Maybe change to a better solution (also lists might be slow)
+        if split_on:
+            for col in split_on:
+                quants_df[col] = interval[col].iloc[0]
 
-    curve = curve.rename_axis(index=group_cols)
+        results.append(quants_df)
 
-    return curve.apply(np.quantile, args=(quants,)).rename(value_col)
+    return pd.concat(results)

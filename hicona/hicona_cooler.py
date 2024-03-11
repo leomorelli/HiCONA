@@ -136,31 +136,26 @@ class HiconaCooler(cooler.Cooler):
 
         return table_uris
 
-    def create_table(self, method: str | ProcessingFlow = "hicona") -> HiconaTable:
+    def create_table(self, flow: str | ProcessingFlow = "hicona"):
         """Create a normalized and sparsfied version of the pixels table.
 
         Create a new table using the specified normalization procedure,
         then add the sparsification scores to all pixels of said table.
         The filters and normalization methods can be either provided via
         a ProcessingFlow object or as a string, in which case the default
-        scheduler for the corresponding method is used.
+        flow for the corresponding method is used.
 
         Parameters
         ----------
-        method : str or ProcessingFlow, optional
-            Method to use to filter and normalize the table. If a string is
-            provided, the default scheduler for the corresponding method is used.
+        flow : str or ProcessingFlow, optional
+            Flow to use to filter and normalize the table. If a string is
+            provided, the default flow for the corresponding method is used.
             (default is "hicona")
-
-        Returns
-        -------
-        HiconaTable :
-            The newly created table as a HiconaTable object.
         """
 
-        # Convert any default string to the corresponding scheduler
-        if isinstance(method, str):
-            method = ProcessingFlow.from_default(method)
+        # Convert any default string to the corresponding flow
+        if isinstance(flow, str):
+            flow = ProcessingFlow.from_default(flow)
 
         # Initialize the tables root if it does not exist already.
         # TODO: Maybe do not hardcode the serial attribute
@@ -169,30 +164,29 @@ class HiconaCooler(cooler.Cooler):
 
         # Check there is no table with all matching keywords
         for table in self._iterate_tables():
-            if table.process_info == method:
-                continue
-                raise ValueError("E: Table with matching parameters already exists.")
+            if table.process_info == flow:
+                raise ValueError("E: Table with the same flow already exists.")
 
         # Get the next available table path
         serial = get_attrs(*table_root_uris.hdf5_uris())["serial"]
         set_attrs(*table_root_uris.hdf5_uris(), {"serial": serial + 1})
 
-        table_uris = self._init_raw_table(serial, method)
-        table = RawTable(table_uris, method, self.binsize, self._chunk_size)
+        table_uris = self._init_raw_table(serial, flow)
+        table = RawTable(table_uris, flow, self.binsize, self._chunk_size)
         processor = TableProcessor(table)
-        return processor.create_table()
+        processor.create_table()
 
-    def fetch_table(self, method: str | ProcessingFlow = "hicona") -> HiconaTable:
+    def fetch_table(self, flow: str | ProcessingFlow = "hicona") -> HiconaTable:
         """Retrieve an previously created `HiconaTable` object.
 
         Retrieve a previously created table using the specified method.
-        The method can be either provided via a ProcessingFlow object or as
+        The flow can be either provided via a ProcessingFlow object or as
         string, in which case the default scheduler for the corresponding
         method is used.
 
         Parameters
         ----------
-        method : str or ProcessingFlow
+        flow : str or ProcessingFlow
             Method used to filter and normalize the table. If a string is
             provided, the default scheduler for the corresponding method is used.
             (default is "hicona").
@@ -203,11 +197,11 @@ class HiconaCooler(cooler.Cooler):
             The requested table as a HiconaTable object.
         """
 
-        if isinstance(method, str):
-            method = ProcessingFlow.from_default(method)
+        if isinstance(flow, str):
+            flow = ProcessingFlow.from_default(flow)
 
         try:
-            tables = [t for t in self._iterate_tables() if t.process_info == method]
+            tables = [t for t in self._iterate_tables() if t.process_info == flow]
         except ValueError as exc:
             raise ValueError("E: No table has been generated yet.") from exc
 

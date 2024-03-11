@@ -21,6 +21,10 @@ DEFAULT_FLOWS: str = "flows.json"
 DEFAULT_MODULES: list[str] = [".processing.filt_funs", ".processing.norm_funs"]
 
 
+# TODO: Maybe make the ProcessingFlow immutable when fetching a table,
+#       requiring to create a copy of the object to modify it again.
+
+
 class Operation:
     """Individual filtering or normalization operation.
 
@@ -218,7 +222,7 @@ class ProcessingFlow:
         fun_obj = fun_obj or self._source_default.get(fun_name)
 
         if not fun_obj:
-            raise ValueError(f"{fun_name} is not available.")
+            raise ValueError(f"{fun_name} is not available. Add it to sources first.")
 
         return fun_obj
 

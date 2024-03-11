@@ -78,13 +78,8 @@ class ChunksIterator:
         return chunk
 
 
-class RawTable:
-    """Handler for a raw pixel table (copy of the original pixel table).
-
-    Object to handle the raw pixel table, meaning the original pixel table
-    simply copied to the table root location. It implements a creator method
-    for instances of the `ChunksIterator` class, inherited by `HiconaTable`.
-    """
+class Table:
+    """Base class for all table types in Hicona."""
 
     def __init__(
         self,
@@ -119,10 +114,15 @@ class RawTable:
         """Uris object containing all table uris."""
         return self._uris
 
+    @property
+    def size(self) -> int:
+        """Total number of pixels in the table."""
+        return get_table_size(*self._uris.hdf5_uris())
+
     def _get_iterator(
         self,
         intervals: list[tuple[int, int]],
-        columns: list[str] | None,
+        columns: Iterable[str] | None,
         annotated: bool,
     ) -> ChunksIterator:
         """Return chunks iterator with specified intervals and columns."""
@@ -138,7 +138,7 @@ class RawTable:
 
     def chunks(
         self,
-        columns: list[str] | None = None,
+        columns: Iterable[str] | None = None,
         annotated: bool = False,
     ) -> ChunksIterator:
         """Returns an iterator of table chunks (as pandas DataFrames).
@@ -155,22 +155,8 @@ class RawTable:
         An iterator of table chunks (as pandas DataFrames).
         """
 
-        intervals: list[tuple[int, int]] = [(0, self.get_table_size())]
+        intervals: list[tuple[int, int]] = [(0, self.size)]
         return self._get_iterator(intervals, columns, annotated)
-
-    def get_table_size(self) -> int:
-        """Fetch the total number of pixels in the table.
-
-        Returns
-        -------
-        Total number of pixels in the table as an integer.
-        """
-
-        return get_table_size(*self._uris.hdf5_uris())
-
-
-class HiconaTable(RawTable):
-    """Placeholder"""
 
     def dataframe(
         self,
@@ -183,13 +169,24 @@ class HiconaTable(RawTable):
         ----------
         columns: Iterable[str], optional
             If provided, only fetch the specified columns. Default is None.
+        annotated: bool, optional
+            Whether to annotate with the bin information. Default is False.
 
         Returns
         -------
         A pandas DataFrame with all table pixels.
         """
 
-        return pd.concat(self.chunks(columns)).reset_index(drop=True)
+        iterator = self.chunks(columns, annotated)
+        return pd.concat(iterator).reset_index(drop=True)
+
+
+class RawTable(Table):
+    """Placeholder"""
+
+
+class HiconaTable(Table):
+    """Placeholder"""
 
 
 class ToFix:

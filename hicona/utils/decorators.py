@@ -3,9 +3,9 @@
 import time
 import functools
 
-from decorator import decorate
+# from decorator import decorate
 
-from ..settings import HICONA_SETTINGS
+# from ..settings import HICONA_SETTINGS
 
 
 def console_log(func):
@@ -24,6 +24,7 @@ def console_log(func):
     return console_log_wrapper
 
 
+'''
 def wait_hdf5_lock(func):
     """Placeholder"""
 
@@ -38,6 +39,7 @@ def wait_hdf5_lock(func):
         return fun_return
 
     return decorate(func, _wait_hdf5_lock)
+'''
 
 
 def integration_cache(func):

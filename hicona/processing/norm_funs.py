@@ -3,9 +3,9 @@
 import numpy as np
 
 from ..hicona_table import RawTable
-from ..utils.chunked_ops import groupwise_median
+from ..utils.chunked_ops import chunked_quants
 from ..utils.dtypes import PdChunks
-
+from ..utils.iterable_ops import add_gen_dist
 
 __all__ = ["norm_genomic_dist", "norm_none", "norm_binwise"]
 
@@ -16,6 +16,7 @@ def norm_genomic_dist(table: RawTable, apply_col: str) -> PdChunks:
     The normalized value is computed as the log2 of 1 plus the ratio of the
     value of the bin and some normalization factor. The normalization factor
     is computed as the median of the values of the bins at a given distance.
+    Raises and error if inter-chromosomal pixels are found.
 
     Parameters
     ----------
@@ -29,17 +30,31 @@ def norm_genomic_dist(table: RawTable, apply_col: str) -> PdChunks:
     A generator of filtered pixel chunks.
     """
 
-    def chunks_with_dist(table: RawTable):
-        for chunk in table.chunks(annotated=True):
-            chunk["diff"] = chunk.bin2_id - chunk.bin1_id
+    def distance_iter(table_obj):
+        """Iter chunks with genomic distance. Add inter-chromosomal check."""
+
+        chunks = table_obj.chunks(annotated=True)
+        bin_size = table_obj.bin_size
+
+        for chunk in add_gen_dist(chunks, bin_size):
+
+            # Check that inter-chromosomal pixels where removed
+            if any(chunk["chrom1"] != chunk["chrom2"]):
+                raise ValueError("Inter-chromosomal pixels must be removed.")
+
             yield chunk
 
-    grp_cols = ["diff", "chrom1"]
-    norm_curve = groupwise_median(chunks_with_dist(table), grp_cols, apply_col)
-    norm_curve.rename("dist_norm", inplace=True)
+    norm_curve = chunked_quants(
+        distance_iter(table),
+        column=apply_col,
+        quants=0.5,
+        split_on=["chrom1", "chrom2"],
+        group_by="dist",
+    )
+    norm_curve.rename(columns={apply_col: "dist_norm"}, inplace=True)
 
-    for chunk in chunks_with_dist(table):
-        chunk = chunk.merge(norm_curve, how="left", on=grp_cols)
+    for chunk in distance_iter(table):
+        chunk = chunk.merge(norm_curve, how="left", on=["chrom1", "dist"])
         chunk["norm"] = np.log2(chunk[apply_col] / chunk["dist_norm"] + 1)
 
         yield chunk[["bin1_id", "bin2_id", "count", "norm"]]

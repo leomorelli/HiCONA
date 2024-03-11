@@ -35,7 +35,7 @@ def bed_to_df(
         header=None,
     )
     dataf = pd.DataFrame(dataf) if not isinstance(dataf, pd.DataFrame) else dataf
-    dataf.columns = colnames  # Set after to allow duplicate names
+    dataf.columns = tuple(colnames)  # Set after to allow duplicate names
 
     # "." is the empty intersection for bedtools loj
     # Set after instead of using na_values="." due to type guessing issue
@@ -69,12 +69,9 @@ def intersect_dfs(df_a, df_b, inters_names=None, drop_none=True, **kwargs):
 
     col_names = get_intersection_names(df_a, df_b, inters_names)
 
-    # Suppress linting error due to pybedtools wrapper implementation
-    # pylint: disable=unexpected-keyword-arg, too-many-function-args
     bed_a = BedTool.from_dataframe(df_a)
     bed_b = BedTool.from_dataframe(df_b)
-    bed_a = bed_a.intersect(bed_b, **kwargs)
-    # pylint: enable=unexpected-keyword-arg, too-many-function-args
+    bed_a = bed_a.intersect(bed_b, **kwargs)  # pylint: disable=E1121 #type: ignore
 
     inters = bed_to_df(bed_a, col_names[3:])
     if drop_none:

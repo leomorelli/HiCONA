@@ -25,6 +25,12 @@ def _get_alphas(chunk: pd.DataFrame, stats: pd.DataFrame, col: str) -> pd.Series
 
     # Compute the alpha values
     dedup = dataf[["degree", "norm_weight"]].drop_duplicates()
+
+    # print("NEW CHUNK")
+    # print("Chunk size pre-dedup:", len(dataf))
+    # print("Chunk size post-dedup:", len(dedup))
+    # print("Chunk size reduction:", len(dataf) - len(dedup))
+
     dedup["alpha"] = 1.0  # .0 needed to initialize as float
     mask = dedup.degree != 1
     dedup.loc[mask, "alpha"] = dedup.loc[mask].apply(_compute_alpha, axis=1)

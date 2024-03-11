@@ -42,9 +42,18 @@ class TableProcessor:
 
         # NOTE: implemented this way to simplify breaking into parallel later
         store, path = self._table.uris.hdf5_uris()
-        for chunk in self._table.chunks():
+        for i, chunk in enumerate(self._table.chunks()):
+
+            logging.info("Starting to sparsify chunk %s.", i)
+            start = time.time()
+
             spar_chunk = sparsify_chunk(chunk, node_stats)
             write_chunk(store, path, spar_chunk, tab_size)
+
+            end = time.time()
+            logging.info("Finished sparsifying chunk %s.", i)
+            logging.info("Took %s seconds.", end - start)
+
             tab_size += len(spar_chunk)
 
     def create_table(self):
