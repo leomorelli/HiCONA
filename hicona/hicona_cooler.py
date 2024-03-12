@@ -165,7 +165,7 @@ class HiconaCooler(cooler.Cooler):
 
         # Check there is no table with all matching keywords
         for table in self._iterate_tables():
-            if table.process_info == flow:
+            if table.flow == flow:
                 raise ValueError("E: Table with the same flow already exists.")
 
         # Get the next available table path
@@ -202,7 +202,7 @@ class HiconaCooler(cooler.Cooler):
             flow = ProcessingFlow.from_default(flow)
 
         try:
-            tables = [t for t in self._iterate_tables() if t.process_info == flow]
+            tables = [t for t in self._iterate_tables() if t.flow == flow]
         except ValueError as exc:
             raise ValueError("E: No table has been generated yet.") from exc
 
@@ -222,7 +222,7 @@ class HiconaCooler(cooler.Cooler):
 
         for table in self._iterate_tables():
             out += separator
-            for k, v in table.process_info.as_json().items():
+            for k, v in table.flow.as_json().items():
                 out += f"- {k}: {v}\n"
 
         if not out:
