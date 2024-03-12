@@ -3,6 +3,9 @@
 */__pycache__
 */*/__pycache__
 
+# Ignore notebooks
+*.ipynb
+
 # Ignore manual testing files
 results/
 test_files/
@@ -14,3 +17,9 @@ test.py
 
 # Ignore misc
 tables_tutorial.py
+
+# Ignore vscode files
+.vscode/
+
+# Ignore memory profiling
+mprofile*

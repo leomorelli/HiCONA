@@ -1,7 +1,7 @@
 """graph_tool.Graph specialized subclass for Hi-C data network analysis.
 
 Extend the graph_tool.Graph class, without overwriting any of its methods,
-implementing algoritms for network analysis of chromosome-level tables.
+implementing algorithms for network analysis of chromosome-level tables.
 """
 
 from collections.abc import Iterable
@@ -10,7 +10,8 @@ import numpy as np
 import pandas as pd
 import graph_tool.all as gt
 
-from .utils import pd_to_gt_dtype, annotation_combinations
+from .utils.misc import annotation_combinations
+from .utils.table_ops import pd_to_gt_dtype
 
 __all__ = ["HiconaGraph"]
 

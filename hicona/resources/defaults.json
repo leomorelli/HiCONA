@@ -15,14 +15,14 @@
             "bin1_id": "i8",
             "bin2_id": "i8",
             "count": "i4",
-            "exp_ratio": "f8",
+            "norm": "f8",
             "alpha_min": "f8",
             "alpha_max": "f8"
         },
         "table_uri_template": "distThr_{}_countThr_{}_quantThr_{}"
     },
     "parameters": {
-        "base_pix_chunk": 1000000,
+        "base_pix_chunk": 10000000,
         "lock_delay": 0.1,
         "max_annot_mods": 10,
         "min_pix_chunk": 1000000
