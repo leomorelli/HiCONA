@@ -114,7 +114,7 @@ def norm_binwise(
     A generator of filtered pixel chunks.
     """
 
-    # NOTE: This function mimicks matrix balancing normalization in cooler.
+    # NOTE: This function mimics matrix balancing normalization in cooler.
 
     col1, col2 = f"{ann_name}1", f"{ann_name}2"
 

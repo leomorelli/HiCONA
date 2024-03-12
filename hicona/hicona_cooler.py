@@ -71,7 +71,7 @@ class HiconaCooler(cooler.Cooler):
 
     @property
     def chunk_size(self):
-        """Size of fixed lenght chunks used during processing."""
+        """Size of fixed length chunks used during processing."""
         return self._chunk_size
 
     @chunk_size.setter
@@ -92,7 +92,7 @@ class HiconaCooler(cooler.Cooler):
 
     # ////////////////////////////////////////////////////////////////////////
     # /////////////////////////// PUBLIC TABLE API ///////////////////////////
-    # // Functions to create, inspect and retrieve spersified pixel tables ///
+    # // Functions to create, inspect and retrieve sparsified pixel tables ///
     # ////////////////////////////////////////////////////////////////////////
 
     def _iterate_tables(self) -> Generator[HiconaTable, None, None]:
@@ -104,6 +104,7 @@ class HiconaCooler(cooler.Cooler):
             table_path = f"{self._tables_root}/{tab}"
             table_uris = Uris(self.store, self.root, table_path)
 
+            # TODO: check whether the table is valid and skip if not
             # Get table processing parameters
             table_attrs = get_attrs(*table_uris.hdf5_uris())
             flow_json = json.loads(table_attrs["process_info"])
@@ -137,7 +138,7 @@ class HiconaCooler(cooler.Cooler):
         return table_uris
 
     def create_table(self, flow: str | ProcessingFlow = "hicona"):
-        """Create a normalized and sparsfied version of the pixels table.
+        """Create a normalized and sparsified version of the pixels table.
 
         Create a new table using the specified normalization procedure,
         then add the sparsification scores to all pixels of said table.
@@ -494,7 +495,7 @@ class HiconaCooler(cooler.Cooler):
             float, use that value as threshold for all tables. If iterable,
             use those values in order, one per table (lengths must match).
         """
-        # TODO: Add alpha lenght check
+        # TODO: Add alpha length check
         # TODO: Check the same chromosome was not given twice
 
         def tables_generator(tables, alphas):

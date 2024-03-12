@@ -3,6 +3,7 @@
 Placeholder
 """
 
+from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from math import dist
 
@@ -78,19 +79,19 @@ class ChunksIterator:
         return chunk
 
 
-class Table:
+class Table(ABC):
     """Base class for all table types in Hicona."""
 
     def __init__(
         self,
         uris: Uris,
-        scheduler: ProcessingFlow,
+        flow: ProcessingFlow,
         bin_size: int,
         chunk_size: int,
     ):
 
         self._uris = uris
-        self._process_info = scheduler
+        self._flow = flow
         self._bin_size = bin_size
         self._chunk_size = chunk_size
 
@@ -105,9 +106,9 @@ class Table:
         return self._chunk_size
 
     @property
-    def process_info(self) -> ProcessingFlow:
+    def flow(self) -> ProcessingFlow:
         """ProcessingFlow object containing all processing information."""
-        return self._process_info
+        return self._flow
 
     @property
     def uris(self) -> Uris:
@@ -115,9 +116,10 @@ class Table:
         return self._uris
 
     @property
+    @abstractmethod
     def size(self) -> int:
         """Total number of pixels in the table."""
-        return get_table_size(*self._uris.hdf5_uris())
+        pass
 
     def _get_iterator(
         self,
@@ -184,9 +186,20 @@ class Table:
 class RawTable(Table):
     """Placeholder"""
 
+    @property
+    def size(self) -> int:
+        """Total number of pixels in the table."""
+        return get_table_size(*self._uris.hdf5_uris())
+
 
 class HiconaTable(Table):
     """Placeholder"""
+
+    @property
+    def size(self) -> int:
+        """Total number of pixels in the table."""
+        # TODO: change to check intervals or something
+        return get_table_size(*self._uris.hdf5_uris())
 
 
 class ToFix:

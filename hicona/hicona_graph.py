@@ -1,7 +1,7 @@
 """graph_tool.Graph specialized subclass for Hi-C data network analysis.
 
 Extend the graph_tool.Graph class, without overwriting any of its methods,
-implementing algoritms for network analysis of chromosome-level tables.
+implementing algorithms for network analysis of chromosome-level tables.
 """
 
 from collections.abc import Iterable
