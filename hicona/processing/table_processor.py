@@ -23,7 +23,7 @@ class TableProcessor:
         """ "Apply all filtering and normalization functions to the table."""
 
         store, path = self._table.uris.hdf5_uris()
-        for op in self._table.process_info.get_partials():
+        for op in self._table.flow.get_partials():
             logging.info("Starting to apply: %s", op.func.__name__)
 
             tab_size = write_table(store, path, op(self._table))
