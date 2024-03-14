@@ -14,7 +14,7 @@ import cooler
 import h5py
 import pandas as pd
 
-from .hicona_table import RawTable, HiconaTable, _TablesIterator
+from .hicona_table import RawTable, HiconaTable
 from .settings import HICONA_SETTINGS
 from .processing.processing_flow import ProcessingFlow
 from .processing.table_processor import TableProcessor
@@ -99,18 +99,9 @@ class HiconaCooler(cooler.Cooler):
         """Iterate all saved tables as `HiconaTable` objects."""
 
         for tab in get_keys(self.store, f"{self.root}/{self._tables_root}"):
-
-            # Get table uris
             table_path = f"{self._tables_root}/{tab}"
             table_uris = Uris(self.store, self.root, table_path)
-
-            # TODO: check whether the table is valid and skip if not
-            # Get table processing parameters
-            table_attrs = get_attrs(*table_uris.hdf5_uris())
-            flow_json = json.loads(table_attrs["process_info"])
-            params = ProcessingFlow.from_json(flow_json)
-
-            yield HiconaTable(table_uris, params, self.binsize, self._chunk_size)
+            yield HiconaTable(table_uris)
 
     def _init_raw_table(self, serial: str, method: ProcessingFlow) -> Uris:
         """Initialize a new raw table with the given parameters."""
@@ -173,8 +164,7 @@ class HiconaCooler(cooler.Cooler):
         set_attrs(*table_root_uris.hdf5_uris(), {"serial": serial + 1})
 
         table_uris = self._init_raw_table(serial, flow)
-        table = RawTable(table_uris, flow, self.binsize, self._chunk_size)
-        processor = TableProcessor(table)
+        processor = TableProcessor(RawTable(table_uris))
         processor.create_table()
 
     def fetch_table(self, flow: str | ProcessingFlow = "hicona") -> HiconaTable:
@@ -469,50 +459,12 @@ class HiconaCooler(cooler.Cooler):
     # ////////// Any function not falling in the previous categories /////////
     # ////////////////////////////////////////////////////////////////////////
 
-    def gen_sparsified_cooler(
-        self,
-        cool_uri: str,
-        chr_tables: _TablesIterator,
-        alpha_thr: str | float | Iterable[float | str],
-    ) -> None:
+    def gen_sparsified_cooler(self) -> None:
         """Create a cool/mcool file containing only sparsified pixels.
 
-        Generate a new cooler by using as pixels the specified chromosome
-        tables filtered according to some alpha values. All bins from the
-        file are retained, regardless of whether the corresponding chromosome
-        table is present or not.
-
-        Parameters
-        ----------
-        cool_uri : str
-            Where to generate the new cooler. If the specified file does not
-            exist it will be created.
-        chr_tables : :py:class:`_TablesIterator`
-            Iterator of pixel tables to merge and use as pixels.
-        alpha_thr : str, float or Iterable[float | str]
-            Alpha values to use to filter the pixel tables. If string, compute
-            alphas using the specified method (only "optimal" currently). If
-            float, use that value as threshold for all tables. If iterable,
-            use those values in order, one per table (lengths must match).
+        Placeholder
         """
+
+        # TODO: Remake this function
         # TODO: Add alpha length check
         # TODO: Check the same chromosome was not given twice
-
-        def tables_generator(tables, alphas):
-            """Filter iterable of tables according to iterable of alphas."""
-            default_bin_cols = ["bin1_id", "bin2_id", "count"]
-            for table, alpha in zip(tables, alphas):
-                yield table.get_dataframe(alpha)[default_bin_cols]
-
-        # Adjust input vector of alphas
-        if isinstance(alpha_thr, str):
-            if alpha_thr == "optimal":
-                alpha_thr = ["optimal"] * len(chr_tables)
-            else:
-                raise ValueError(f"E: Unknown filtering param: {alpha_thr}")
-        elif isinstance(alpha_thr, float):
-            alpha_thr = [alpha_thr] * len(chr_tables)
-
-        filt_pix = tables_generator(chr_tables, alpha_thr)
-        bare_bins = self.bare_bins()
-        cooler.create_cooler(cool_uri, bins=bare_bins, pixels=filt_pix)

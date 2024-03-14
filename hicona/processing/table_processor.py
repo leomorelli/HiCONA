@@ -28,6 +28,7 @@ class TableProcessor:
 
             tab_size = write_table(store, path, op(self._table))
             resize_table(store, path, tab_size)
+            self._table.reset_index()
 
             logging.info("Finished applying: %s", op.func.__name__)
             logging.info("Table size: %s", tab_size)

@@ -3,9 +3,9 @@
 Placeholder
 """
 
-from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from math import dist
+import json
 
 import cooler
 import numpy as np
@@ -13,87 +13,132 @@ import pandas as pd
 
 import hicona.hicona_cooler as hicooler  # For circular import
 from .uris import Uris
+from .utils.dtypes import PdChunks
+from .utils.hdf5_ops import fetch_chunk, get_attrs, get_table_size
+from .utils.misc import build_query
 from .utils.numeric import round_half_up
-from .utils.hdf5_ops import fetch_chunk, get_table_size
 from .processing.processing_flow import ProcessingFlow
 
 
-class ChunksIterator:
-    """Iterator of table chunks as pandas DataFrames."""
+FULL_TABLE = "full_table"
+
+
+class TableIntervals:
+    """Placeholder"""
 
     def __init__(
         self,
-        uris: Uris,
-        chunk_size: int,
-        intervals: list[tuple[int, int]],
-        columns: Iterable[str] | None = None,
-        annotated: bool = False,
+        table: "Table",
+        indexes: list[pd.Index] | None = None,
+        repr_str: str | None = None,
     ):
-        self._uris = uris
-        self._chunk_size = chunk_size
-        self._intervals = intervals
-        self._columns = columns
-        self._annotated = annotated
-        self._bins = pd.DataFrame()
 
-        if self._annotated:
-            cool = hicooler.HiconaCooler(self._uris.cooler_uri())
-            self._bins = cool.bins()[:]
+        if bool(indexes) != bool(repr_str):
+            raise ValueError("Both indexes and repr_str must be provided or neither.")
 
-    def __iter__(self):
-        return self
+        self._table = table
+        self._indexes = indexes or self._initial_index()
+        self._repr_str = repr_str or FULL_TABLE
+        self._size = 0
 
-    def __next__(self) -> pd.DataFrame:
-        # No more pixels available to iterate
-        if not self._intervals:
-            raise StopIteration
+        self.update_size()
 
-        out_interv = []  # Pixel intervals to include in the chunk
-        still_miss = self._chunk_size  # Pixels missing for a complete chunk
+    def __str__(self) -> str:
 
-        # Iterate either till chunk size is reached or no intervals available
-        while still_miss > 0:
-            if not self._intervals:
-                break
+        return self._repr_str
 
-            (lower, upper) = self._intervals[0]
-            still_miss -= upper - lower
+    def __or__(self, other: "TableIntervals") -> "TableIntervals":
 
-            # Get entire interval if it fits, else only get a part of it
-            if still_miss >= 0:
-                out_interv.append(self._intervals.pop(0))
-            else:
-                split_val = upper + still_miss
-                out_interv.append([lower, split_val])
-                self._intervals[0] = (split_val, upper)
+        iterator = zip(self._indexes, other.get_indexes())
+        new_intervals = [i.join(j, how="outer") for i, j in iterator]
+        new_repr = f"({self._repr_str} | {other._repr_str})"
 
-        # Fetch and concat pixel intervals
-        [store, pixel], keys = self._uris.hdf5_uris(), self._columns
-        chunks = [fetch_chunk(store, pixel, l, u, keys) for l, u in out_interv]
-        chunk = pd.concat(chunks)
+        return TableIntervals(self._table, new_intervals, new_repr)
 
-        # Annotate if required
-        if self._annotated:
-            chunk = cooler.annotate(chunk, self._bins, replace=False)
+    def __and__(self, other: "TableIntervals") -> "TableIntervals":
 
-        return chunk
+        iterator = zip(self._indexes, other.get_indexes())
+        new_intervals = [i.join(j, how="inner") for i, j in iterator]
+        new_repr = f"({self._repr_str} & {other._repr_str})"
+
+        return TableIntervals(self._table, new_intervals, new_repr)
+
+    def _initial_index(self) -> list[pd.Index]:
+        """Return an index of the complete table split into chunks."""
+
+        table_size = get_table_size(*self._table.uris.hdf5_uris())
+        chunk_size = self._table.chunk_size
+
+        num_full_chunks, partial_chunk_size = divmod(table_size, chunk_size)
+        full_chunk_ind = pd.Index(range(0, chunk_size), dtype="int32")
+        part_chunk_ind = pd.Index(range(0, partial_chunk_size), dtype="int32")
+
+        return [full_chunk_ind] * num_full_chunks + [part_chunk_ind]
+
+    @property
+    def size(self) -> int:
+        """Return the size of the complete table or the subset."""
+        return self._size
+
+    def update_size(self):
+        """Update the size of the complete table or the subset."""
+        self._size = sum(len(c) for c in self._indexes)
+
+    def subset(self, region: str, both: bool = True) -> "TableIntervals":
+        """Placeholder"""
+
+        if self._repr_str != FULL_TABLE:
+            raise ValueError("Cannot subset a subset. Use boolean operators instead.")
+
+        new_repr = f"{region}({'+' if both else '-'})"
+
+        query = build_query(region, both)
+        new_indexes = [c.query(query).index for c in self._table.chunks(annotated=True)]
+
+        return TableIntervals(self._table, new_indexes, new_repr)
+
+    def get_indexes(self) -> Iterable[pd.Index]:
+        """Return the indexes of the table or the subset."""
+        for index in self._indexes:
+            yield index
 
 
-class Table(ABC):
+class Table:
     """Base class for all table types in Hicona."""
 
     def __init__(
         self,
         uris: Uris,
-        flow: ProcessingFlow,
-        bin_size: int,
-        chunk_size: int,
+        intervals: TableIntervals | None = None,
+        bin_size: int | None = None,
+        chunk_size: int | None = None,
     ):
 
+        def reconstruct_flow(uris: Uris) -> ProcessingFlow:
+            """Reconstruct the ProcessingFlow object from the store."""
+
+            # TODO: check whether the table is valid and skip if not
+            tab_attrs = get_attrs(*uris.hdf5_uris())
+            flow_json = json.loads(tab_attrs["process_info"])
+            return ProcessingFlow.from_json(flow_json)
+
+        def get_bin_size(uris: Uris) -> int:
+            """Return the bin size of the cooler."""
+
+            parent_cool = hicooler.HiconaCooler(uris.cooler_uri())
+            return parent_cool.binsize
+
+        def get_chunk_size(uris: Uris) -> int:
+            """Return the default chunk size for the table."""
+
+            parent_cool = hicooler.HiconaCooler(uris.cooler_uri())
+            return parent_cool.chunk_size
+
         self._uris = uris
-        self._flow = flow
-        self._bin_size = bin_size
-        self._chunk_size = chunk_size
+        self._flow = reconstruct_flow(uris)
+        self._bin_size = bin_size or get_bin_size(uris)
+        self._chunk_size = chunk_size or get_chunk_size(uris)
+        self._intervals = intervals or TableIntervals(self)
 
     @property
     def bin_size(self) -> int:
@@ -116,33 +161,15 @@ class Table(ABC):
         return self._uris
 
     @property
-    @abstractmethod
     def size(self) -> int:
         """Total number of pixels in the table."""
-        pass
-
-    def _get_iterator(
-        self,
-        intervals: list[tuple[int, int]],
-        columns: Iterable[str] | None,
-        annotated: bool,
-    ) -> ChunksIterator:
-        """Return chunks iterator with specified intervals and columns."""
-
-        chunks = ChunksIterator(
-            uris=self._uris,
-            chunk_size=self._chunk_size,
-            intervals=intervals,
-            columns=columns,
-            annotated=annotated,
-        )
-        return chunks
+        return self._intervals.size
 
     def chunks(
         self,
         columns: Iterable[str] | None = None,
         annotated: bool = False,
-    ) -> ChunksIterator:
+    ) -> PdChunks:
         """Returns an iterator of table chunks (as pandas DataFrames).
 
         Parameters
@@ -157,8 +184,46 @@ class Table(ABC):
         An iterator of table chunks (as pandas DataFrames).
         """
 
-        intervals: list[tuple[int, int]] = [(0, self.size)]
-        return self._get_iterator(intervals, columns, annotated)
+        def prepare_chunk(chunk, bins=None, columns=None) -> pd.DataFrame:
+            """Prepare the chunk for output with annotation of filtering."""
+
+            if bins is not None:
+                chunk = cooler.annotate(chunk, bins)
+            if columns:
+                chunk = chunk[columns]
+
+            return chunk
+
+        cool = hicooler.HiconaCooler(self.uris.cooler_uri())
+        bins = cool.bins()[:] if annotated else None
+
+        chunk_parts: list[pd.DataFrame] = []
+
+        indexes = self._intervals.get_indexes()
+        for num, index in enumerate(indexes):
+
+            if len(index) == 0:
+                continue
+
+            lower = num * self.chunk_size
+            upper = (num + 1) * self.chunk_size
+            chunk = fetch_chunk(*self.uris.hdf5_uris(), lower, upper)
+            chunk = chunk.iloc[index]
+
+            chunk_parts.append(chunk)
+
+            new_chunks_size = sum(len(c) for c in chunk_parts)
+            if new_chunks_size >= self.chunk_size:
+
+                out_chunk = pd.concat(chunk_parts)
+
+                chunk_parts = [out_chunk.iloc[self.chunk_size :]]
+                out_chunk = out_chunk.iloc[: self.chunk_size]
+
+                yield prepare_chunk(out_chunk, bins, columns)
+
+        if len(chunk_parts) > 0:
+            yield prepare_chunk(pd.concat(chunk_parts), bins, columns)
 
     def dataframe(
         self,
@@ -186,20 +251,42 @@ class Table(ABC):
 class RawTable(Table):
     """Placeholder"""
 
-    @property
-    def size(self) -> int:
-        """Total number of pixels in the table."""
-        return get_table_size(*self._uris.hdf5_uris())
+    def reset_index(self):
+        """Placeholder"""
+
+        self._intervals = TableIntervals(self)
+        # TODO: check because this might not work as expected
+        # due to the way the table is resized in the hdf5 file
 
 
 class HiconaTable(Table):
     """Placeholder"""
 
+    def __init__(self, uris: Uris, intervals: TableIntervals | None = None):
+        super().__init__(uris, intervals=intervals)
+
+    # TODO: Redefine constructor to mask params
+
     @property
-    def size(self) -> int:
-        """Total number of pixels in the table."""
-        # TODO: change to check intervals or something
-        return get_table_size(*self._uris.hdf5_uris())
+    def region(self):
+        """Return the region of the table or the subset."""
+        return str(self._intervals)
+
+    def subset(self, region: str, both: bool = True) -> "HiconaTable":
+        """Return a subset of the table based on the region and both strands."""
+
+        new_intervals = self._intervals.subset(region, both)
+        return HiconaTable(self.uris, new_intervals)
+
+    def __or__(self, other: "HiconaTable") -> "HiconaTable":
+
+        new_intervals = self._intervals | other._intervals
+        return HiconaTable(self.uris, new_intervals)
+
+    def __and__(self, other: "HiconaTable") -> "HiconaTable":
+
+        new_intervals = self._intervals & other._intervals
+        return HiconaTable(self.uris, new_intervals)
 
 
 class ToFix:
@@ -304,7 +391,7 @@ class ToFix:
     def get_chunks(
         self,
         alpha: str | float = None,
-    ) -> ChunksIterator:
+    ):
         """Returns an iterator of table chunks (as pandas DataFrames)."""
         # TODO: also make columns selectable
 
@@ -519,31 +606,3 @@ class ToFix:
 #     out_df.rename(columns={self._alpha_mod: "fraction"}, inplace=True)
 
 #     return out_df
-
-
-class _TablesIterator:
-    """Iterator of HiconaTable objects."""
-
-    # TODO: Fix to because of regions and such
-
-    def __init__(self, store, root, uris):
-        self._store = store
-        self._uri_list = uris
-
-        self._uri_index = 0
-        self._max_uri = len(uris)
-
-    def __len__(self):
-        return self._max_uri
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        if self._uri_index >= self._max_uri:
-            raise StopIteration
-
-        curr_uri = self._uri_list[self._uri_index]
-        self._uri_index += 1
-
-        return HiconaTable(self._store, curr_uri)
