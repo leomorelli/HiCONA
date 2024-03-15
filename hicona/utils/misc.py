@@ -1,6 +1,9 @@
 """Miscellaneous utility functions for the hicona package."""
 
 from itertools import chain, combinations
+import re
+
+from .regexes import BED_LIKE_STR, CHR_LIKE_STR, POS_LIKE_STR
 
 
 def annotation_combinations(iterable, k_vals=(1, 2)):
@@ -10,32 +13,55 @@ def annotation_combinations(iterable, k_vals=(1, 2)):
     return list(chain.from_iterable(comb))
 
 
-def build_query(region: str, both: bool) -> str:
-    """Placeholder"""
+class GenomicRegion:
+    """Class to handle genomic regions conversion."""
 
-    # TODO: Somewhere add stringent checks for region format
-    #       (e.g. "chrN:NNNN-NNNN" or "chrN" or "organism")
-    # TODO: Snap to bin boundaries
+    def __init__(self, genomic_str: str) -> None:
 
-    # TODO: Refactor this mess
+        self._chrom, self._start, self._end = self._parse_str(genomic_str)
 
-    parts = region.split(" ")
-    operator = "and" if both else "or"
+    def _parse_str(self, region: str) -> tuple[str, int | None, int | None]:
+        """Parse region string to obtain standard format parts."""
 
-    if len(parts) in (1, 3):
-        temp = "chrom{num} == '{region}'"
-    else:
+        if match := re.match(POS_LIKE_STR, region):
+            return (match[1], int(match[2]) - 1, int(match[3]))
+        if match := re.match(BED_LIKE_STR, region):
+            return (match[1], int(match[2]), int(match[3]))
+        if match := re.match(CHR_LIKE_STR, region):
+            return (match[1], None, None)
+
         raise ValueError(f"Invalid region string: {region}")
 
-    if len(parts) == 3:
-        temp += " and start{num} >= {start} and end{num} <= {end}"
+    def to_bed_str(self) -> str:
+        """Return region in BED format."""
 
-    queries = []
-    for num in range(1, 3):
-        if len(parts) == 1:
-            query = temp.format(num=num, region=parts[0])
-        else:
-            query = temp.format(num=num, region=parts[0], start=parts[1], end=parts[2])
-        queries.append(query)
+        if self._start is None or self._end is None:
+            return self._chrom
+        return f"{self._chrom}\t{self._start}\t{self._end}"
 
-    return f"({queries[0]}) {operator} ({queries[1]})"
+    def to_pos_str(self) -> str:
+        """Return region in POS format."""
+
+        if self._start is None or self._end is None:
+            return self._chrom
+        return f"{self._chrom}:{self._start + 1}-{self._end}"
+
+    def to_query(self, both: bool = False) -> str:
+        """Return region in query format."""
+
+        operator = "and" if both else "or"
+
+        temp = f"chrom[N] == '{self._chrom}'"
+        if self._start or self._end:
+            temp += f" and start[N] >= {self._start} and end[N] <= {self._end}"
+
+        temps = [temp.replace("[N]", str(num)) for num in (1, 2)]
+        return f"({temps[0]}) {operator} ({temps[1]})"
+
+    def snap_to_bin(self, bin_size: int) -> None:
+        """Snap start and end to bin boundaries."""
+
+        if self._start is not None:
+            self._start = (self._start // bin_size) * bin_size
+        if self._end is not None:
+            self._end = ((self._end + bin_size - 1) // bin_size) * bin_size

@@ -1,6 +1,6 @@
 """Module with custom data types for the hicona package type annotation."""
 
-from typing import Iterable, Generator, TypeVar
+from typing import Iterable, TypeVar
 
 import pandas as pd
 

@@ -19,7 +19,7 @@ import hicona.hicona_cooler as hicooler  # For circular import
 from .uris import Uris
 from .utils.dtypes import PdChunks
 from .utils.hdf5_ops import fetch_chunk, get_attrs, get_table_size
-from .utils.misc import build_query
+from .utils.misc import GenomicRegion
 from .utils.numeric import round_half_up
 from .processing.processing_flow import ProcessingFlow
 
@@ -116,15 +116,18 @@ class TableIntervals:
     def subset(self, region: str, both: bool = True) -> "TableIntervals":
         """Subset a full genomic table to a region of interest."""
 
-        # NOTE: currently not allowing the subset of subsets because it is
-        #       not clear how to handle the interval_str in that case. Might
-        #       be implemented in the future if needed.
+        # NOTE: currently not allowing the subset of subsets because it
+        #       is not clear how to handle the interval_str in that case.
+        #       Might be implemented in the future if needed.
         if self._interval_str != FULL_TABLE:
             raise ValueError("Cannot subset a subset. Use boolean operators instead.")
 
         new_repr = f"{region}({'+' if both else '-'})"
 
-        query_str = build_query(region, both)
+        gen_region = GenomicRegion(region)
+        gen_region.snap_to_bin(self._table.bin_size)
+        query_str = gen_region.to_query(both)
+
         pd_chunks = self._table.chunks(annotated=True)
         new_indexes = [c.query(query_str).index for c in pd_chunks]
 
