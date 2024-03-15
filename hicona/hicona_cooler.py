@@ -128,7 +128,7 @@ class HiconaCooler(cooler.Cooler):
 
         return table_uris
 
-    def create_table(self, flow: str | ProcessingFlow = "hicona"):
+    def create_table(self, flow: str | ProcessingFlow = "hicona") -> HiconaTable:
         """Create a normalized and sparsified version of the pixels table.
 
         Create a new table using the specified normalization procedure,
@@ -143,6 +143,11 @@ class HiconaCooler(cooler.Cooler):
             Flow to use to filter and normalize the table. If a string is
             provided, the default flow for the corresponding method is used.
             (default is "hicona")
+
+        Returns
+        -------
+        HiconaTable :
+            The newly created table as a HiconaTable object.
         """
 
         # Convert any default string to the corresponding flow
@@ -165,7 +170,7 @@ class HiconaCooler(cooler.Cooler):
 
         table_uris = self._init_raw_table(serial, flow)
         processor = TableProcessor(RawTable(table_uris))
-        processor.create_table()
+        return processor.create_table()
 
     def fetch_table(self, flow: str | ProcessingFlow = "hicona") -> HiconaTable:
         """Retrieve an previously created `HiconaTable` object.

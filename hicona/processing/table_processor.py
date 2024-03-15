@@ -3,7 +3,7 @@
 import logging
 import time
 
-from ..hicona_table import RawTable
+from ..hicona_table import RawTable, HiconaTable
 from .spar_funs import sparsify_chunk
 from ..utils.chunked_ops import get_node_stats
 from ..utils.hdf5_ops import resize_table, write_table, write_chunk
@@ -57,7 +57,7 @@ class TableProcessor:
 
             tab_size += len(spar_chunk)
 
-    def create_table(self):
+    def create_table(self) -> HiconaTable:
         """Begin actual table processing."""
 
         logging.basicConfig(level=self._log_level)
@@ -71,4 +71,4 @@ class TableProcessor:
         end_time = time.time()
         logging.info("Table creation took %s seconds.", end_time - start_time)
 
-        # TODO: Return table object
+        return HiconaTable(self._table.uris)

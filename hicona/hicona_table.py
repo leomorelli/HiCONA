@@ -327,12 +327,28 @@ class HiconaTable(Table):
         super().__init__(uris, intervals=intervals)
 
     @property
-    def region(self):
+    def region(self) -> str:
         """Return the region of the table or the subset."""
         return str(self._intervals)
 
     def subset(self, region: str, both: bool = True) -> "HiconaTable":
-        """Return a subset of the table based on the region and both strands."""
+        """Return a subset of the table based on pixel genomic regions.
+
+        Parameters
+        ----------
+        region : str
+            Genomic region to keep. It must be a string in bed-like format,
+            such as "chr1 10000 200000" or just "chr1".
+        both : bool, optional
+            Whether to keep a pixel only if both of its bins are in the
+            specified region. If False, keep a pixel if at least one of its
+            bins is in the region. Default is True.
+
+        Returns
+        -------
+        HiconaTable :
+            A new HiconaTable object with the subset of the original table.
+        """
 
         new_intervals = self._intervals.subset(region, both)
         return HiconaTable(self.uris, new_intervals)
