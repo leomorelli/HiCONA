@@ -7,7 +7,7 @@ from ..utils.numeric import round_half_up
 
 
 def _compute_alpha(row: pd.Series) -> float:
-    """Given a (weight, degree) pair, compute the integral."""
+    """Compute alpha value according to Serrano et al. 2009."""
 
     weight, deg = row["norm_weight"], row["degree"]
     res, _ = integrate.quad(lambda x: (1 - x) ** (deg - 2), 0, weight)
