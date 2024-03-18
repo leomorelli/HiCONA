@@ -95,7 +95,7 @@ def plot_alpha_grid(alpha_grid, img_path: str | None = None, show: bool = False)
     return _plot_output(axes, img_path, show)
 
 
-def plot_alpha_distr(alpha_distr, img_path: str = None, show: bool = False):
+def plot_alpha_distr(alpha_distr, img_path: str | None = None, show: bool = False):
     """Placeholder"""
 
     axes = sns.lineplot(alpha_distr)
@@ -113,7 +113,7 @@ def plot_annot_dynamics(
     alpha_distr: pd.DataFrame,
     ann_name: str,
     sort_rows: bool = True,
-    img_path: str = None,
+    img_path: str | None = None,
     show: bool = False,
 ):
     """Placeholder."""
@@ -147,7 +147,7 @@ def plot_annot_dynamics(
     table["annot"] = table.pop(ann_cols[0]) + "-" + table.pop(ann_cols[1])
     table = table.set_index(["annot", "alpha"]).squeeze().unstack()
 
-    # Trasform main table in log2 fold change
+    # Transform main table in log2 fold change
     for col in table.columns:
         table[col] = table[col] / table[col].sum()
         table[col] = table[col].divide(bkg["num_pixels"], fill_value=0)

@@ -193,6 +193,7 @@ class HiconaCooler(cooler.Cooler):
             The requested table as a HiconaTable object.
         """
 
+        # TODO: Sometimes there is an issue with fetching the table
         if isinstance(flow, str):
             flow = ProcessingFlow.from_default(flow)
 

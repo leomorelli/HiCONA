@@ -212,7 +212,7 @@ class Table:
 
         Parameters
         ----------
-        columns: Iterable[str], optional
+        columns: Iterable[str] or None, optional
             If provided, only fetch the specified columns. Default is None.
         annotated: bool, optional
             Whether to annotate with the bin information. Default is False.
@@ -524,19 +524,6 @@ class AlphaGrid:
         plot_alpha_grid(self, img_path, show)
 
 
-class ToFix:
-
-    def get_alpha_distr(self) -> pd.Series:
-        """Placeholder"""
-
-        distr = pd.Series()
-        for chunk in self.get_chunks():
-            vals = chunk.groupby(self._alpha_mod)["count"].count()
-            distr = distr.combine(vals, lambda x, y: x + y, fill_value=0)
-
-        return distr
-
-
 # def annotation_dynamics(self, annot: str) -> pd.DataFrame:
 #     """Placeholder"""
 
@@ -582,7 +569,7 @@ class ToFix:
 
 #     parent_cooler = cooler.Cooler(parent_location)
 #     bins = parent_cooler.bins()[:]
-#     # TODO: slightly memory demanding, maybe just fetch subset of bins
+#     # TO DO: slightly memory demanding, maybe just fetch subset of bins
 
 #     ann1, ann2 = f"{annot}1", f"{annot}2"
 #     ann_df = cooler.annotate(self.get_dataframe(), bins)

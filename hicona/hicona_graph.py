@@ -1,7 +1,7 @@
 """graph_tool.Graph specialized subclass for Hi-C data network analysis.
 
 Extend the graph_tool.Graph class, without overwriting any of its methods,
-implementing algorithms for network analysis of chromosome-level tables.
+implementing algorithms for network analysis of pixel tables.
 """
 
 from collections.abc import Iterable
@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import graph_tool.all as gt
 
+from .hicona_table import HiconaTable
 from .utils.misc import annotation_combinations
 from .utils.table_ops import pd_to_gt_dtype
 
@@ -19,13 +20,10 @@ __all__ = ["HiconaGraph"]
 class HiconaGraph(gt.Graph):
     """Specialized Graph subclass for Hi-C data network analysis.
 
-    :py:class:`graph_tool.Graph` subclass created from a chromosome-level
+    :py:class:`graph_tool.Graph` subclass created from a sparsified pixel
     table, where the nodes are the bins while the edges are the pixels.
     Unless specified otherwise, edges are annotated with all pixel columns.
-    Unless specified otherwise, nodes are annotated only with the ``bin_id``;
-    in general it is suggested to specify only the required annotations, in
-    order to prevent graphs too big for memory. Some commonly used network
-    analysis algorithms are implemented as methods.
+    Unless specified otherwise, nodes are annotated only with the ``bin_id``.
 
     Parameters
     ----------
@@ -41,54 +39,41 @@ class HiconaGraph(gt.Graph):
 
     def __init__(
         self,
-        dataf: pd.DataFrame,
-        to_keep: Iterable[str] = None,
-        ann_df: pd.DataFrame = None,
+        table: HiconaTable,
+        bins: pd.DataFrame,
     ):
-        # List of df columns that will/will NOT be used as edge properties
-        to_keep = to_keep if to_keep is not None else dataf.columns.tolist()
-        to_drop = [c for c in dataf.columns.tolist() if c not in to_keep]
 
-        # Create id conversion table
-        vids = np.sort(
-            np.union1d(
-                dataf["bin1_id"].unique(),
-                dataf["bin2_id"].unique(),
-            )
-        )
-        bin_ind = pd.DataFrame(
-            {
-                "bin_ids": vids,
-                "node_id": np.arange(0, len(vids)),
-            }
-        )
+        # Create table to pass from bin_id to node_id and vice versa
+        unique_bins: set[int] = set()
+        for chunk in table.chunks():
+            unique_bins.update(chunk["bin1_id"].unique())
+            unique_bins.update(chunk["bin2_id"].unique())
+        conv = {"bin_id": sorted(unique_bins), "id": range(len(unique_bins))}
+        conv_tab = pd.DataFrame(conv)
+        print(conv_tab)
 
-        # Add columns to the df corresponding to the new reindexed bin ids
-        merge_opts = {"how": "left", "right_on": "bin_ids"}
-        dataf = dataf.merge(bin_ind, left_on="bin1_id", **merge_opts)
-        dataf = dataf.merge(bin_ind, left_on="bin2_id", **merge_opts)
-        dataf.drop(to_drop + ["bin_ids_x", "bin_ids_y"], axis=1, inplace=True)
+        # Initialize the object
+        super().__init__(directed=False)
 
-        # Assumed that "node_id_x" and "node_id_y" are the last two columns
-        df_cols = dataf.columns.tolist()
-        df_cols = df_cols[-2:] + df_cols[:-2]
-        dataf = dataf[df_cols]
+        # Add edges to the graph and edge properties
+        prop_ord = ["alpha_min", "alpha_max", "count", "norm"]
+        for chunk in table.chunks():
 
-        # Initialize the object with edge properties
-        eprops = [(p, pd_to_gt_dtype(dataf[p].dtype.name)) for p in to_keep]
-        super().__init__(dataf.values, directed=False, eprops=eprops)
+            eprops = [(p, pd_to_gt_dtype(chunk[p].dtype.name)) for p in prop_ord]
+            chunk = chunk.merge(conv_tab, left_on="bin1_id", right_on="bin_id")
+            chunk = chunk.merge(conv_tab, left_on="bin2_id", right_on="bin_id")
 
-        # TODO: Currently if ann_df==None it breaks
-        # Reduce annotation dataframe to only the nodes in the network
-        ann_df = ann_df.filter(items=vids, axis=0)
-        ann_df.reset_index(inplace=True)
-        ann_df.rename(columns={"index": "bin_id"}, inplace=True)
-        assert len(vids) == len(ann_df)
+            edge_list = chunk[["id_x", "id_y"] + prop_ord].values
+            self.add_edge_list(edge_list, eprops=eprops)
 
-        # Add node annotations via bin dataframe
-        vprops = [(p, pd_to_gt_dtype(ann_df[p].dtype.name)) for p in ann_df]
+        # Add vertex properties
+        annot_df = bins.filter(items=conv_tab["bin_id"].to_list(), axis=0)
+        annot_df.reset_index(inplace=True)
+        annot_df.rename(columns={"index": "bin_id"}, inplace=True)
+
+        vprops = [(p, pd_to_gt_dtype(annot_df[p].dtype.name)) for p in annot_df]
         for name, dtype in vprops:
-            vprop = self.new_vertex_property(dtype, ann_df[name])
+            vprop = self.new_vertex_property(dtype, annot_df[name])
             self.vp[name] = vprop
 
     def _node_statistics(self, stat, mask):
@@ -153,7 +138,7 @@ class HiconaGraph(gt.Graph):
         stat: str,
         num_perms: int = 1000,
         seed: int = 94206,
-    ) -> dict:
+    ) -> pd.DataFrame:
         """Compute p-values for node label permutations.
 
         Given a subset of node annotations of the graph, first compute all
@@ -187,7 +172,7 @@ class HiconaGraph(gt.Graph):
 
         Returns
         -------
-        dict :
+        pd.DataFrame:
             dictionary containing permutation parameters and results
         """
 
@@ -196,12 +181,12 @@ class HiconaGraph(gt.Graph):
         # TODO: Maybe add number of nodes per annotation and overlap
         # TODO: Maybe create an entire object to return and plot the results?
 
-        ann_list = [ann_list, None] if isinstance(ann_list, str) else ann_list
+        annos = [ann_list, None] if isinstance(ann_list, str) else ann_list
         node_vals = self._node_statistics(stat, np.ones(self.num_vertices()))
 
         # Compute pvalues for all 1 and 2 annotation pairs
         res_dicts = []
-        for pair in annotation_combinations(ann_list):
+        for pair in annotation_combinations(annos):
             pair_ohe = self._create_ann_ohe(pair)
             pval = self._compute_perms(pair_ohe, node_vals, num_perms, seed)
             res_dicts.append(
@@ -214,4 +199,4 @@ class HiconaGraph(gt.Graph):
                 }
             )
 
-        return res_dicts
+        return pd.DataFrame(res_dicts)
