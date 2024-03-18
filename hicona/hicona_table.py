@@ -16,8 +16,9 @@ import numpy as np
 import pandas as pd
 
 import hicona.hicona_cooler as hicooler  # For circular import
+from .plotting import plot_alpha_grid
 from .uris import Uris
-from .utils.dtypes import PdChunks
+from .utils.dtypes import AlphaModType, OptionalAxes, PdChunks
 from .utils.hdf5_ops import fetch_chunk, get_attrs, get_table_size
 from .utils.misc import GenomicRegion
 from .utils.numeric import round_half_up
@@ -378,74 +379,85 @@ class HiconaTable(Table):
         return HiconaTable(self.uris, new_intervals)
 
 
-class ToFix:
-    def _get_alpha_pts(self, thresholds):
+class AlphaGrid:
+    """Class for the computation of the optimal alpha value for filtering.
+
+    During class initialization, the optimal alpha value is computed using
+    the following steps:
+
+    - define a grid of alpha values centered around the current optimal
+      and spaced in order to cover 1 unit of previous decimal position.
+    - for each alpha value, filter the table and compute the remaining
+      fraction of edges and nodes.
+    - for each alpha compute the Euclidean distance from point ``(1, 0)``
+      in the space ``x: fraction of nodes``, ``y: fraction of edges``.
+    - set as new optimal alpha the one minimizing the Euclidean distance.
+    - move to the next decimal position and repeat the procedure.
+
+    Parameters
+    ----------
+    table : HiconaTable
+        The table for which the optimal alpha value is computed.
+    alpha_mod : "min" or "max"
+        The alpha mode to use for filtering.
+    decimals : int
+        The number of decimal positions to consider when computing the grid.
+    verbose : bool
+        Whether to log the progress of the computation.
+    """
+
+    def __init__(
+        self,
+        table: HiconaTable,
+        alpha_mod: AlphaModType,
+        decimals: int,
+        verbose: bool,
+    ):
+        self._table = table
+        self._alpha_mod = alpha_mod
+        self._decimals = decimals
+        self._alpha_grid = self._compute_grid(decimals, verbose)
+
+    def _get_stats(self, thr: float) -> tuple[int, int]:
+        """Return number of nodes and edges in a table filtered by alpha."""
+
+        nodes: set = set()
+        edges: int = 0
+
+        alpha_col = "alpha_" + self._alpha_mod
+        for chunk in self._table.chunks():
+            chunk = chunk.query(f"{alpha_col} <= {thr}")
+
+            nodes |= set(chunk["bin1_id"]) | set(chunk["bin2_id"])
+            edges += len(chunk)
+
+        return len(nodes), edges
+
+    def _get_alpha_pts(self, thresholds: list[float]) -> pd.DataFrame:
         """Return dataframe with filtering statistics for a threshold grid."""
         # NOTE: Assumed that alpha thresholds are in decreasing order.
 
-        def num_nodes(table):
-            """Count unique nodes in pixels-like table."""
-            return len(set(table["bin1_id"]) | set(table["bin2_id"]))
-
-        # Initialize input parameters and output container
-        cur_table = self.get_dataframe()
         res_list = []
 
         # Define normalization values
-        tot_nodes = num_nodes(cur_table)
-        tot_edges = cur_table.size
+        tot_nodes, tot_edges = self._get_stats(1)
 
         # Iterate over each alpha value
         for alpha in thresholds:
-            # Filter and compute filtering statistics
-            cur_table = cur_table[cur_table[self._alpha_mod] <= alpha]
-            cur_nodes = num_nodes(cur_table) / tot_nodes
-            cur_edges = cur_table.size / tot_edges
-
-            # Store results as matrix row
+            num_nodes, num_edges = self._get_stats(alpha)
             res_list.append(
                 {
                     "alpha": alpha,
-                    "nodes_f": cur_nodes,
-                    "edges_f": cur_edges,
-                    "eu_dist": dist((1, 0), (cur_nodes, cur_edges)),
+                    "nodes_f": num_nodes / tot_nodes,
+                    "edges_f": num_edges / tot_edges,
+                    "eu_dist": dist((1, 0), (num_nodes, num_edges)),
                 }
             )
 
         return pd.DataFrame(res_list)
 
-    def compute_opt_alpha(
-        self,
-        modality: str = "min",
-        decimals: int = 3,
-        verbose: bool = True,
-    ) -> float:
-        """Return the optimal alpha value for filtering the pixel table.
-
-        Compute the optimal alpha value for by iterating these steps:
-
-        - define ``num_pts`` alpha values centered around the current optimal
-          and spaced in order to cover 1 unit of previous decimal position.
-        - for each alpha value, filter the table and compute the remaining
-          fraction of edges and nodes.
-        - for each alpha compute the Euclidean distance from point ``(1, 0)``
-          in the space ``x: fraction of nodes``, ``y: fraction of edges``.
-        - set as new optimal alpha the one minimizing the Euclidean distance.
-        - move to the next decimal position and repeat the procedure.
-
-        Parameters
-        ----------
-        decimals : int, optional
-            Number of decimal positions to compute for the alpha value. Must
-            be at least 1. (default is 3)
-        verbose : bool, optional
-            Print progress to console. (default is True)
-
-        Returns
-        -------
-        float :
-            Optimal alpha value
-        """
+    def _compute_grid(self, decimals: int, verbose: bool) -> pd.DataFrame:
+        """Return the grid containing the statistics for each alpha value."""
 
         # Initialize optimal alpha and result container
         opt_alpha = 0.5  # Middle of initial search space 0-1
@@ -463,62 +475,56 @@ class ToFix:
 
             # Compute the new statistics, then update optimal alpha
             new_pts = self._get_alpha_pts(grid)
-            opt_alpha = new_pts["alpha"].iloc[new_pts["eu_dist"].idxmin()]
+            opt_alpha = self._get_minimal_dist(new_pts)
             alpha_vals.append(new_pts)
 
-        # Store results
-        alpha_vals = pd.concat(alpha_vals).reset_index()
-        opt_alpha = round_half_up(opt_alpha, decimals)  # "2.129999" -> "2.13"
-        self._alpha_grid = alpha_vals
-        self._alpha_optimal = opt_alpha
+        return pd.concat(alpha_vals).reset_index()
 
-        if verbose:
-            print(f"Optimal alpha: {opt_alpha}")
+    @staticmethod
+    def _get_minimal_dist(table: pd.DataFrame) -> float:
+        """Return the alpha value minimizing the Euclidean distance."""
 
-        return opt_alpha
+        position = table["eu_dist"].idxmin()
+        if not isinstance(position, int):
+            raise ValueError("Non numeric index. This should not happen.")
+        return table["alpha"].iloc[position]
 
-    def get_chunks(
+    def optimal_alpha(self) -> float:
+        """Return the optimal alpha value for filtering the pixel table."""
+
+        optimal_value = self._get_minimal_dist(self._alpha_grid)
+        return round_half_up(optimal_value, self._decimals)
+
+    def plot(
         self,
-        alpha: str | float = None,
-    ):
-        """Returns an iterator of table chunks (as pandas DataFrames)."""
-        # TODO: also make columns selectable
+        img_path: str | None = None,
+        show: bool = False,
+    ) -> OptionalAxes:
+        """Plot the grid object.
 
-        if alpha == "optimal":
-            if not self._alpha_optimal:
-                raise ValueError("W: ignored, compute optimal alpha first.")
-            alpha = self._alpha_optimal
-
-        alpha_query = f"{self._alpha_mod} <= {alpha}" if alpha else None
-        return super().get_chunks(alpha_query)
-
-    def get_dataframe(self, alpha: str | float = None) -> pd.DataFrame:
-        """Return the pixel table filtered according to some alpha value.
-
-        Return a :py:class:`DataFrame` where only the pixels having a
-        sparsification alpha value below the provided threshold are kept.
+        Plot and/or show the grid of alpha values tested when computing the
+        optimal alpha value for pixel filtering. The plot has the fraction
+        of retained nodes on the ``x`` axis and the fraction of retained
+        edges on the ``y`` axis.
 
         Parameters
-        ----------
-        alpha : str or float, optional
-            Keeping only the pixels with alpha smaller than this threshold.
-            If "optimal", use the previously computed optimal alpha value.
-            (default is "optimal")
+        ---------
+        img_path : str or None, optional
+            If provided, path to save the plot to. (default is None)
+        show : bool, optional
+            If True, display the plot in a :py:mod:`matplotlib` window.
+            (default is False)
 
         Returns
         -------
-        :py:class:`DataFrame` :
-            Dataframe of filtered pixels.
+        matplotlib.axes.Axes or None :
+            If ``show`` is False, return plot axes. Otherwise, return None.
         """
-        # TODO: also make columns selectable
 
-        if alpha == "optimal":
-            if not self._alpha_optimal:
-                raise ValueError("W: ignored, compute optimal alpha first.")
-            alpha = self._alpha_optimal
+        plot_alpha_grid(self, img_path, show)
 
-        alpha_query = f"{self._alpha_mod} <= {alpha}" if alpha else None
-        return super().get_dataframe(alpha_query)
+
+class ToFix:
 
     def get_alpha_distr(self) -> pd.Series:
         """Placeholder"""
@@ -530,70 +536,71 @@ class ToFix:
 
         return distr
 
-    def annotation_dynamics(self, annot: str) -> pd.DataFrame:
-        """Placeholder"""
 
-        def process_table(table, lower, upper):
-            """Placeholder"""
+# def annotation_dynamics(self, annot: str) -> pd.DataFrame:
+#     """Placeholder"""
 
-            ann1, ann2, alpha_col = table.columns  # Assumed for convenience
+#     def process_table(table, lower, upper):
+#         """Placeholder"""
 
-            filt_table = table.loc[table[alpha_col] <= upper]
-            filt_table = filt_table.query(f"{alpha_col} > {lower}")
+#         ann1, ann2, alpha_col = table.columns  # Assumed for convenience
 
-            out = filt_table.groupby([ann1, ann2]).count()
-            out.reset_index(inplace=True)
-            out["alpha"] = upper
+#         filt_table = table.loc[table[alpha_col] <= upper]
+#         filt_table = filt_table.query(f"{alpha_col} > {lower}")
 
-            return out
+#         out = filt_table.groupby([ann1, ann2]).count()
+#         out.reset_index(inplace=True)
+#         out["alpha"] = upper
 
-        def compute_quantiles(table):
-            """Placeholder"""
+#         return out
 
-            curve = pd.Series()
-            total = 0
-            for chunk in table.get_chunks():
-                total += len(chunk)
-                vals = chunk.groupby("alpha_min")["count"].count()
-                curve = curve.combine(vals, lambda x, y: x + y, fill_value=0)
+#     def compute_quantiles(table):
+#         """Placeholder"""
 
-            num_pix = curve.sum()
-            cumulative = curve.cumsum()
-            quantiles = [0.1 * i * num_pix for i in range(1, 11)]
-            thrs = [cumulative[cumulative >= q].index[0] for q in quantiles]
-            thrs = [0] + thrs  # Added after since first index is not 0
+#         curve = pd.Series()
+#         total = 0
+#         for chunk in table.get_chunks():
+#             total += len(chunk)
+#             vals = chunk.groupby("alpha_min")["count"].count()
+#             curve = curve.combine(vals, lambda x, y: x + y, fill_value=0)
 
-            return thrs
+#         num_pix = curve.sum()
+#         cumulative = curve.cumsum()
+#         quantiles = [0.1 * i * num_pix for i in range(1, 11)]
+#         thrs = [cumulative[cumulative >= q].index[0] for q in quantiles]
+#         thrs = [0] + thrs  # Added after since first index is not 0
 
-        alphas = compute_quantiles(self)
-        interv = [(alphas[i], alphas[i + 1]) for i in range(len(alphas) - 1)]
+#         return thrs
 
-        parent_store = self._table_uri.split("hicona_tables")[0].strip("/")
-        parent_location = self._store_uri
-        if parent_store:  # Non empty -> multires
-            parent_location += f"::{parent_store}"
+#     alphas = compute_quantiles(self)
+#     interv = [(alphas[i], alphas[i + 1]) for i in range(len(alphas) - 1)]
 
-        parent_cooler = cooler.Cooler(parent_location)
-        bins = parent_cooler.bins()[:]
-        # TODO: slightly memory demanding, maybe just fetch subset of bins
+#     parent_store = self._table_uri.split("hicona_tables")[0].strip("/")
+#     parent_location = self._store_uri
+#     if parent_store:  # Non empty -> multires
+#         parent_location += f"::{parent_store}"
 
-        ann1, ann2 = f"{annot}1", f"{annot}2"
-        ann_df = cooler.annotate(self.get_dataframe(), bins)
-        ann_df = ann_df[[ann1, ann2, self._alpha_mod]]
+#     parent_cooler = cooler.Cooler(parent_location)
+#     bins = parent_cooler.bins()[:]
+#     # TODO: slightly memory demanding, maybe just fetch subset of bins
 
-        # Sort annotations alphabetically to make a triagular matrix later
-        ann_df[ann1], ann_df[ann2] = np.where(
-            ann_df[ann1] < ann_df[ann2],
-            (ann_df[ann1], ann_df[ann2]),
-            (ann_df[ann2], ann_df[ann1]),
-        )
+#     ann1, ann2 = f"{annot}1", f"{annot}2"
+#     ann_df = cooler.annotate(self.get_dataframe(), bins)
+#     ann_df = ann_df[[ann1, ann2, self._alpha_mod]]
 
-        out_df = pd.concat([process_table(ann_df, *i) for i in interv])
+#     # Sort annotations alphabetically to make a triagular matrix later
+#     ann_df[ann1], ann_df[ann2] = np.where(
+#         ann_df[ann1] < ann_df[ann2],
+#         (ann_df[ann1], ann_df[ann2]),
+#         (ann_df[ann2], ann_df[ann1]),
+#     )
 
-        out_df.reset_index(drop=True, inplace=True)
-        out_df.rename(columns={self._alpha_mod: "num_pixels"}, inplace=True)
+#     out_df = pd.concat([process_table(ann_df, *i) for i in interv])
 
-        return out_df
+#     out_df.reset_index(drop=True, inplace=True)
+#     out_df.rename(columns={self._alpha_mod: "num_pixels"}, inplace=True)
+
+#     return out_df
 
 
 # THRESHOLD VERSION OF ANNOTATION DYNAMICS

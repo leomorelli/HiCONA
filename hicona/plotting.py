@@ -36,7 +36,7 @@ def _multiaxes_heatmap(data, data_ax, cbar_ax):
     pass
 
 
-def plot_alpha_grid(alpha_grid, img_path: str = None, show: bool = False):
+def plot_alpha_grid(alpha_grid, img_path: str | None = None, show: bool = False):
     """Plot the grid used to compute the optimal alpha value.
 
     Plot and/or show the grid of alpha values tested when computing the
