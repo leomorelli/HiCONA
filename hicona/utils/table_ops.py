@@ -54,7 +54,7 @@ def get_dataf_mapping(dataf: pd.DataFrame) -> dict:
 
 
 def pd_to_h5_dtype(pd_dtype: str):
-    """Stuff"""
+    """Placeholder"""
 
     h5_dtype = pd_dtype
     if pd_dtype == "object":

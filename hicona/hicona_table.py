@@ -17,12 +17,12 @@ import pandas as pd
 
 import hicona.hicona_cooler as hicooler  # For circular import
 from .plotting import plot_alpha_grid
+from .processing.processing_flow import ProcessingFlow
 from .uris import Uris
 from .utils.dtypes import AlphaModType, OptionalAxes, PdChunks
 from .utils.hdf5_ops import fetch_chunk, get_attrs, get_table_size
 from .utils.misc import GenomicRegion
 from .utils.numeric import round_half_up
-from .processing.processing_flow import ProcessingFlow
 
 
 FULL_TABLE = "full_table"
@@ -378,6 +378,36 @@ class HiconaTable(Table):
         new_intervals = self._intervals & other._intervals
         return HiconaTable(self.uris, new_intervals)
 
+    def get_alpha_grid(
+        self,
+        alpha_mod: AlphaModType = "min",
+        decimals: int = 3,
+        verbose: bool = True,
+    ) -> "AlphaGrid":
+        """Return a grid for the table filtered at different alpha values.
+
+        Compute the number and fraction of nodes and edges remaining in the
+        table when filtered at different alpha values.
+        For the threshold selection procedure see the `AlphaGrid` class.
+
+        Parameters
+        ----------
+        alpha_mod : "min" or "max", optional
+            The alpha mode to use for filtering. (Default is "min")
+        decimals : int, optional
+            The number of decimal positions to consider when computing the
+            grid. (Default is 3)
+        verbose : bool, optional
+            Whether to log the progress of the computation. (Default is True)
+
+        Returns
+        -------
+        AlphaGrid :
+            An AlphaGrid object with the statistics for each alpha value.
+        """
+
+        return AlphaGrid(self, alpha_mod, decimals, verbose)
+
 
 class AlphaGrid:
     """Class for the computation of the optimal alpha value for filtering.
@@ -448,9 +478,11 @@ class AlphaGrid:
             res_list.append(
                 {
                     "alpha": alpha,
-                    "nodes_f": num_nodes / tot_nodes,
-                    "edges_f": num_edges / tot_edges,
-                    "eu_dist": dist((1, 0), (num_nodes, num_edges)),
+                    "nodes_n": num_nodes,
+                    "edges_n": num_edges,
+                    "nodes_f": (frac_nodes := num_nodes / tot_nodes),
+                    "edges_f": (frac_edges := num_edges / tot_edges),
+                    "eu_dist": dist((1, 0), (frac_nodes, frac_edges)),
                 }
             )
 
@@ -461,7 +493,7 @@ class AlphaGrid:
 
         # Initialize optimal alpha and result container
         opt_alpha = 0.5  # Middle of initial search space 0-1
-        num_points = 11  # Number of points to guarantee 1 unit span
+        num_points = 21  # Must be 10x + 1 to guarantee 1 unit span
         alpha_vals = []
 
         for pos in range(decimals):
@@ -489,6 +521,7 @@ class AlphaGrid:
             raise ValueError("Non numeric index. This should not happen.")
         return table["alpha"].iloc[position]
 
+    @property
     def optimal_alpha(self) -> float:
         """Return the optimal alpha value for filtering the pixel table."""
 
@@ -521,7 +554,7 @@ class AlphaGrid:
             If ``show`` is False, return plot axes. Otherwise, return None.
         """
 
-        plot_alpha_grid(self, img_path, show)
+        plot_alpha_grid(self._alpha_grid, img_path, show)
 
 
 # def annotation_dynamics(self, annot: str) -> pd.DataFrame:
