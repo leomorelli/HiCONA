@@ -9,7 +9,8 @@
             "int64": "long",
             "float64": "long double",
             "object": "string",
-            "bool": "bool"
+            "bool": "bool",
+            "category": "string"
         },
         "table_columns": {
             "bin1_id": "i8",

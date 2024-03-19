@@ -5,6 +5,7 @@ DataFrames yielding a single aggregated result. This way it should be
 possible to apply these functions to bigger than memory dataframes.
 """
 
+import numpy as np
 import pandas as pd
 
 from .iterable_ops import change_breaks
@@ -57,7 +58,7 @@ def chunked_quants(
         item = item or []
         return item if isinstance(item, list) else [item]
 
-    quants = to_list(quants)
+    quantile = np.array(quants)
     split_on = to_list(split_on)
     group_by = to_list(group_by)
 
@@ -66,10 +67,10 @@ def chunked_quants(
     for interval in intervals:
 
         if group_by:
-            qvals = interval.groupby(group_by)[column].quantile(quants)
+            qvals = interval.groupby(group_by)[column].quantile(quantile)
             col_fix = {"level_1": "quant"}
         else:
-            qvals = interval[column].quantile(quants)
+            qvals = interval[column].quantile(quantile)
             col_fix = {"index": "quant"}
 
         quants_df = qvals.reset_index()

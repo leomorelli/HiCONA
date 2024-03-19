@@ -50,7 +50,7 @@ def write_chunk(store, path, chunk, lower, keys=None):
 def init_table(store, path, size, col_mapping):
     """Initialize dataframe columns as 1D arrays."""
 
-    opts = {"compression": "gzip"}
+    opts: dict[str, Any] = {"compression": "gzip"}
     with h5py.File(store, mode="r+") as h5_handle:
         group = h5_handle.require_group(path)
         for name, dtype in col_mapping.items():
