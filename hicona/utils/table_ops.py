@@ -63,6 +63,6 @@ def pd_to_h5_dtype(pd_dtype: str):
     return h5_dtype
 
 
-def pd_to_gt_dtype(pd_dtype: str):
+def pd2gt_dtype(pd_dtype: str):
     """Convert pandas-like datatypes to graph-tools datatypes"""
     return HICONA_SETTINGS.conventions.dtype_conversion[pd_dtype]

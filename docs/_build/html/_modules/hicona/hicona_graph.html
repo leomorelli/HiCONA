@@ -81,7 +81,7 @@
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
 <span class="kn">import</span> <span class="nn">graph_tool.all</span> <span class="k">as</span> <span class="nn">gt</span>
 
-<span class="kn">from</span> <span class="nn">.utils</span> <span class="kn">import</span> <span class="n">pd_to_gt_dtype</span><span class="p">,</span> <span class="n">annotation_combinations</span>
+<span class="kn">from</span> <span class="nn">.utils</span> <span class="kn">import</span> <span class="n">pd2gt_dtype</span><span class="p">,</span> <span class="n">annotation_combinations</span>
 
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;HiconaGraph&quot;</span><span class="p">]</span>
 
@@ -145,7 +145,7 @@
         <span class="n">dataf</span> <span class="o">=</span> <span class="n">dataf</span><span class="p">[</span><span class="n">df_cols</span><span class="p">]</span>
 
         <span class="c1"># Initialize the object with edge properties</span>
-        <span class="n">eprops</span> <span class="o">=</span> <span class="p">[(</span><span class="n">p</span><span class="p">,</span> <span class="n">pd_to_gt_dtype</span><span class="p">(</span><span class="n">dataf</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">name</span><span class="p">))</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">to_keep</span><span class="p">]</span>
+        <span class="n">eprops</span> <span class="o">=</span> <span class="p">[(</span><span class="n">p</span><span class="p">,</span> <span class="n">pd2gt_dtype</span><span class="p">(</span><span class="n">dataf</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">name</span><span class="p">))</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">to_keep</span><span class="p">]</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">dataf</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">directed</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">eprops</span><span class="o">=</span><span class="n">eprops</span><span class="p">)</span>
 
         <span class="c1"># TODO: Currently if ann_df==None it breaks</span>
@@ -156,7 +156,7 @@
         <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">vids</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">ann_df</span><span class="p">)</span>
 
         <span class="c1"># Add node annotations via bin dataframe</span>
-        <span class="n">vprops</span> <span class="o">=</span> <span class="p">[(</span><span class="n">p</span><span class="p">,</span> <span class="n">pd_to_gt_dtype</span><span class="p">(</span><span class="n">ann_df</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">name</span><span class="p">))</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">ann_df</span><span class="p">]</span>
+        <span class="n">vprops</span> <span class="o">=</span> <span class="p">[(</span><span class="n">p</span><span class="p">,</span> <span class="n">pd2gt_dtype</span><span class="p">(</span><span class="n">ann_df</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">name</span><span class="p">))</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">ann_df</span><span class="p">]</span>
         <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">dtype</span> <span class="ow">in</span> <span class="n">vprops</span><span class="p">:</span>
             <span class="n">vprop</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">new_vertex_property</span><span class="p">(</span><span class="n">dtype</span><span class="p">,</span> <span class="n">ann_df</span><span class="p">[</span><span class="n">name</span><span class="p">])</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">vp</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">vprop</span>
