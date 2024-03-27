@@ -20,12 +20,21 @@ __all__ = ["HiconaGraph"]
 
 
 class HiconaGraph(gt.Graph):
-    """Specialized Graph subclass for Hi-C data network analysis.
+    """Graph-tool `Graph` specialized for Hi-C data network analysis.
 
-    TODO: fix
+    This class extends the `graph_tool.Graph` class, adding methods to
+    facilitate the analysis of Hi-C data networks. All the methods from the
+    parent class are still available and are not overwritten.
+
+    Parameters
+    ----------
+    table : HiconaTable
+        Pixel table to create the graph from.
+    query : str, optional
+        Pandas-like query string to filter the pixel table. (Default is None)
     """
 
-    def __init__(self, table: HiconaTable):
+    def __init__(self, table: HiconaTable, query: str | None = None):
 
         # Initialize the object
         super().__init__(directed=False)
@@ -38,8 +47,7 @@ class HiconaGraph(gt.Graph):
         # Fetch the data to create the graph
         # NOTE: might be expensive if the table is very big but chunks are not
         #       an option, as the maps must be created in one go
-        data_df = table.dataframe()
-        data_df = data_df[data_df["alpha_min"] < 0.136]
+        data_df = table.dataframe(query=query)
 
         # Create the initial bin to node id conversion table
         self._update_ids_table(data_df["bin1_id"])
@@ -289,34 +297,103 @@ class HiconaGraph(gt.Graph):
         self,
         min_steps: int = 10,
         genomic_links: bool = True,
-    ):
-        """Computed nested blockmodel clustering of the graph."""
+        equilibrate: bool = True,
+        annotate: bool = False,
+    ) -> pd.DataFrame:
+        """Computed nested blockmodel clustering of the graph.
 
+        Return hierarchical clustering of the graph using a nested blockmodel.
+        The output is a `pd.DataFrame` with the cluster labels for each node
+        at each level of the hierarchy, where level `0` is the level with the
+        highest number of clusters, while level `n` is the level with the
+        lowest number of clusters.
+
+        For more detail on the clustering algorithm see the `graph_tool`
+        documentation.
+
+        Parameters
+        ----------
+        min_steps : int, optional
+            Number of iterations of the entropy minimization step.
+            (Default is 10)
+        genomic_links : bool, optional
+            Whether to add edges between genomically consecutive bins.
+            (Default is True)
+        equilibrate : bool, optional
+            Whether to equilibrate the model after the minimization step.
+            (Default is True)
+        annotate : bool, optional
+            Whether to add bin annotations to the output DataFrame.
+            (Default is False)
+
+        Returns
+        -------
+        pd.DataFrame:
+            DataFrame with the cluster labels for each node at each level.
+            Optionally, the DataFrame can also contain bin annotations.
+        """
+
+        print("Starting clustering...")
         start_time = time.time()
 
         if genomic_links and not self._has_genomic_links:
             print("Adding chromosomal edges...")
             self.add_chromsomal_edges()
 
-        # TODO: change it to allow for toggle off of genomic links
-        state_dict = {
-            "base_type": gt.LayeredBlockState,
-            "state_args": {
-                "ec": self.ep["is_genomic_link"],
-                "layers": True,
-                "deg_corr": True,  # Usually lower entropy
-            },
-        }
+        print("Starting model creation...")
+        state_args = {"deg_corr": True}  # Usually lower entropy
+        state_type = gt.BlockState  # Default state type
 
-        model = None
+        if genomic_links:
+            state_args.update({"ec": self.ep.is_genomic_link, "layers": True})
+            state_type = gt.LayeredBlockState
+
+        state_dict = {"base_type": state_type, "state_args": state_args}
+
+        model: gt.NestedBlockState | None = None
         for _ in range(min_steps):
             new_model = gt.minimize_nested_blockmodel_dl(self, state_args=state_dict)
             if not model or new_model.entropy() < model.entropy():
                 model = new_model
 
-        gt.mcmc_equilibrate(model, wait=1000, mcmc_args=dict(niter=10))
+        # This should in theory never happen
+        if not model:
+            raise ValueError("Model could not be created.")
+
+        if equilibrate:
+            print("Equilibrating the model (might take a while)...")
+            gt.mcmc_equilibrate(model, wait=1000, mcmc_args={"niter": 10})
 
         end_time = time.time()
         print(f"Clustering took {end_time - start_time} seconds.")
 
-        return model
+        # From each level, project the partition to the vertex level
+        # NOTE: Labels are sorted by node, not by cluster
+        num_levels = len(model.get_bs())
+        levels = np.zeros((self.num_vertices(), num_levels), dtype=int)
+        for level in range(num_levels):
+            levels[:, level] = model.project_partition(level, 0).get_array()
+
+        # Make each column a category from 0 to n
+        levels = pd.DataFrame(levels).astype("category")
+        for col in levels.columns:
+            num_cat = len(levels[col].cat.categories)
+            new_cat = [str(x) for x in range(num_cat)]
+            levels[col] = levels[col].cat.rename_categories(new_cat)
+
+        # Only keep levels with more than one cluster
+        cols_to_drop = [c for c in levels if len(set(levels[c])) == 1]
+        levels.drop(columns=cols_to_drop, inplace=True)
+
+        # Convert node ids to extended bin form
+        if annotate:
+            merge_kws = {"how": "left", "left_index": True, "right_on": "node_id"}
+            levels = pd.merge(levels, self._ids_table, **merge_kws)
+
+            merge_kws = {"how": "left", "left_on": "bin_id", "right_index": True}
+            bins = self._fetch_bins()[["chrom", "start", "end"]]
+            levels = pd.merge(levels, bins, **merge_kws)
+
+            levels.drop(columns=["bin_id", "node_id"], inplace=True)
+
+        return levels
