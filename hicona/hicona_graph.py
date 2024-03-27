@@ -5,76 +5,125 @@ implementing algorithms for network analysis of pixel tables.
 """
 
 from collections.abc import Iterable
+import time
 
 import numpy as np
 import pandas as pd
 import graph_tool.all as gt
 
+from .hicona_cooler import HiconaCooler
 from .hicona_table import HiconaTable
 from .utils.misc import annotation_combinations
-from .utils.table_ops import pd_to_gt_dtype
+from .utils.table_ops import pd2gt_dtype
 
 __all__ = ["HiconaGraph"]
 
 
 class HiconaGraph(gt.Graph):
-    """Specialized Graph subclass for Hi-C data network analysis.
+    """Graph-tool `Graph` specialized for Hi-C data network analysis.
 
-    :py:class:`graph_tool.Graph` subclass created from a sparsified pixel
-    table, where the nodes are the bins while the edges are the pixels.
-    Unless specified otherwise, edges are annotated with all pixel columns.
-    Unless specified otherwise, nodes are annotated only with the ``bin_id``.
+    This class extends the `graph_tool.Graph` class, adding methods to
+    facilitate the analysis of Hi-C data networks. All the methods from the
+    parent class are still available and are not overwritten.
 
     Parameters
     ----------
-    dataf : :py:class:`DataFrame`
-        Chromosome-level pixel table to create the network from.
-    to_keep : Iterable[str], optional
-        Iterable of pixel table columns to add as edge properties.
-        If None, all pixel table columns are kept. (Default is None)
-    ann_df : :py:class:`DataFrame`, optional
-        DataFrame whose columns are added as node properties.
-        Usually a slice of the ``bins`` table. (Default is None)
+    table : HiconaTable
+        Pixel table to create the graph from.
+    query : str, optional
+        Pandas-like query string to filter the pixel table. (Default is None)
     """
 
-    def __init__(
-        self,
-        table: HiconaTable,
-        bins: pd.DataFrame,
-    ):
-
-        # Create table to pass from bin_id to node_id and vice versa
-        unique_bins: set[int] = set()
-        for chunk in table.chunks():
-            unique_bins.update(chunk["bin1_id"].unique())
-            unique_bins.update(chunk["bin2_id"].unique())
-        conv = {"bin_id": sorted(unique_bins), "id": range(len(unique_bins))}
-        conv_tab = pd.DataFrame(conv)
-        print(conv_tab)
+    def __init__(self, table: HiconaTable, query: str | None = None):
 
         # Initialize the object
         super().__init__(directed=False)
 
+        # Add the new properties
+        self._ids_table = pd.DataFrame(columns=["bin_id", "node_id"], dtype=int)
+        self._table = table
+        self._has_genomic_links = False
+
+        # Fetch the data to create the graph
+        # NOTE: might be expensive if the table is very big but chunks are not
+        #       an option, as the maps must be created in one go
+        data_df = table.dataframe(query=query)
+
+        # Create the initial bin to node id conversion table
+        self._update_ids_table(data_df["bin1_id"])
+        self._update_ids_table(data_df["bin2_id"])
+
         # Add edges to the graph and edge properties
-        prop_ord = ["alpha_min", "alpha_max", "count", "norm"]
-        for chunk in table.chunks():
-
-            eprops = [(p, pd_to_gt_dtype(chunk[p].dtype.name)) for p in prop_ord]
-            chunk = chunk.merge(conv_tab, left_on="bin1_id", right_on="bin_id")
-            chunk = chunk.merge(conv_tab, left_on="bin2_id", right_on="bin_id")
-
-            edge_list = chunk[["id_x", "id_y"] + prop_ord].values
-            self.add_edge_list(edge_list, eprops=eprops)
+        edge_list, eprops = self._to_edge_list(data_df)
+        self.add_edge_list(edge_list, eprops=eprops)
+        # TODO: Maybe remove bin1_id and bin2_id from the edge properties?
 
         # Add vertex properties
-        annot_df = bins.filter(items=conv_tab["bin_id"].to_list(), axis=0)
-        annot_df.reset_index(inplace=True)
-        annot_df.rename(columns={"index": "bin_id"}, inplace=True)
+        self._refresh_vertex_properties()
 
-        vprops = [(p, pd_to_gt_dtype(annot_df[p].dtype.name)) for p in annot_df]
+    def _update_ids_table(self, new_bins: Iterable[int]):
+        """Update the ids_table with new bin ids."""
+
+        # List of new bins to add
+        old_bins = set(self._ids_table["bin_id"])
+        new_bins = set(new_bins)
+        add_bins = sorted(new_bins - old_bins)
+
+        # New table chunk
+        last_node = self._ids_table["node_id"].max()
+        last_node = last_node if not np.isnan(last_node) else -1
+        add_nodes = list(range(last_node + 1, last_node + len(add_bins) + 1))
+        new_chunk = pd.DataFrame({"bin_id": add_bins, "node_id": add_nodes})
+
+        # Update the table
+        self._ids_table = pd.concat([self._ids_table, new_chunk], ignore_index=True)
+
+    def _to_edge_list(self, dataf: pd.DataFrame) -> tuple[np.ndarray, list[tuple]]:
+        """Convert the pixel table to an edge list and edge properties."""
+
+        # Merge the data with the ids_table and drop the bin_id columns
+        dataf = dataf.merge(self._ids_table, left_on="bin1_id", right_on="bin_id")
+        dataf = dataf.merge(self._ids_table, left_on="bin2_id", right_on="bin_id")
+        dataf.drop(columns=["bin_id_x", "bin_id_y"], inplace=True)
+
+        # Create the edge list and edge properties
+        prop_cols = [c for c in dataf.columns if c not in ["node_id_x", "node_id_y"]]
+        edge_prop = [(p, pd2gt_dtype(dataf[p].dtype.name)) for p in prop_cols]
+        edge_list = dataf[["node_id_x", "node_id_y"] + prop_cols].values
+
+        return (edge_list, edge_prop)
+
+    def _fetch_bins(self) -> pd.DataFrame:
+        """Fetch the bin table from the parent cooler."""
+
+        cooler_uri = self._table.uris.cooler_uri()
+        handle = HiconaCooler(cooler_uri)
+        return handle.bins()[:]  # type: ignore
+
+    def _refresh_vertex_properties(self):
+        """Update the vertex properties with the latest bin data."""
+
+        # Fetch the latest bin data
+        bins = self._fetch_bins()
+        ids_list = self._ids_table["bin_id"].to_list()
+        annot_df = bins.filter(items=ids_list, axis=0)  # pylint: disable=no-member
+        annot_df.reset_index(inplace=True, names="bin_id")
+
+        # Update the properties
+        vprops = [(p, pd2gt_dtype(annot_df[p].dtype.name)) for p in annot_df]
         for name, dtype in vprops:
             vprop = self.new_vertex_property(dtype, annot_df[name])
             self.vp[name] = vprop
+
+    @property
+    def ids_table(self):
+        """Return the conversion table from bin_id to node_id."""
+        return self._ids_table
+
+    @property
+    def table(self):
+        """Return the pixel table used to create the graph."""
+        return self._table
 
     def _node_statistics(self, stat, mask):
         """Compute node-level statistic (only required nodes if possible)."""
@@ -200,3 +249,151 @@ class HiconaGraph(gt.Graph):
             )
 
         return pd.DataFrame(res_dicts)
+
+    def add_chromsomal_edges(self):
+        """Add edges between consecutive genomic regions.
+
+        Add edges between nodes representing consecutive genomic regions, i.e.
+        add an edge between nodes with consecutive bin ids.
+        A new edge property map is added to the graph to store whether an edge
+        is chromosomal or not.
+
+        NOTE: Currently the start end end bin for consecutive chromosomes are
+        joined. Until this is fixed, be sure to provide an intrachromosomal
+        pixel table.
+
+        NOTE: Older edge maps are filled with the default value for those
+        maps. This behaviour might lead to unexpected results and will be
+        changed in the future.
+        """
+
+        min_bin: int = self.ids_table["bin_id"].min()
+        max_bin: int = self.ids_table["bin_id"].max()
+
+        self._update_ids_table(range(min_bin, max_bin))
+
+        # TODO: check that only interchromosomal edges are added
+        new_edges = [(i, i + 1) for i in range(min_bin, max_bin)]
+        new_edges = pd.DataFrame(new_edges, columns=["bin1_id", "bin2_id"])
+
+        # Add the new edges to the graph
+        edge_list, _ = self._to_edge_list(new_edges)
+        self.add_edge_list(edge_list)
+
+        # Update property maps
+        # TODO: maybe also update the edge properties?
+        self._refresh_vertex_properties()
+
+        # Add map to state whether an edge is chromosomal or not
+        is_chromosomal_map = [False] * self.num_edges()
+        is_chromosomal_map[-len(new_edges) :] = [True] * len(new_edges)
+
+        link_prop = self.new_edge_property("bool", vals=is_chromosomal_map)
+        self.ep["is_genomic_link"] = link_prop
+
+        self._has_genomic_links = True
+
+    def compute_clustering(
+        self,
+        min_steps: int = 10,
+        genomic_links: bool = True,
+        equilibrate: bool = True,
+        annotate: bool = False,
+    ) -> pd.DataFrame:
+        """Computed nested blockmodel clustering of the graph.
+
+        Return hierarchical clustering of the graph using a nested blockmodel.
+        The output is a `pd.DataFrame` with the cluster labels for each node
+        at each level of the hierarchy, where level `0` is the level with the
+        highest number of clusters, while level `n` is the level with the
+        lowest number of clusters.
+
+        For more detail on the clustering algorithm see the `graph_tool`
+        documentation.
+
+        Parameters
+        ----------
+        min_steps : int, optional
+            Number of iterations of the entropy minimization step.
+            (Default is 10)
+        genomic_links : bool, optional
+            Whether to add edges between genomically consecutive bins.
+            (Default is True)
+        equilibrate : bool, optional
+            Whether to equilibrate the model after the minimization step.
+            (Default is True)
+        annotate : bool, optional
+            Whether to add bin annotations to the output DataFrame.
+            (Default is False)
+
+        Returns
+        -------
+        pd.DataFrame:
+            DataFrame with the cluster labels for each node at each level.
+            Optionally, the DataFrame can also contain bin annotations.
+        """
+
+        print("Starting clustering...")
+        start_time = time.time()
+
+        if genomic_links and not self._has_genomic_links:
+            print("Adding chromosomal edges...")
+            self.add_chromsomal_edges()
+
+        print("Starting model creation...")
+        state_args = {"deg_corr": True}  # Usually lower entropy
+        state_type = gt.BlockState  # Default state type
+
+        if genomic_links:
+            state_args.update({"ec": self.ep.is_genomic_link, "layers": True})
+            state_type = gt.LayeredBlockState
+
+        state_dict = {"base_type": state_type, "state_args": state_args}
+
+        model: gt.NestedBlockState | None = None
+        for _ in range(min_steps):
+            new_model = gt.minimize_nested_blockmodel_dl(self, state_args=state_dict)
+            if not model or new_model.entropy() < model.entropy():
+                model = new_model
+
+        # This should in theory never happen
+        if not model:
+            raise ValueError("Model could not be created.")
+
+        if equilibrate:
+            print("Equilibrating the model (might take a while)...")
+            gt.mcmc_equilibrate(model, wait=1000, mcmc_args={"niter": 10})
+
+        end_time = time.time()
+        print(f"Clustering took {end_time - start_time} seconds.")
+
+        # From each level, project the partition to the vertex level
+        # NOTE: Labels are sorted by node, not by cluster
+        num_levels = len(model.get_bs())
+        levels = np.zeros((self.num_vertices(), num_levels), dtype=int)
+        for level in range(num_levels):
+            levels[:, level] = model.project_partition(level, 0).get_array()
+
+        # Make each column a category from 0 to n
+        levels = pd.DataFrame(levels).astype("category")
+        for col in levels.columns:
+            num_cat = len(levels[col].cat.categories)
+            new_cat = [str(x) for x in range(num_cat)]
+            levels[col] = levels[col].cat.rename_categories(new_cat)
+
+        # Only keep levels with more than one cluster
+        cols_to_drop = [c for c in levels if len(set(levels[c])) == 1]
+        levels.drop(columns=cols_to_drop, inplace=True)
+
+        # Convert node ids to extended bin form
+        if annotate:
+            merge_kws = {"how": "left", "left_index": True, "right_on": "node_id"}
+            levels = pd.merge(levels, self._ids_table, **merge_kws)
+
+            merge_kws = {"how": "left", "left_on": "bin_id", "right_index": True}
+            bins = self._fetch_bins()[["chrom", "start", "end"]]
+            levels = pd.merge(levels, bins, **merge_kws)
+
+            levels.drop(columns=["bin_id", "node_id"], inplace=True)
+
+        return levels
