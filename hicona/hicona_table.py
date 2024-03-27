@@ -207,6 +207,7 @@ class Table:
         self,
         columns: Iterable[str] | None = None,
         annotated: bool = False,
+        query: str | None = None,
     ) -> PdChunks:
         """Returns an iterator of table chunks (as pandas DataFrames).
 
@@ -216,18 +217,23 @@ class Table:
             If provided, only fetch the specified columns. Default is None.
         annotated: bool, optional
             Whether to annotate with the bin information. Default is False.
+        query: str or None, optional
+            If provided, only fetch the pixels that satisfy the query.
+            Query must be a valid pandas query string. Default is None.
 
         Returns
         -------
         An iterator of table chunks (as pandas DataFrames).
         """
 
-        def prepare_chunk(chunk, bins=None, columns=None) -> pd.DataFrame:
+        def prepare_chunk(chunk, bins=None, columns=None, query=None) -> pd.DataFrame:
             """Prepare the chunk for output with annotation of filtering."""
 
             if bins is not None:
                 chunk = cooler.annotate(chunk, bins)
-            if columns:
+            if query is not None:
+                chunk = chunk.query(query)
+            if columns is not None:
                 chunk = chunk[columns]
 
             return chunk
@@ -266,16 +272,17 @@ class Table:
                 chunk_parts = [out_chunk.iloc[self.chunk_size :]]
                 out_chunk = out_chunk.iloc[: self.chunk_size]
 
-                yield prepare_chunk(out_chunk, bins, columns)
+                yield prepare_chunk(out_chunk, bins, columns, query)
 
         # Yield the remaining pixels as an incomplete chunk
         if len(chunk_parts) > 0:
-            yield prepare_chunk(pd.concat(chunk_parts), bins, columns)
+            yield prepare_chunk(pd.concat(chunk_parts), bins, columns, query)
 
     def dataframe(
         self,
         columns: Iterable[str] | None = None,
         annotated: bool = False,
+        query: str | None = None,
     ) -> pd.DataFrame:
         """Return all table chunks in a single pandas DataFrame.
 
@@ -288,13 +295,16 @@ class Table:
             If provided, only fetch the specified columns. Default is None.
         annotated: bool, optional
             Whether to annotate with the bin information. Default is False.
+        query: str, optional
+            If provided, only fetch the pixels that satisfy the query.
+            Query must be a valid pandas query string. Default is None.
 
         Returns
         -------
         A pandas DataFrame with all table pixels.
         """
 
-        iterator = self.chunks(columns, annotated)
+        iterator = self.chunks(columns, annotated, query)
         return pd.concat(iterator).reset_index(drop=True)
 
 
