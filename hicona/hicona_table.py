@@ -7,6 +7,7 @@ The module contains:
 - `HiconaTable`: class for the handling of processed pixel tables.
 """
 
+from collections import Counter
 from collections.abc import Iterable
 from math import dist
 import json
@@ -14,15 +15,18 @@ import json
 import cooler
 import numpy as np
 import pandas as pd
+from scipy.stats import false_discovery_control
 
 import hicona.hicona_cooler as hicooler  # For circular import
-from .plotting import plot_alpha_grid
+from .plotting import plot_alpha_grid, plot_dynamics_full, plot_dynamics_interval
 from .processing.processing_flow import ProcessingFlow
 from .uris import Uris
+from .utils.chunked_ops import chunked_quants
 from .utils.dtypes import AlphaModType, OptionalAxes, PdChunks
 from .utils.hdf5_ops import fetch_chunk, get_attrs, get_table_size
 from .utils.misc import GenomicRegion
 from .utils.numeric import round_half_up
+from .utils.table_ops import swap_columns, serial_odds_ratios
 
 
 FULL_TABLE = "full_table"
@@ -390,9 +394,9 @@ class HiconaTable(Table):
 
     def get_alpha_grid(
         self,
-        alpha_mod: AlphaModType = "min",
         decimals: int = 3,
         verbose: bool = True,
+        alpha_mod: AlphaModType = "alpha_min",
     ) -> "AlphaGrid":
         """Return a grid for the table filtered at different alpha values.
 
@@ -418,6 +422,337 @@ class HiconaTable(Table):
 
         return AlphaGrid(self, alpha_mod, decimals, verbose)
 
+    def get_annot_dynamics(
+        self,
+        annot: str,
+        as_quantiles: bool = True,
+        alpha_mod: AlphaModType = "alpha_min",
+    ):
+        """Return an `AnnotDynamics` object for an annotation of interest.
+
+        Return an instance of the `AnnotDynamics` class which can then be used
+        to compute, return and plot the annotation dynamics for the table.
+
+        Parameters
+        ----------
+        annot : str
+            The name of the annotation column to consider.
+        as_quantiles : bool, optional
+            Whether the intervals are expressed in quantile points, rather than
+            in absolute percentage points. Default is True.
+        alpha_mod : "alpha_min" or "alpha_max", optional
+            The alpha mode to use for filtering. Default is "alpha_min".
+
+        Returns
+        -------
+        AnnotDynamics :
+            An AnnotDynamics object for the specified annotation and table.
+        """
+
+        return AnnotDynamics(self, annot, as_quantiles, alpha_mod)
+
+    def get_alpha_distr(self, alpha_mod: AlphaModType = "alpha_min") -> pd.DataFrame:
+        """Return alpha distribution in the table as a pd.DataFrame.
+
+        The distribution is provided as a pd.DataFrame with the columns
+        "value" and "count" representing the alpha values and their counts.
+
+        Parameters
+        ----------
+        alpha_mod : "alpha_min" or "alpha_max", optional
+            The alpha mode to use for filtering. Default is "alpha_min".
+
+        Returns
+        -------
+        pd.DataFrame :
+            A DataFrame with the alpha distribution.
+        """
+
+        counter = Counter()
+        for chunk in self.chunks():
+            counter.update(chunk[alpha_mod].tolist())
+
+        distr = pd.DataFrame(counter.items(), columns=["value", "count"])
+        return distr.sort_values("value")
+
+
+class AnnotDynamics:
+    """Class for the handling of pixel table annotation dynamics.
+
+    Class used to compute, return and plot table annotation dynamics, that
+    is, the changes in frequency of pixel annotation pairs as a function of
+    the alpha value.
+
+    At initialization, the object creates a 1 point spaced grid of alpha
+    thresholds (every 1 quantile or every 1 percentage point).
+
+    Parameters
+    ----------
+    table : HiconaTable
+        The table for which the annotation dynamics are computed.
+    annot_name : str
+        The name of the annotation column to consider.
+    as_quantiles : bool, optional
+        Whether the intervals are expressed in quantile points, rather than
+        in absolute percentage points. Default is True.
+    alpha_mod : "alpha_min" or "alpha_max", optional
+        The alpha mode to use for filtering. Default is "alpha_min".
+    """
+
+    def __init__(
+        self,
+        table: HiconaTable,
+        annot_name: str,
+        as_quantiles: bool = True,
+        alpha_mod: AlphaModType = "alpha_min",
+    ):
+
+        self._hic_table = table
+        self._anno_name = annot_name
+        self._alpha_mod = alpha_mod
+        self._as_quants = as_quantiles
+
+        # Automatically generate a grid with 0.01 wide intervals
+        self._alpha_distr = self._hic_table.get_alpha_distr(alpha_mod)
+        self._break_pts = self._compute_breakpoints(0.01, self._as_quants)
+        self._abs_dynam = self._compute_dynamics()
+
+    def _compute_breakpoints(self, size, as_quants):
+        """Get the break points for the intervals."""
+
+        # Define the discrete alpha break points
+        num_pt: int = int(1 / size)
+        points: list[float] = [size * i for i in range(1, num_pt + 1)]
+
+        # Convert break points to quantiles if needed
+        if as_quants:
+            chunks = self._hic_table.chunks()
+            quants = chunked_quants(chunks, self._alpha_mod, points)
+            points = quants[self._alpha_mod].tolist()
+
+        return points
+
+    def _compute_dynamics(self):
+        """Compute absolute frequencies of annotation pairs per interval."""
+
+        # Set up variables
+        anno_cols = [f"{self._anno_name}1", f"{self._anno_name}2"]
+
+        # NOTE: dedup is needed since quantiles can yield duplicate points
+        points = list(np.unique(self._break_pts))
+        points.reverse()
+
+        # Retrieve annotation dynamics in chunks
+        dynam_parts = []
+        chunk_cols = anno_cols + [self._alpha_mod]
+        for chunk in self._hic_table.chunks(annotated=True, columns=chunk_cols):
+
+            # Have annotations alpahebetically sorted to avoid duplicates
+            swap_columns(chunk, *anno_cols)
+
+            # Compute cumulative absolute frequencies per interval per chunk
+            for pt in points:
+                chunk.query(f"{self._alpha_mod} <= {pt}", inplace=True)
+                chunk_parts = chunk.groupby(anno_cols, as_index=False).count()
+                chunk_parts["upper"] = pt
+                dynam_parts.append(chunk_parts)
+
+        # Create full dynamics table
+        dynam = pd.concat(dynam_parts, ignore_index=True)
+        dynam = dynam.groupby(anno_cols + ["upper"], as_index=False).sum()
+
+        # Convert to table with annotations as rows, upper bounds as columns
+        dynam = dynam.pivot_table(
+            index=anno_cols,
+            columns="upper",
+            values=self._alpha_mod,
+            fill_value=0,
+        )
+
+        # Convert to matrix to fix missing columns and such
+        matrix = np.zeros([len(dynam), len(self._break_pts)], dtype=int)
+        for ind, val in enumerate(self._break_pts):
+            matrix[:, ind] = dynam.get(val, 0)
+
+        # Using ordering names since duplicate columns break many ops
+        col_names = [i + 1 for i in range(len(self._break_pts))]
+        return pd.DataFrame(matrix, index=dynam.index, columns=col_names)
+
+    def get_dynamics(
+        self,
+        cumulative: bool = False,
+        intervals: list[int] | None = None,
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """Return annotation dynamics as a pd.DataFrame.
+
+        For each annotation, compute the log odds ratio and p-value for each
+        alpha interval. P-values are computed using Fisher's exact test and
+        corrected for multiple testing using the Benjamini-Hochberg method.
+
+        If set to cumulative, the column considers all alpha values up to
+        the upper bound (included), otherwise it considers only alphas between
+        the column upper bound (included) and the previous column upper bound
+        (excluded).
+
+        If intervals are provided, the dynamics are computed on those
+        intervals rather than on the 1 unit spaced grid by default.
+        Interval boundaries should be in the range 0 < i <= 100, since they
+        are unit points of the underlying coarse grain grid. As an example,
+        the interval [5, 10] would indicate alpha values between 0.05 and 0.1
+        if working with percentiles, or between the 5th and 10th quantiles if
+        working with quantiles.
+
+        NOTE: currently pixels with alpha value equal to zero are lost since
+        the lower bound is excluded. This should be changed in the future
+        even though the number of pixels with alpha equal to zero is usually
+        very low.
+
+        Parameters
+        ----------
+        cumulative : bool, optional
+            Whether to compute the cumulative dynamics. Default is False.
+        intervals : list[int] or None, optional
+            If provided, the upper bounds of the intervals to consider.
+            Default is None.
+
+        Returns
+        -------
+        tuple[pd.DataFrame, pd.DataFrame] :
+            A tuple with the log odds ratios and p-values matrices.
+        """
+
+        dynam: pd.DataFrame = self._abs_dynam.copy()
+
+        # Restrict the table to the intervals of interest if provided
+        if intervals is not None:
+
+            if not all(0 < i <= 100 for i in intervals):
+                raise ValueError("Bounds must be in 0 < i <= 100")
+            if len(set(intervals)) != len(intervals):
+                raise ValueError("Upper bounds must be unique")
+
+            dynam = dynam[sorted(intervals)]
+
+        # Convert to non cumulative if needed
+        if not cumulative:
+            first_col = dynam.columns[0]
+            dynam = dynam.diff(axis=1)
+            dynam[first_col] = self._abs_dynam[first_col]
+
+        # Compute log odds ratios and p-values matrices
+        ref_col = self._abs_dynam[self._abs_dynam.columns[-1]]
+
+        results = [serial_odds_ratios(dynam[c], ref_col) for c in dynam.columns]
+        axes = {"columns": dynam.columns, "index": dynam.index}
+        log_odds = pd.DataFrame(np.array([r[0] for r in results]).T, **axes)
+        p_values = pd.DataFrame(np.array([r[1] for r in results]).T, **axes)
+
+        # Apply FDR correction to p-values
+        for _, row in p_values.iterrows():
+            valid = (row >= 0) * (row <= 1)
+            adj_p_values = false_discovery_control(row[valid])
+            row[valid] = adj_p_values
+
+        # Convert back to actual col names with duplicates
+        log_odds.columns = intervals or self._break_pts  # type: ignore
+        p_values.columns = intervals or self._break_pts  # type: ignore
+
+        return log_odds, p_values
+
+    def plot_full(
+        self,
+        cumulative: bool = True,
+        intervals: list[int] | None = None,
+        sort_rows: bool = True,
+        img_path: str | None = None,
+        show: bool = False,
+    ) -> OptionalAxes:
+        """Plot the full annotation dynamics.
+
+        Plot the full annotation dynamics table (or a subset if specified)
+        as a heatmap with all the possible annotation pairs as rows and the
+        thresholds as columns. On top of the heatmap, represent the alpha
+        distribution and the thresholds of the heatmap cells (dashed lines).
+
+        Parameters
+        ----------
+        cumulative : bool, optional
+            Whether to compute the cumulative dynamics. Default is True.
+        intervals : list[int] or None, optional
+            If provided, the upper bounds of the intervals to consider.
+            See `get_dynamics` for more information.
+            Default is None.
+        sort_rows : bool, optional
+            Whether to sort the rows of the heatmap by linkage. This is to try
+            to group similar annotations together, though it might hamper the
+            comparison of multiple tables. Default is True.
+        img_path : str or None, optional
+            If provided, save the plot to the specified path. Default is None.
+        show : bool, optional
+            If True, display the plot in a :py:mod:`matplotlib` window.
+            Default is False.
+
+        Returns
+        -------
+        matplotlib.axes.Axes or None :
+            If ``show`` if `False` and ``img_path`` is `None`, return plot
+            axes. Otherwise, return None.
+        """
+
+        odds, _ = self.get_dynamics(cumulative, intervals)
+        plot_dynamics_full(
+            odds,
+            self._alpha_distr,
+            sort_rows=sort_rows,
+            inf_to_nan=True,
+            img_path=img_path,
+            show=show,
+        )
+
+    def plot_interval(
+        self,
+        lower_bound: int,
+        upper_bound: int,
+        img_path: str | None = None,
+        show: bool = False,
+    ) -> OptionalAxes:
+        """Plot the annotation dynamics for a restricted p-value interval.
+
+        Given a single alpha value interval (lower bound excluded, upper bound
+        included), create a lower-triangular heatmap for the annotation
+        enrichment in that interval.
+
+        Parameters
+        ----------
+        lower_bound : int
+            The lower bound of the alpha interval to plot. See `get_dynamics`
+            for more information.
+        upper_bound : int
+            The upper bound of the alpha interval to plot. See `get_dynamics`
+            for more information.
+        img_path : str or None, optional
+            If provided, path to save the plot to. (default is None)
+        show : bool, optional
+            If True, display the plot in a :py:mod:`matplotlib` window.
+            (default is False)
+
+        Returns
+        -------
+        matplotlib.axes.Axes or None :
+            If ``show`` if `False` and ``img_path`` is `None`, return plot
+            axes. Otherwise, return None.
+        """
+
+        interv = [lower_bound, upper_bound]
+        odds, pvals = self.get_dynamics(intervals=interv, cumulative=False)
+
+        plot_dynamics_interval(
+            odds[upper_bound],
+            pvals[upper_bound],
+            img_path,
+            show,
+        )
+
 
 class AlphaGrid:
     """Class for the computation of the optimal alpha value for filtering.
@@ -438,7 +773,7 @@ class AlphaGrid:
     ----------
     table : HiconaTable
         The table for which the optimal alpha value is computed.
-    alpha_mod : "min" or "max"
+    alpha_mod : "alpha_min" or "alpha_max"
         The alpha mode to use for filtering.
     decimals : int
         The number of decimal positions to consider when computing the grid.
@@ -464,9 +799,8 @@ class AlphaGrid:
         nodes: set = set()
         edges: int = 0
 
-        alpha_col = "alpha_" + self._alpha_mod
         for chunk in self._table.chunks():
-            chunk = chunk.query(f"{alpha_col} <= {thr}")
+            chunk = chunk.query(f"{self._alpha_mod} <= {thr}")
 
             nodes |= set(chunk["bin1_id"]) | set(chunk["bin2_id"])
             edges += len(chunk)
@@ -561,174 +895,8 @@ class AlphaGrid:
         Returns
         -------
         matplotlib.axes.Axes or None :
-            If ``show`` is False, return plot axes. Otherwise, return None.
+            If ``show`` if `False` and ``img_path`` is `None`, return plot
+            axes. Otherwise, return None.
         """
 
         plot_alpha_grid(self._alpha_grid, img_path, show)
-
-
-# def annotation_dynamics(self, annot: str) -> pd.DataFrame:
-#     """Placeholder"""
-
-#     def process_table(table, lower, upper):
-#         """Placeholder"""
-
-#         ann1, ann2, alpha_col = table.columns  # Assumed for convenience
-
-#         filt_table = table.loc[table[alpha_col] <= upper]
-#         filt_table = filt_table.query(f"{alpha_col} > {lower}")
-
-#         out = filt_table.groupby([ann1, ann2]).count()
-#         out.reset_index(inplace=True)
-#         out["alpha"] = upper
-
-#         return out
-
-#     def compute_quantiles(table):
-#         """Placeholder"""
-
-#         curve = pd.Series()
-#         total = 0
-#         for chunk in table.get_chunks():
-#             total += len(chunk)
-#             vals = chunk.groupby("alpha_min")["count"].count()
-#             curve = curve.combine(vals, lambda x, y: x + y, fill_value=0)
-
-#         num_pix = curve.sum()
-#         cumulative = curve.cumsum()
-#         quantiles = [0.1 * i * num_pix for i in range(1, 11)]
-#         thrs = [cumulative[cumulative >= q].index[0] for q in quantiles]
-#         thrs = [0] + thrs  # Added after since first index is not 0
-
-#         return thrs
-
-#     alphas = compute_quantiles(self)
-#     interv = [(alphas[i], alphas[i + 1]) for i in range(len(alphas) - 1)]
-
-#     parent_store = self._table_uri.split("hicona_tables")[0].strip("/")
-#     parent_location = self._store_uri
-#     if parent_store:  # Non empty -> multires
-#         parent_location += f"::{parent_store}"
-
-#     parent_cooler = cooler.Cooler(parent_location)
-#     bins = parent_cooler.bins()[:]
-#     # TO DO: slightly memory demanding, maybe just fetch subset of bins
-
-#     ann1, ann2 = f"{annot}1", f"{annot}2"
-#     ann_df = cooler.annotate(self.get_dataframe(), bins)
-#     ann_df = ann_df[[ann1, ann2, self._alpha_mod]]
-
-#     # Sort annotations alphabetically to make a triagular matrix later
-#     ann_df[ann1], ann_df[ann2] = np.where(
-#         ann_df[ann1] < ann_df[ann2],
-#         (ann_df[ann1], ann_df[ann2]),
-#         (ann_df[ann2], ann_df[ann1]),
-#     )
-
-#     out_df = pd.concat([process_table(ann_df, *i) for i in interv])
-
-#     out_df.reset_index(drop=True, inplace=True)
-#     out_df.rename(columns={self._alpha_mod: "num_pixels"}, inplace=True)
-
-#     return out_df
-
-
-# THRESHOLD VERSION OF ANNOTATION DYNAMICS
-# def annotation_dynamics(self, annot: str, step: float = 0.05) -> pd.DataFrame:
-#     """Placeholder"""
-
-#     def process_table(table, lower, upper):
-#         """Placeholder"""
-
-#         ann1, ann2, alpha_col = table.columns  # Assumed for convenience
-
-#         filt_table = table.loc[table[alpha_col] <= upper]
-#         filt_table = filt_table.query(f"{alpha_col} > {lower}")
-
-#         out = filt_table.groupby([ann1, ann2]).count()
-#         out.reset_index(inplace=True)
-#         out["alpha"] = upper
-
-#         return out
-
-#     alphas = [round_half_up(n, 2) for n in np.arange(0, 1, step)]
-#     interv = [(alphas[i], alphas[i + 1]) for i in range(len(alphas) - 1)]
-
-#     parent_store = self._table_uri.split("hicona_tables")[0].strip("/")
-#     parent_location = self._store_uri
-#     if parent_store:  # Non empty -> multires
-#         parent_location += f"::{parent_store}"
-
-#     print(parent_location)
-#     parent_cooler = cooler.Cooler(parent_location)
-#     bins = parent_cooler.bins()[:]
-
-#     ann1, ann2 = f"{annot}1", f"{annot}2"
-#     ann_df = cooler.annotate(self.get_dataframe(), bins)
-#     ann_df = ann_df[[ann1, ann2, self._alpha_mod]]
-
-#     # Sort annotations alphabetically to make a triagular matrix later
-#     ann_df[ann1], ann_df[ann2] = np.where(
-#         ann_df[ann1] < ann_df[ann2],
-#         (ann_df[ann1], ann_df[ann2]),
-#         (ann_df[ann2], ann_df[ann1]),
-#     )
-
-#     out_df = pd.concat([process_table(ann_df, *i) for i in interv])
-
-#     out_df.reset_index(drop=True, inplace=True)
-#     out_df.rename(columns={self._alpha_mod: "num_pixels"}, inplace=True)
-
-#     return out_df
-
-# CUMULATIVE VERSION OF ANNOTATION DYNAMICS
-# def annotation_dynamics(
-#     self,
-#     annot: str,
-#     alphas: float | list[float],
-# ) -> pd.DataFrame:
-#     """Placeholder"""
-
-#     def process_table(table, alpha):
-#         """Placeholder"""
-
-#         ann1, ann2, alpha_col = table.columns  # Assumed for convenience
-#         table.query(f"{alpha_col} <= {alpha}", inplace=True)
-#         table_size = len(table)
-
-#         out = table.groupby([ann1, ann2]).count()  # / table_size
-#         print(alpha)
-#         print(out)
-#         out = out / table_size
-#         out.reset_index(inplace=True)
-#         out["alpha"] = alpha
-
-#         return out
-
-#     alphas = [alphas] if isinstance(alphas, float) else alphas
-#     alphas.sort(reverse=True)
-
-#     parent_store = self._table_uri.split("hicona_tables")[0].strip("/")
-#     parent_location = self._store_uri
-#     if parent_store:  # Non empty -> multires
-#         parent_location += f"::{parent_store}"
-
-#     parent_cooler = cooler.Cooler(parent_location)
-#     bins = parent_cooler.bins()[:]
-
-#     ann1, ann2 = f"{annot}1", f"{annot}2"
-#     ann_df = cooler.annotate(self.get_dataframe(), bins)
-#     ann_df = ann_df[[ann1, ann2, self._alpha_mod]]
-
-#     # Sort annotations alphabetically to make a triagular matrix later
-#     ann_df[ann1], ann_df[ann2] = np.where(
-#         ann_df[ann1] < ann_df[ann2],
-#         (ann_df[ann1], ann_df[ann2]),
-#         (ann_df[ann2], ann_df[ann1]),
-#     )
-
-#     out_df = pd.concat([process_table(ann_df, a) for a in alphas])
-#     out_df.reset_index(drop=True, inplace=True)
-#     out_df.rename(columns={self._alpha_mod: "fraction"}, inplace=True)
-
-#     return out_df
