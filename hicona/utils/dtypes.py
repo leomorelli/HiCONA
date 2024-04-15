@@ -2,7 +2,7 @@
 
 from typing import Iterable, Literal, TypeVar
 
-import matplotlib.axes as axes
+from matplotlib import axes
 import pandas as pd
 
 
@@ -13,7 +13,7 @@ PdChunks = Iterable[pd.DataFrame]
 T = TypeVar("T")
 
 # Type alias for the alpha mod type.
-AlphaModType = Literal["min", "max"]
+AlphaModType = Literal["alpha_min", "alpha_max"]
 
 # Type alias for the axes type.
 OptionalAxes = axes.Axes | None

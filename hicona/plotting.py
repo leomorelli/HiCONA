@@ -23,17 +23,15 @@ def _empty_subplot(axes):
 def _plot_output(plot, img_path, show):
     """Plotting function output behaviour. Return plot only if not shown."""
 
+    plt.tight_layout()
+
     if img_path:
         plt.savefig(img_path)
-
+        plt.close()
     if show:
         plt.show()
     else:
         return plot
-
-
-def _multiaxes_heatmap(data, data_ax, cbar_ax):
-    pass
 
 
 def plot_alpha_grid(
@@ -88,7 +86,7 @@ def plot_alpha_grid(
         axes.plot(pts["nodes_f"], pts["edges_f"], **other_style)
 
     # Redraw optimal alpha marker to have artist on top
-    optim = alpha_grid.iloc[alpha_grid["eu_dist"].idxmin()]
+    optim = alpha_grid.iloc[alpha_grid["eu_dist"].idxmin()]  # type: ignore
     axes.plot(optim["nodes_f"], optim["edges_f"], **optim_style)
     plt.text(
         optim["nodes_f"] + x_offset,
@@ -100,7 +98,7 @@ def plot_alpha_grid(
 
 
 def plot_alpha_distr(alpha_distr, img_path: str | None = None, show: bool = False):
-    """Placeholder"""
+    """Plot alpha value distribution as a line plot."""
 
     axes = sns.lineplot(alpha_distr)
     axes.set(
@@ -112,97 +110,166 @@ def plot_alpha_distr(alpha_distr, img_path: str | None = None, show: bool = Fals
     return _plot_output(axes, img_path, show)
 
 
-def plot_annot_dynamics(
+def _get_color_map():
+    """Create a red-blue divergent color map for the heatmaps."""
+
+    cols = ["mediumblue", "blue", "white", "red", "firebrick"]
+    vals = [0, 0.15, 0.5, 0.85, 1]
+    cmap = LinearSegmentedColormap.from_list("rg", list(zip(vals, cols)))
+    return cmap
+
+
+def plot_dynamics_full(
     ann_dynamics: pd.DataFrame,
     alpha_distr: pd.DataFrame,
-    ann_name: str,
     sort_rows: bool = True,
+    inf_to_nan: bool = True,
     img_path: str | None = None,
     show: bool = False,
 ):
-    """Placeholder."""
+    """Plot annotation dynamics matrix.
 
-    def get_color_map():
-        """Placeholder"""
-        cols = ["mediumblue", "blue", "white", "red", "firebrick"]
-        vals = [0, 0.15, 0.5, 0.85, 1]
-        cmap = LinearSegmentedColormap.from_list("rg", list(zip(vals, cols)))
-        return cmap
+    Create a heatmap for the provided annotation dynamics matrix. Moreover,
+    plot the distribution of alpha values as a line plot with overlaid lines
+    for the thresholds used in the dynamics matrix.
 
-    def get_row_order(dataf):
-        """Placeholder"""
-        link = linkage(dataf, optimal_ordering=True)
+    Parameters
+    ----------
+    ann_dynamics : pd.DataFrame
+        The annotation dynamics matrix to plot.
+    alpha_distr : pd.DataFrame
+        The distribution of alpha values to plot.
+    sort_rows : bool, optional
+        Whether to sort the rows of the dynamics matrix by hierarchical
+        clustering. Default is `True`.
+    inf_to_nan : bool, optional
+        Whether to replace infinite values with NaNs. This is to avoid messy
+        behavior at the sided of the heatmap. Default is `True`.
+    img_path : str, optional
+        If provided, path to save the plot to. (default is None)
+    show : bool, optional
+        If True, display the plot in a :py:mod:`matplotlib` window.
+        (default is False)
+
+    Returns
+    -------
+    matplotlib.axes.Axes or None :
+        If ``show`` if `False` and ``img_path`` is `None`, return plot
+        axes. Otherwise, return None.
+    """
+
+    def get_row_order(dataf: pd.DataFrame):
+        """Sort rows by linkage clustering for ease of visualization."""
+
+        link = linkage(dataf.fillna(0), optimal_ordering=True)
         dendro = dendrogram(link, no_plot=True)
         return dendro["leaves"]
 
-    ann_cols = [f"{ann_name}1", f"{ann_name}2"]
-    table = ann_dynamics.copy()
+    tab = ann_dynamics.copy()
 
-    # Quantiles threhsolding values
-    thresholds = table["alpha"].unique()
-
-    # Compute total background table
-    bkg = table.groupby(ann_cols)["num_pixels"].sum().reset_index()
-    bkg["num_pixels"] = bkg["num_pixels"] / bkg["num_pixels"].sum()
-    bkg["annot"] = bkg.pop(ann_cols[0]) + "-" + bkg.pop(ann_cols[1])
-    bkg.set_index(["annot"], inplace=True)
-
-    # Change main table index
-    table["annot"] = table.pop(ann_cols[0]) + "-" + table.pop(ann_cols[1])
-    table = table.set_index(["annot", "alpha"]).squeeze().unstack()
-
-    # Transform main table in log2 fold change
-    for col in table.columns:
-        table[col] = table[col] / table[col].sum()
-        table[col] = table[col].divide(bkg["num_pixels"], fill_value=0)
-    table = np.log2(table)
-
-    # Whether to perform hierarchical clustering on the rows
-    if sort_rows:
-        table = table.iloc[get_row_order(table)]
-
+    # Set up the plot
     fig, axes = plt.subplots(
-        2, 2, height_ratios=[1, 3], width_ratios=[20, 1], figsize=(12, 9)
+        2,
+        2,
+        height_ratios=[1, 3],
+        width_ratios=[20, 1],
+        figsize=(12, 9),
     )
 
-    sns.lineplot(alpha_distr, ax=axes[0][0])
+    # TOP LEFT: Alpha distribution ------------------------------------------
+
+    # Remove unwanted white space on the right of the plot
+    tab.dropna(axis=1, how="all", inplace=True)
+    thresholds = [float(t) for t in tab.columns]
+    alpha_distr = alpha_distr[alpha_distr["value"] <= max(thresholds)]
+
+    sns.lineplot(data=alpha_distr, x="value", y="count", ax=axes[0][0])
     axes[0][0].set(
         xlabel="Alpha",
         ylabel="Number of Pixels",
-        xlim=(0, thresholds[-1] * 1.01),
-        ylim=(-max(alpha_distr) * 0.1, max(alpha_distr) * 1.1),
+        xlim=(0, max(thresholds)),
+        ylim=(-alpha_distr["count"].max() * 0.1, max(alpha_distr["count"]) * 1.1),
     )
     axes[0][0].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
     axes[0][0].xaxis.set_label_coords(-0.05, -0.04)
 
+    # Add vertical lines for the thresholds
     for t in thresholds:
-        axes[0][0].axvline(t, color="red")
+        axes[0][0].axvline(t, color="red", linestyle="--", alpha=0.5)
 
+    # TOP RIGHT: Empty subplot ----------------------------------------------
     _empty_subplot(axes[0][1])
 
+    # BOTTOM: Annotation dynamics -------------------------------------------
+
+    # Whether to perform hierarchical clustering on the rows
+    if sort_rows:
+        tab = tab.iloc[get_row_order(tab)]
+
+    # To deal with infinite values breaking cbar
+    if inf_to_nan:
+        tab.replace([np.inf, -np.inf], np.nan, inplace=True)
+    else:
+        tab.replace(np.inf, np.nanmax(tab[tab != np.inf]), inplace=True)
+        tab.replace(-np.inf, np.nanmin(tab[tab != -np.inf]), inplace=True)
+
+    tab.fillna(0, inplace=True)
+
     sns.heatmap(
-        table,
+        tab,
         ax=axes[1][0],
-        cmap=get_color_map(),
+        cmap=_get_color_map(),
         center=0,
         cbar_ax=axes[1][1],
     )
-    axes[1][0].set(xlabel=None, ylabel=None, yticklabels=table.index)
+
+    axes[1][0].set(xlabel=None, ylabel=None, xticklabels=[])
+    axes[1][0].xaxis.set_tick_params(labelbottom=False)
     axes[1][0].tick_params(bottom=False)
 
-    fig.tight_layout(pad=0)
+    fig.tight_layout(pad=0)  # TODO: Check if this is necessary
 
     return _plot_output([fig, axes], img_path, show)
 
 
-def plot_annot_prop(dataf):
-    """Placeholder."""
+def plot_dynamics_interval(
+    log_odds: pd.Series,
+    p_values: pd.Series,
+    img_path: str | None = None,
+    show: bool = False,
+):
+    """Plot annotation dynamics for a restricted p-value interval.
 
-    CHROMOSOMES = [f"chr{n}" for n in range(1, 23)] + ["chrX", "chrY"]
+    For a selected range of p-values, create a heatmap with intensity
+    proportional to the log-odds ratio and annotations for statistical
+    significance.
 
-    dataf = dataf[dataf["chrom"].isin(CHROMOSOMES)]
+    Parameters
+    ----------
+    log_odds : pd.Series
+        The log-odds ratios for the interval.
+    p_values : pd.Series
+        The p-values for the interval.
+    img_path : str, optional
+        If provided, path to save the plot to. (default is None)
+    show : bool, optional
+        If True, display the plot in a :py:mod:`matplotlib` window.
+        (default is False)
 
-    fig, axes = plt.subplots(1, 1)
+    Returns
+    -------
+    matplotlib.axes.Axes or None :
+        If ``show`` if `False` and ``img_path`` is `None`, return plot
+        axes. Otherwise, return None.
+    """
 
-    sns.barplot(dataf, x="chrom", y="a_frac", hue="a_annot", order=CHROMOSOMES, ax=axes)
-    plt.show()
+    odds_mat = log_odds.unstack().T
+    anno_mat = p_values.unstack().T
+
+    # title = rf"{interval[0]} $< \alpha \leq$ {interval[1]}"
+    cmap = _get_color_map()
+
+    axes = sns.heatmap(odds_mat, annot=anno_mat, cmap=cmap, center=0)
+    axes.set(xlabel=None, ylabel=None)
+
+    return _plot_output(axes, img_path, show)
