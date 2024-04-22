@@ -3,8 +3,8 @@
 import pandas as pd
 
 from ..hicona_table import RawTable
-from ..utils.chunked_ops import chunked_quants
-from ..utils.dtypes import PdChunks
+from .._utils._chunked_ops import chunked_quants
+from .._utils._dtypes import PdChunks
 
 
 __all__ = [

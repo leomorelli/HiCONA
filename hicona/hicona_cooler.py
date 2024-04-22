@@ -15,12 +15,11 @@ import h5py
 import pandas as pd
 
 from .hicona_table import RawTable, HiconaTable
-from .settings import HICONA_SETTINGS
 from .processing.processing_flow import ProcessingFlow
 from .processing.table_processor import TableProcessor
 from .uris import Uris
-from .utils.bed_ops import ann_enriched, ann_fraction, bed_to_df, intersect_dfs
-from .utils.hdf5_ops import (
+from ._utils._bed_ops import ann_enriched, ann_fraction, bed_to_df, intersect_dfs
+from ._utils._hdf5_ops import (
     require_group,
     del_keys,
     get_attrs,
@@ -33,6 +32,19 @@ from .utils.hdf5_ops import (
 
 
 __all__ = ["HiconaCooler"]
+
+_DEF_CHUNK_SIZE = 10_000_000
+_MIN_CHUNK_SIZE = 1_000_000
+_TABLES_ROOT = "hicona_tables"
+_MAX_ANNOT_MODS = 10
+_TABLE_COLUMNS = {
+    "bin1_id": "i8",
+    "bin2_id": "i8",
+    "count": "i4",
+    "norm": "f8",
+    "alpha_min": "f8",
+    "alpha_max": "f8",
+}
 
 
 class HiconaCooler(cooler.Cooler):
@@ -66,8 +78,8 @@ class HiconaCooler(cooler.Cooler):
     def __init__(self, store: str | h5py.File | h5py.Group, **kwargs):
         # Mask deprecated root parameter from super-class
         super().__init__(store, **kwargs)
-        self._chunk_size = HICONA_SETTINGS.parameters.base_pix_chunk
-        self._tables_root = "hicona_tables"  # TODO: maybe move to configs
+        self._chunk_size = _DEF_CHUNK_SIZE
+        self._tables_root = _TABLES_ROOT
 
     @property
     def chunk_size(self):
@@ -76,7 +88,7 @@ class HiconaCooler(cooler.Cooler):
 
     @chunk_size.setter
     def chunk_size(self, value):
-        min_val = HICONA_SETTINGS.parameters.min_pix_chunk
+        min_val = _MIN_CHUNK_SIZE
         if not (isinstance(value, int)) or value < min_val:
             raise ValueError(f"chunk_size must be: int >= {min_val}.")
         self._chunk_size = value
@@ -111,9 +123,8 @@ class HiconaCooler(cooler.Cooler):
         table_uris = Uris(self.store, self.root, table_path)
 
         # Initialize table
-        cols = HICONA_SETTINGS.conventions.table_columns
         num_pix = self.info["nnz"]
-        init_table(*table_uris.hdf5_uris(), num_pix, cols)
+        init_table(*table_uris.hdf5_uris(), num_pix, _TABLE_COLUMNS)
 
         # Copy pixel data to the new table
         chunk_size = self._chunk_size
@@ -390,7 +401,7 @@ class HiconaCooler(cooler.Cooler):
 
         # If force, skip modalities number check
         if not force_annotation:
-            max_mods = HICONA_SETTINGS.parameters.max_annot_mods
+            max_mods = _MAX_ANNOT_MODS
             too_many = [c for c in to_ohe if ann_df[c].nunique() > max_mods]
             if too_many:
                 raise ValueError(

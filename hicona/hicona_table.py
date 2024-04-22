@@ -21,12 +21,12 @@ import hicona.hicona_cooler as hicooler  # For circular import
 from .plotting import plot_alpha_grid, plot_dynamics_full, plot_dynamics_interval
 from .processing.processing_flow import ProcessingFlow
 from .uris import Uris
-from .utils.chunked_ops import chunked_quants
-from .utils.dtypes import AlphaModType, OptionalAxes, PdChunks
-from .utils.hdf5_ops import fetch_chunk, get_attrs, get_table_size
-from .utils.misc import GenomicRegion
-from .utils.numeric import round_half_up
-from .utils.table_ops import swap_columns, serial_odds_ratios
+from ._utils._chunked_ops import chunked_quants
+from ._utils._dtypes import AlphaModType, OptionalAxes, PdChunks
+from ._utils._hdf5_ops import fetch_chunk, get_attrs, get_table_size
+from ._utils._misc import GenomicRegion
+from ._utils._numeric import round_half_up
+from ._utils._table_ops import swap_columns, serial_odds_ratios
 
 
 FULL_TABLE = "full_table"

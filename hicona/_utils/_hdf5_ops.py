@@ -5,7 +5,7 @@ from typing import Any
 import h5py
 import pandas as pd
 
-from .table_ops import get_dataf_mapping
+from ._table_ops import get_dataf_mapping
 
 # NOTE: during key selection, `is None` is used rather than `or` to avoid
 #       `ValueError: The truth value of a Index is ambiguous`

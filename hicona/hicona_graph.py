@@ -13,8 +13,8 @@ import graph_tool.all as gt
 
 from .hicona_cooler import HiconaCooler
 from .hicona_table import HiconaTable
-from .utils.misc import annotation_combinations
-from .utils.table_ops import pd2gt_dtype
+from ._utils._misc import annotation_combinations
+from ._utils._table_ops import pd2gt_dtype
 
 __all__ = ["HiconaGraph"]
 

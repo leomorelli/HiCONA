@@ -5,8 +5,6 @@ import functools
 
 # from decorator import decorate
 
-# from ..settings import HICONA_SETTINGS
-
 
 def console_log(func):
     """A simple decorator to log information to the console."""

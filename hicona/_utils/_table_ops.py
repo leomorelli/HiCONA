@@ -5,8 +5,6 @@ import pandas as pd
 
 from scipy.stats import fisher_exact
 
-from ..settings import HICONA_SETTINGS
-
 # TODO: somehow add category modality
 
 
@@ -67,7 +65,17 @@ def pd_to_h5_dtype(pd_dtype: str):
 
 def pd2gt_dtype(pd_dtype: str):
     """Convert pandas-like datatypes to graph-tools datatypes"""
-    return HICONA_SETTINGS.conventions.dtype_conversion[pd_dtype]
+
+    conv_dict = {
+        "int32": "int",
+        "int64": "long",
+        "float64": "long double",
+        "object": "string",
+        "bool": "bool",
+        "category": "string",
+    }
+
+    return conv_dict[pd_dtype]
 
 
 def swap_columns(dataf: pd.DataFrame, col1: str, col2: str):

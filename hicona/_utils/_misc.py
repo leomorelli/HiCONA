@@ -3,7 +3,7 @@
 from itertools import chain, combinations
 import re
 
-from .regexes import BED_LIKE_STR, CHR_LIKE_STR, POS_LIKE_STR
+from ._regexes import BED_LIKE_STR, CHR_LIKE_STR, POS_LIKE_STR
 
 
 def annotation_combinations(iterable, k_vals=(1, 2)):

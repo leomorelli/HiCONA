@@ -3,7 +3,7 @@
 import pandas as pd
 from scipy import integrate
 
-from ..utils.numeric import round_half_up
+from .._utils._numeric import round_half_up
 
 
 def _compute_alpha(row: pd.Series) -> float:

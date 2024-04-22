@@ -7,8 +7,8 @@ possible to apply these functions to bigger than memory dataframes.
 
 import pandas as pd
 
-from .iterable_ops import change_breaks
-from .dtypes import PdChunks, T
+from ._iterable_ops import change_breaks
+from ._dtypes import PdChunks, T
 
 DEFAULT_COL = "bin1_id"
 

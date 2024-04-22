@@ -10,7 +10,7 @@ from importlib import import_module
 from inspect import getmembers, Parameter, signature
 from typing import Any, Callable, Generator
 
-from ..utils.io_ops import read_resource, write_resource
+from .._utils._io_ops import read_resource, write_resource
 
 
 __all__ = ["ProcessingFlow"]

@@ -5,8 +5,8 @@ import time
 
 from ..hicona_table import RawTable, HiconaTable
 from .spar_funs import sparsify_chunk
-from ..utils.chunked_ops import get_node_stats
-from ..utils.hdf5_ops import resize_table, write_table, write_chunk
+from .._utils._chunked_ops import get_node_stats
+from .._utils._hdf5_ops import resize_table, write_table, write_chunk
 
 
 __all__ = ["TableProcessor"]
