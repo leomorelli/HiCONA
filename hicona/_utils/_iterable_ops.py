@@ -2,7 +2,7 @@
 
 import pandas as pd
 
-from ._dtypes import PdChunks
+from .dtypes import PdChunks
 
 
 def change_breaks(

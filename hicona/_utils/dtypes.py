@@ -1,6 +1,6 @@
 """Module with custom data types for the hicona package type annotation."""
 
-from typing import Iterable, Literal, TypeVar
+from typing import Any, Iterable, Literal, TypeVar
 
 from matplotlib import axes
 import pandas as pd
@@ -17,3 +17,6 @@ AlphaModType = Literal["alpha_min", "alpha_max"]
 
 # Type alias for the axes type.
 OptionalAxes = axes.Axes | None
+
+# Type alias for the options dictionary.
+OptionsDict = dict[str, Any]

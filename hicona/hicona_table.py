@@ -20,10 +20,10 @@ from scipy.stats import false_discovery_control
 import hicona.hicona_cooler as hicooler  # For circular import
 from .plotting import plot_alpha_grid, plot_dynamics_full, plot_dynamics_interval
 from .processing.processing_flow import ProcessingFlow
-from .uris import Uris
+from ._core.uris import Uris
 from ._utils._chunked_ops import chunked_quants
-from ._utils._dtypes import AlphaModType, OptionalAxes, PdChunks
-from ._utils._hdf5_ops import fetch_chunk, get_attrs, get_table_size
+from ._utils.dtypes import AlphaModType, OptionalAxes, PdChunks
+from ._utils import hdf5_ops
 from ._utils._misc import GenomicRegion
 from ._utils._numeric import round_half_up
 from ._utils._table_ops import swap_columns, serial_odds_ratios
@@ -98,7 +98,7 @@ class TableIntervals:
     def _initial_index(self) -> list[pd.Index]:
         """Return an index of the complete table split into chunks."""
 
-        table_size = get_table_size(*self._table.uris.hdf5_uris())
+        table_size = hdf5_ops.get_table_size(self._table.uris)
         chunk_size = self._table.chunk_size
 
         num_full_chunks, partial_chunk_size = divmod(table_size, chunk_size)
@@ -160,7 +160,7 @@ class Table:
             """Reconstruct the ProcessingFlow object from the store."""
 
             # TODO: check whether the table is valid and skip if not
-            tab_attrs = get_attrs(*uris.hdf5_uris())
+            tab_attrs = hdf5_ops.get_attrs(uris)
             flow_json = json.loads(tab_attrs["process_info"])
             return ProcessingFlow.from_json(flow_json)
 
@@ -258,9 +258,8 @@ class Table:
                 continue
 
             # Fetch and index the chunk
-            lower = num * self.chunk_size
-            upper = (num + 1) * self.chunk_size
-            chunk = fetch_chunk(*self.uris.hdf5_uris(), lower, upper)
+            bounds = slice(num * self.chunk_size, (num + 1) * self.chunk_size)
+            chunk = hdf5_ops.fetch_chunk(self.uris, bounds)
             chunk = chunk.iloc[index]
 
             # Add kept pixels to the growing list

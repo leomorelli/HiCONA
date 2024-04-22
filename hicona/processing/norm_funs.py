@@ -4,7 +4,7 @@ import numpy as np
 
 from ..hicona_table import RawTable
 from .._utils._chunked_ops import chunked_quants
-from .._utils._dtypes import PdChunks
+from .._utils.dtypes import PdChunks
 from .._utils._iterable_ops import add_gen_dist
 
 __all__ = ["norm_genomic_dist", "norm_none", "norm_binwise"]

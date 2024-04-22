@@ -17,18 +17,9 @@ import pandas as pd
 from .hicona_table import RawTable, HiconaTable
 from .processing.processing_flow import ProcessingFlow
 from .processing.table_processor import TableProcessor
-from .uris import Uris
+from ._core.uris import Uris
 from ._utils._bed_ops import ann_enriched, ann_fraction, bed_to_df, intersect_dfs
-from ._utils._hdf5_ops import (
-    require_group,
-    del_keys,
-    get_attrs,
-    get_keys,
-    save_table,
-    set_attrs,
-    init_table,
-    write_chunk,
-)
+from ._utils import hdf5_ops
 
 
 __all__ = ["HiconaCooler"]
@@ -110,7 +101,8 @@ class HiconaCooler(cooler.Cooler):
     def _iterate_tables(self) -> Generator[HiconaTable, None, None]:
         """Iterate all saved tables as `HiconaTable` objects."""
 
-        for tab in get_keys(self.store, f"{self.root}/{self._tables_root}"):
+        uris = Uris(self.store, self.root, self._tables_root)
+        for tab in hdf5_ops.get_keys(uris):
             table_path = f"{self._tables_root}/{tab}"
             table_uris = Uris(self.store, self.root, table_path)
             yield HiconaTable(table_uris)
@@ -124,18 +116,20 @@ class HiconaCooler(cooler.Cooler):
 
         # Initialize table
         num_pix = self.info["nnz"]
-        init_table(*table_uris.hdf5_uris(), num_pix, _TABLE_COLUMNS)
+        hdf5_ops.init_table(table_uris, num_pix, _TABLE_COLUMNS)
 
+        # TODO: This is currently slow
         # Copy pixel data to the new table
         chunk_size = self._chunk_size
         for lower in range(0, num_pix, chunk_size):
             upper = min(lower + chunk_size, num_pix)
             chunk = self.pixels()[lower:upper]
-            write_chunk(*table_uris.hdf5_uris(), chunk, lower, chunk.columns)
+            assert isinstance(chunk, pd.DataFrame)  # For type checker
+            hdf5_ops.write_chunk(table_uris, chunk, lower, chunk.columns)
 
         # Set table attributes
         table_attrs = {"process_info": json.dumps(method.as_json())}
-        set_attrs(*table_uris.hdf5_uris(), table_attrs)
+        hdf5_ops.set_attrs(table_uris, table_attrs)
 
         return table_uris
 
@@ -168,7 +162,7 @@ class HiconaCooler(cooler.Cooler):
         # Initialize the tables root if it does not exist already.
         # TODO: Maybe do not hardcode the serial attribute
         table_root_uris = Uris(self.store, self.root, self.tables_root)
-        require_group(*table_root_uris.hdf5_uris(), {"serial": 0})
+        hdf5_ops.require_group(table_root_uris, {"serial": 0})
 
         # Check there is no table with all matching keywords
         for table in self._iterate_tables():
@@ -176,8 +170,8 @@ class HiconaCooler(cooler.Cooler):
                 raise ValueError("E: Table with the same flow already exists.")
 
         # Get the next available table path
-        serial = get_attrs(*table_root_uris.hdf5_uris())["serial"]
-        set_attrs(*table_root_uris.hdf5_uris(), {"serial": serial + 1})
+        serial = hdf5_ops.get_attrs(table_root_uris)["serial"]
+        hdf5_ops.set_attrs(table_root_uris, {"serial": serial + 1})
 
         table_uris = self._init_raw_table(serial, flow)
         processor = TableProcessor(RawTable(table_uris))
@@ -265,7 +259,7 @@ class HiconaCooler(cooler.Cooler):
             Iterable of bin annotation names in alphabetical order.
         """
 
-        ann_list = get_keys(self.store, self.root + "/bins")
+        ann_list = hdf5_ops.get_keys(Uris(self.store, self.root, "bins"))
         ann_list = [k for k in ann_list if k not in ["chrom", "start", "end"]]
         ann_list.sort()
 
@@ -333,7 +327,7 @@ class HiconaCooler(cooler.Cooler):
 
         # Save new annotation columns
         ann_df = ann_df.drop(labels=[None] + list(bin_df.columns), axis=1)
-        save_table(self.store, "/".join([self.root, "bins"]), ann_df)
+        hdf5_ops.save_table(Uris(self.store, self.root, "bins"), ann_df)
 
     def del_bin_annotation(self, to_del: str | Iterable[str]) -> None:
         """Remove bin annotation columns.
@@ -355,7 +349,7 @@ class HiconaCooler(cooler.Cooler):
         if not any(to_del):
             print("W: No valid annotation to delete was provided.")
 
-        del_keys(self.store, self.root + "/bins", to_del)
+        hdf5_ops.del_keys(Uris(self.store, self.root, "bins"), to_del)
 
     def ohe_bin_annotation(
         self,
@@ -418,7 +412,7 @@ class HiconaCooler(cooler.Cooler):
             columns = [c for c in ohe_df if not str(c).lower().endswith("_nan")]
             ohe_df = ohe_df[columns]
 
-        save_table(self.store, "/".join([self.root, "bins"]), ohe_df)
+        hdf5_ops.save_table(Uris(self.store, self.root, "bins"), ohe_df)
 
         # Remove original columns if selected
         if remove_original:
@@ -469,7 +463,7 @@ class HiconaCooler(cooler.Cooler):
         out_table = ann_enriched(bin_table, bkg_table, col_names)
         out_table.rename(columns={annot_col: ann_name})
 
-        save_table(self.store, "/".join([self.root, "bins"]), out_table)
+        hdf5_ops.save_table(Uris(self.store, self.root, "bins"), out_table)
 
     # ////////////////////////////////////////////////////////////////////////
     # /////////////////////// MISCELLANEOUS FUNCTIONS ////////////////////////
