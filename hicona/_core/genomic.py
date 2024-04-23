@@ -1,16 +1,8 @@
-"""Miscellaneous utility functions for the hicona package."""
+"""Placeholder"""
 
-from itertools import chain, combinations
 import re
 
-from ._regexes import BED_LIKE_STR, CHR_LIKE_STR, POS_LIKE_STR
-
-
-def annotation_combinations(iterable, k_vals=(1, 2)):
-    """Return iterable of all combinations for all k_vals"""
-
-    comb = [combinations(iterable, k) for k in k_vals]
-    return list(chain.from_iterable(comb))
+from hicona._resources import regexes
 
 
 class GenomicRegion:
@@ -20,14 +12,15 @@ class GenomicRegion:
 
         self._chrom, self._start, self._end = self._parse_str(genomic_str)
 
-    def _parse_str(self, region: str) -> tuple[str, int | None, int | None]:
+    @staticmethod
+    def _parse_str(region: str) -> tuple[str, int | None, int | None]:
         """Parse region string to obtain standard format parts."""
 
-        if match := re.match(POS_LIKE_STR, region):
+        if match := re.match(regexes.POS_LIKE_STR, region):
             return (match[1], int(match[2]) - 1, int(match[3]))
-        if match := re.match(BED_LIKE_STR, region):
+        if match := re.match(regexes.BED_LIKE_STR, region):
             return (match[1], int(match[2]), int(match[3]))
-        if match := re.match(CHR_LIKE_STR, region):
+        if match := re.match(regexes.CHR_LIKE_STR, region):
             return (match[1], None, None)
 
         raise ValueError(f"Invalid region string: {region}")

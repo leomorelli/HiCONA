@@ -2,15 +2,15 @@
 
 import numpy as np
 
-from ..hicona_table import RawTable
-from .._utils._chunked_ops import chunked_quants
-from .._utils.dtypes import PdChunks
-from .._utils._iterable_ops import add_gen_dist
+from hicona._core import base_table
+from hicona._dtypes import PdChunks
+from hicona._ops import chunked
+
 
 __all__ = ["norm_genomic_dist", "norm_none", "norm_binwise"]
 
 
-def norm_genomic_dist(table: RawTable, apply_col: str) -> PdChunks:
+def norm_genomic_dist(table: base_table.Table, apply_col: str) -> PdChunks:
     """Apply default HiCONA normalization to a table (genomic distance).
 
     The normalized value is computed as the log2 of 1 plus the ratio of the
@@ -20,7 +20,7 @@ def norm_genomic_dist(table: RawTable, apply_col: str) -> PdChunks:
 
     Parameters
     ----------
-    table: RawTable
+    table: Table
         Pixel table to normalize.
     apply_col: str
         Column to apply the normalization to.
@@ -36,7 +36,7 @@ def norm_genomic_dist(table: RawTable, apply_col: str) -> PdChunks:
         chunks = table_obj.chunks(annotated=True)
         bin_size = table_obj.bin_size
 
-        for chunk in add_gen_dist(chunks, bin_size):
+        for chunk in chunked.add_gen_dist(chunks, bin_size):
 
             # Check that inter-chromosomal pixels where removed
             if any(chunk["chrom1"] != chunk["chrom2"]):
@@ -44,7 +44,7 @@ def norm_genomic_dist(table: RawTable, apply_col: str) -> PdChunks:
 
             yield chunk
 
-    norm_curve = chunked_quants(
+    norm_curve = chunked.chunked_quants(
         distance_iter(table),
         column=apply_col,
         quants=0.5,
@@ -60,7 +60,7 @@ def norm_genomic_dist(table: RawTable, apply_col: str) -> PdChunks:
         yield chunk[["bin1_id", "bin2_id", "count", "norm"]]
 
 
-def norm_none(table: RawTable) -> PdChunks:
+def norm_none(table: base_table.Table) -> PdChunks:
     """Apply no normalization to a table.
 
     Do not apply any normalization to the table, just return the original
@@ -69,7 +69,7 @@ def norm_none(table: RawTable) -> PdChunks:
 
     Parameters
     ----------
-    table: RawTable
+    table: Table
         Pixel table to normalize.
 
     Returns
@@ -83,7 +83,7 @@ def norm_none(table: RawTable) -> PdChunks:
 
 
 def norm_binwise(
-    table: RawTable,
+    table: base_table.Table,
     apply_col: str,
     ann_name: str,
     divisive: bool = False,
@@ -96,7 +96,7 @@ def norm_binwise(
 
     Parameters
     ----------
-    table: RawTable
+    table: Table
         Pixel table to normalize.
     apply_col: str
         Column to apply the normalization to.

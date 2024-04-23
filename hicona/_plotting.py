@@ -1,6 +1,6 @@
 """Placehodler"""
 
-from matplotlib.colors import LinearSegmentedColormap
+import matplotlib.colors as clr
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -11,7 +11,7 @@ from scipy.cluster.hierarchy import dendrogram, linkage
 __all__ = ["plot_alpha_grid"]
 
 # TODO: there probably is a better way to import the style, maybe in init
-plt.style.use("hicona/resources/paper_style.mplstyle")
+plt.style.use("hicona/_resources/paper_style.mplstyle")
 
 
 def _empty_subplot(axes):
@@ -115,7 +115,7 @@ def _get_color_map():
 
     cols = ["mediumblue", "blue", "white", "red", "firebrick"]
     vals = [0, 0.15, 0.5, 0.85, 1]
-    cmap = LinearSegmentedColormap.from_list("rg", list(zip(vals, cols)))
+    cmap = clr.LinearSegmentedColormap.from_list("rg", list(zip(vals, cols)))
     return cmap
 
 

@@ -6,20 +6,17 @@ Chromosome-level tables are stored in the ``/hicona_tables`` group and
 can be retrieved to create filtered networks to analyze.
 """
 
-from collections.abc import Iterable
-from typing import Generator
 import json
+from typing import Generator, Iterable
 
 import cooler
 import h5py
 import pandas as pd
 
-from .hicona_table import RawTable, HiconaTable
-from .processing.processing_flow import ProcessingFlow
-from .processing.table_processor import TableProcessor
-from ._core.uris import Uris
-from ._utils._bed_ops import ann_enriched, ann_fraction, bed_to_df, intersect_dfs
-from ._utils import hdf5_ops
+from hicona._core import base_table, sparsification, uris
+from hicona._ops import bed, hdf5
+from hicona.preprocess import flow
+from hicona.table import HiconaTable
 
 
 __all__ = ["HiconaCooler"]
@@ -101,22 +98,22 @@ class HiconaCooler(cooler.Cooler):
     def _iterate_tables(self) -> Generator[HiconaTable, None, None]:
         """Iterate all saved tables as `HiconaTable` objects."""
 
-        uris = Uris(self.store, self.root, self._tables_root)
-        for tab in hdf5_ops.get_keys(uris):
+        uris_path = uris.Uris(self.store, self.root, self._tables_root)
+        for tab in hdf5.get_keys(uris_path):
             table_path = f"{self._tables_root}/{tab}"
-            table_uris = Uris(self.store, self.root, table_path)
+            table_uris = uris.Uris(self.store, self.root, table_path)
             yield HiconaTable(table_uris)
 
-    def _init_raw_table(self, serial: str, method: ProcessingFlow) -> Uris:
+    def _init_raw_table(self, serial: str, method: flow.Flow) -> uris.Uris:
         """Initialize a new raw table with the given parameters."""
 
         # Get table uris
         table_path = f"{self.tables_root}/table_{str(serial).zfill(6)}"
-        table_uris = Uris(self.store, self.root, table_path)
+        table_uris = uris.Uris(self.store, self.root, table_path)
 
         # Initialize table
         num_pix = self.info["nnz"]
-        hdf5_ops.init_table(table_uris, num_pix, _TABLE_COLUMNS)
+        hdf5.init_table(table_uris, num_pix, _TABLE_COLUMNS)
 
         # TODO: This is currently slow
         # Copy pixel data to the new table
@@ -125,26 +122,26 @@ class HiconaCooler(cooler.Cooler):
             upper = min(lower + chunk_size, num_pix)
             chunk = self.pixels()[lower:upper]
             assert isinstance(chunk, pd.DataFrame)  # For type checker
-            hdf5_ops.write_chunk(table_uris, chunk, lower, chunk.columns)
+            hdf5.write_chunk(table_uris, chunk, lower, chunk.columns)
 
         # Set table attributes
         table_attrs = {"process_info": json.dumps(method.as_json())}
-        hdf5_ops.set_attrs(table_uris, table_attrs)
+        hdf5.set_attrs(table_uris, table_attrs)
 
         return table_uris
 
-    def create_table(self, flow: str | ProcessingFlow = "hicona") -> HiconaTable:
+    def create_table(self, ops_flow: str | flow.Flow = "hicona") -> HiconaTable:
         """Create a normalized and sparsified version of the pixels table.
 
         Create a new table using the specified normalization procedure,
         then add the sparsification scores to all pixels of said table.
         The filters and normalization methods can be either provided via
-        a ProcessingFlow object or as a string, in which case the default
+        a Flow object or as a string, in which case the default
         flow for the corresponding method is used.
 
         Parameters
         ----------
-        flow : str or ProcessingFlow, optional
+        ops_flow : str or Flow, optional
             Flow to use to filter and normalize the table. If a string is
             provided, the default flow for the corresponding method is used.
             (default is "hicona")
@@ -156,38 +153,38 @@ class HiconaCooler(cooler.Cooler):
         """
 
         # Convert any default string to the corresponding flow
-        if isinstance(flow, str):
-            flow = ProcessingFlow.from_default(flow)
+        if isinstance(ops_flow, str):
+            ops_flow = flow.Flow.from_default(ops_flow)
 
         # Initialize the tables root if it does not exist already.
         # TODO: Maybe do not hardcode the serial attribute
-        table_root_uris = Uris(self.store, self.root, self.tables_root)
-        hdf5_ops.require_group(table_root_uris, {"serial": 0})
+        table_root_uris = uris.Uris(self.store, self.root, self.tables_root)
+        hdf5.require_group(table_root_uris, {"serial": 0})
 
         # Check there is no table with all matching keywords
         for table in self._iterate_tables():
-            if table.flow == flow:
+            if table.flow == ops_flow:
                 raise ValueError("E: Table with the same flow already exists.")
 
         # Get the next available table path
-        serial = hdf5_ops.get_attrs(table_root_uris)["serial"]
-        hdf5_ops.set_attrs(table_root_uris, {"serial": serial + 1})
+        serial = hdf5.get_attrs(table_root_uris)["serial"]
+        hdf5.set_attrs(table_root_uris, {"serial": serial + 1})
 
-        table_uris = self._init_raw_table(serial, flow)
-        processor = TableProcessor(RawTable(table_uris))
+        table_uris = self._init_raw_table(serial, ops_flow)
+        processor = sparsification.TableProcessor(base_table.Table(table_uris))
         return processor.create_table()
 
-    def fetch_table(self, flow: str | ProcessingFlow = "hicona") -> HiconaTable:
+    def fetch_table(self, ops_flow: str | flow.Flow = "hicona") -> HiconaTable:
         """Retrieve an previously created `HiconaTable` object.
 
         Retrieve a previously created table using the specified method.
-        The flow can be either provided via a ProcessingFlow object or as
+        The flow can be either provided via a Flow object or as
         string, in which case the default scheduler for the corresponding
         method is used.
 
         Parameters
         ----------
-        flow : str or ProcessingFlow
+        ops_flow : str or Flow
             Method used to filter and normalize the table. If a string is
             provided, the default scheduler for the corresponding method is used.
             (default is "hicona").
@@ -199,11 +196,11 @@ class HiconaCooler(cooler.Cooler):
         """
 
         # TODO: Sometimes there is an issue with fetching the table
-        if isinstance(flow, str):
-            flow = ProcessingFlow.from_default(flow)
+        if isinstance(ops_flow, str):
+            ops_flow = flow.Flow.from_default(ops_flow)
 
         try:
-            tables = [t for t in self._iterate_tables() if t.flow == flow]
+            tables = [t for t in self._iterate_tables() if t.flow == ops_flow]
         except ValueError as exc:
             raise ValueError("E: No table has been generated yet.") from exc
 
@@ -259,7 +256,7 @@ class HiconaCooler(cooler.Cooler):
             Iterable of bin annotation names in alphabetical order.
         """
 
-        ann_list = hdf5_ops.get_keys(Uris(self.store, self.root, "bins"))
+        ann_list = hdf5.get_keys(uris.Uris(self.store, self.root, "bins"))
         ann_list = [k for k in ann_list if k not in ["chrom", "start", "end"]]
         ann_list.sort()
 
@@ -313,8 +310,8 @@ class HiconaCooler(cooler.Cooler):
         # Create the two bin df and merge on default bed columns
         # While reading, replace chrom, start, end of bed file with None.
         bin_df = self.bare_bins()
-        ann_df = bed_to_df(bed_path, to_keep)
-        ann_df = intersect_dfs(bin_df, ann_df, drop_none=False, loj=True)
+        ann_df = bed.bed_to_df(bed_path, to_keep)
+        ann_df = bed.intersect_dfs(bin_df, ann_df, drop_none=False, loj=True)
 
         # Check for overlapping annotations
         if len(ann_df) != len(bin_df):
@@ -327,7 +324,7 @@ class HiconaCooler(cooler.Cooler):
 
         # Save new annotation columns
         ann_df = ann_df.drop(labels=[None] + list(bin_df.columns), axis=1)
-        hdf5_ops.save_table(Uris(self.store, self.root, "bins"), ann_df)
+        hdf5.save_table(uris.Uris(self.store, self.root, "bins"), ann_df)
 
     def del_bin_annotation(self, to_del: str | Iterable[str]) -> None:
         """Remove bin annotation columns.
@@ -349,7 +346,7 @@ class HiconaCooler(cooler.Cooler):
         if not any(to_del):
             print("W: No valid annotation to delete was provided.")
 
-        hdf5_ops.del_keys(Uris(self.store, self.root, "bins"), to_del)
+        hdf5.del_keys(uris.Uris(self.store, self.root, "bins"), to_del)
 
     def ohe_bin_annotation(
         self,
@@ -412,7 +409,7 @@ class HiconaCooler(cooler.Cooler):
             columns = [c for c in ohe_df if not str(c).lower().endswith("_nan")]
             ohe_df = ohe_df[columns]
 
-        hdf5_ops.save_table(Uris(self.store, self.root, "bins"), ohe_df)
+        hdf5.save_table(uris.Uris(self.store, self.root, "bins"), ohe_df)
 
         # Remove original columns if selected
         if remove_original:
@@ -452,18 +449,18 @@ class HiconaCooler(cooler.Cooler):
         # Compute annotation fractions for both background and query
         annot_col, frac_col = f"{ann_name}_annot", f"{ann_name}_frac"
 
-        ann_table = bed_to_df(ann_file, [annot_col])
+        ann_table = bed.bed_to_df(ann_file, [annot_col])
         bin_table = self.bare_bins()
         bkg_table = get_chrom_bed(self)
 
         col_names = annot_col, frac_col
-        bin_table = ann_fraction(bin_table, ann_table, col_names, nan_annot)
-        bkg_table = ann_fraction(bkg_table, ann_table, col_names, nan_annot)
+        bin_table = bed.ann_fraction(bin_table, ann_table, col_names, nan_annot)
+        bkg_table = bed.ann_fraction(bkg_table, ann_table, col_names, nan_annot)
 
-        out_table = ann_enriched(bin_table, bkg_table, col_names)
+        out_table = bed.ann_enriched(bin_table, bkg_table, col_names)
         out_table.rename(columns={annot_col: ann_name})
 
-        hdf5_ops.save_table(Uris(self.store, self.root, "bins"), out_table)
+        hdf5.save_table(uris.Uris(self.store, self.root, "bins"), out_table)
 
     # ////////////////////////////////////////////////////////////////////////
     # /////////////////////// MISCELLANEOUS FUNCTIONS ////////////////////////

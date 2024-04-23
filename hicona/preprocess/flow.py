@@ -1,6 +1,6 @@
 """Module to handle filtering and normalization functions for a table.
 
-This module contains the `ProcessingFlow` class, which is used to schedule
+This module contains the `Flow` class, which is used to schedule
 and retrieve the operations applied to a pixel table in order to filter and
 normalize it.
 """
@@ -10,18 +10,18 @@ from importlib import import_module
 from inspect import getmembers, Parameter, signature
 from typing import Any, Callable, Generator
 
-from .._utils._io_ops import read_resource, write_resource
+from hicona._ops import io
 
 
-__all__ = ["ProcessingFlow"]
+__all__ = ["Flow"]
 
 
 # TODO: move hardcoded paths to settings.
 DEFAULT_FLOWS: str = "flows.json"
-DEFAULT_MODULES: list[str] = [".processing.filt_funs", ".processing.norm_funs"]
+DEFAULT_MODULES: list[str] = [".preprocess.filt", ".preprocess.norm"]
 
 
-# TODO: Maybe make the ProcessingFlow immutable when fetching a table,
+# TODO: Maybe make the Flow immutable when fetching a table,
 #       requiring to create a copy of the object to modify it again.
 
 
@@ -75,7 +75,7 @@ class Operation:
         return {"name": self._fun_name, "kwargs": self._fun_kwargs}
 
 
-class ProcessingFlow:
+class Flow:
     """Class to handle filtering and normalization functions for a table.
 
     This class is used to schedule and retrieve the operations applied to a
@@ -101,8 +101,8 @@ class ProcessingFlow:
             funs = {k: v for k, v in getmembers(mod) if k in mod.__all__}
             self._source_default.update(funs)
 
-    def __eq__(self, other: "ProcessingFlow") -> bool:
-        """Check equality among ProceProcessingFlow objects."""
+    def __eq__(self, other: "Flow") -> bool:
+        """Check equality among ProcessingFlow objects."""
         return self.as_json() == other.as_json()
 
     def __str__(self) -> str:
@@ -125,10 +125,10 @@ class ProcessingFlow:
         cls,
         json_data: dict[int, dict[str, Any]],
         sources: list[Callable] | None = None,
-    ) -> "ProcessingFlow":
+    ) -> "Flow":
         """Create an instance with the provided functions already added.
 
-        Create an instance of `ProcessingFlow` with the provided operations
+        Create an instance of `Flow` with the provided operations
         already added to the operations flow. The outer json keys should be
         the order of the operations, the intermediate keys the operations,
         and the inner most dictionary the kwargs to pass to the operation.
@@ -144,7 +144,7 @@ class ProcessingFlow:
 
         Returns
         -------
-        A `ProcessingFlow` object with the provided operations already added.
+        A `Flow` object with the provided operations already added.
         """
 
         flow = cls()
@@ -172,7 +172,7 @@ class ProcessingFlow:
         cls,
         file_path: str,
         sources: list[Callable] | None = None,
-    ) -> "ProcessingFlow":
+    ) -> "Flow":
         """Create an instance from a previously saved json file.
 
         Load a flow which was previously saved to json. If the flow contains
@@ -189,17 +189,17 @@ class ProcessingFlow:
 
         Returns
         -------
-        A `ProcessingFlow` object with the operations flow from the file.
+        A `Flow` object with the operations flow from the file.
         """
 
-        json_data = read_resource(file_path)
+        json_data = io.read_resource(file_path)
         return cls.from_json(json_data, sources)
 
     @classmethod
-    def from_default(cls, default_name: str) -> "ProcessingFlow":
-        """Load a default ProcessingFlow.
+    def from_default(cls, default_name: str) -> "Flow":
+        """Load a default Flow.
 
-        Load a default ProcessingFlow from the available ones. The default
+        Load a default Flow from the available ones. The default
         name should be one of the available ones, otherwise an error is raised.
 
         Parameters
@@ -209,10 +209,10 @@ class ProcessingFlow:
 
         Returns
         -------
-        A `ProcessingFlow` object with the default operations flow.
+        A `Flow` object with the default operations flow.
         """
 
-        default_json = read_resource(DEFAULT_FLOWS, is_static=True)
+        default_json = io.read_resource(DEFAULT_FLOWS, is_static=True)
         return cls.from_json(default_json[default_name])
 
     def _get_from_source(self, fun_name: str) -> Callable:
@@ -332,4 +332,4 @@ class ProcessingFlow:
         be provided as a list of functions to the `from_file` method.
         """
 
-        write_resource(json_path, self.as_json(), is_static=False)
+        io.write_resource(json_path, self.as_json(), is_static=False)

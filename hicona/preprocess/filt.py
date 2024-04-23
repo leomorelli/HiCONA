@@ -2,9 +2,9 @@
 
 import pandas as pd
 
-from ..hicona_table import RawTable
-from .._utils._chunked_ops import chunked_quants
-from .._utils.dtypes import PdChunks
+from hicona._core import base_table
+from hicona._dtypes import PdChunks
+from hicona._ops import chunked
 
 
 __all__ = [
@@ -54,7 +54,7 @@ def _format_out_cols(chunk: pd.DataFrame) -> pd.DataFrame:
 
 
 def filt_genomic_dist(
-    table: RawTable,
+    table: base_table.Table,
     min_dist: int | None = None,
     max_dist: int | None = None,
 ) -> PdChunks:
@@ -67,7 +67,7 @@ def filt_genomic_dist(
 
     Parameters
     ----------
-    table: RawTable
+    table: Table
         The table to be filtered.
     min_dist: int or None, optional
         Remove pixels whose genomic distance greater than this value.
@@ -92,7 +92,7 @@ def filt_genomic_dist(
 
 
 def filt_column_quant(
-    table: RawTable,
+    table: base_table.Table,
     apply_col: str,
     lower_quant: float | None = None,
     upper_quant: float | None = None,
@@ -109,7 +109,7 @@ def filt_column_quant(
 
     Parameters
     ----------
-    table: RawTable
+    table: Table
         The table to be filtered.
     apply_col: str
         The column to apply the quantile filter to.
@@ -145,7 +145,7 @@ def filt_column_quant(
         raise ValueError("At least one quantile threshold must be provided.")
 
     # Compute quantiles for each chromosome
-    vals = chunked_quants(
+    vals = chunked.chunked_quants(
         table.chunks(annotated=chrom_wise),
         column=apply_col,
         quants=all_quants,
@@ -164,7 +164,7 @@ def filt_column_quant(
 
 
 def filt_column_value(
-    table: RawTable,
+    table: base_table.Table,
     apply_col: str,
     lower_value: float | int | None = None,
     upper_value: float | int | None = None,
@@ -176,7 +176,7 @@ def filt_column_value(
 
     Parameters
     ----------
-    table: RawTable
+    table: Table
         The table to be filtered.
     apply_col: str
         The column to apply the value filter to.
@@ -197,14 +197,14 @@ def filt_column_value(
         yield _inclusive_filter(chunk, apply_col, lower_value, upper_value)
 
 
-def filt_inter_chroms(table: RawTable) -> PdChunks:
+def filt_inter_chroms(table: base_table.Table) -> PdChunks:
     """Remove inter-chromosomal pixels from the table.
 
     Remove pixels whose bin1_id and bin2_id are on different chromosomes.
 
     Parameters
     ----------
-    table: RawTable
+    table: Table
         The table to be filtered.
 
     Returns
@@ -217,14 +217,14 @@ def filt_inter_chroms(table: RawTable) -> PdChunks:
         yield _format_out_cols(chunk)
 
 
-def filt_self_looping(table: RawTable) -> PdChunks:
+def filt_self_looping(table: base_table.Table) -> PdChunks:
     """Remove self-looping pixels from the table.
 
     Remove pixels whose bin1_id and bin2_id are the same.
 
     Parameters
     ----------
-    table: RawTable
+    table: Table
         The table to be filtered.
 
     Returns

@@ -1,6 +1,6 @@
 """Functions dealing with numeric operations."""
 
-from math import floor
+import math
 
 
 def round_half_up(number: float, decimals: int = 0):
@@ -11,4 +11,4 @@ def round_half_up(number: float, decimals: int = 0):
     closest value, either up or down, and break ties returning upper value".
     """
     multiplier: int = 10**decimals
-    return floor(number * multiplier + 0.5) / multiplier
+    return math.floor(number * multiplier + 0.5) / multiplier

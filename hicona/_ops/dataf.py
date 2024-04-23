@@ -2,8 +2,7 @@
 
 import numpy as np
 import pandas as pd
-
-from scipy.stats import fisher_exact
+import scipy as sp
 
 # TODO: somehow add category modality
 
@@ -131,7 +130,7 @@ def serial_odds_ratios(
         table = np.array([[kept_ann, disc_ann], [kept_other, disc_other]])
 
         # Compute the p-value on the table without any shift
-        pval_vect.append(fisher_exact(table).pvalue)  # type: ignore
+        pval_vect.append(sp.stats.fisher_exact(table).pvalue)  # type: ignore
 
         # Apply Haldane's correction if needed
         if haldane:

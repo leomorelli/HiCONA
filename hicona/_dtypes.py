@@ -2,7 +2,7 @@
 
 from typing import Any, Iterable, Literal, TypeVar
 
-from matplotlib import axes
+import matplotlib.axes as axes
 import pandas as pd
 
 

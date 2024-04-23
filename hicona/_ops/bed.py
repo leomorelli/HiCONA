@@ -2,11 +2,11 @@
 
 import numpy as np
 import pandas as pd
-from pybedtools import BedTool
+import pybedtools as pybed
 
 
 def bed_to_df(
-    bed: str | BedTool,
+    bed: str | pybed.BedTool,
     col_names: list[str | None] | None = None,
 ) -> pd.DataFrame:
     """Convert bed file to pandas dataframe, with custom column names.
@@ -18,7 +18,7 @@ def bed_to_df(
     """
 
     if isinstance(bed, str):
-        bed = BedTool(bed)
+        bed = pybed.BedTool(bed)
 
     colnames = ["chrom", "start", "end"]
     if col_names:
@@ -69,8 +69,8 @@ def intersect_dfs(df_a, df_b, inters_names=None, drop_none=True, **kwargs):
 
     col_names = get_intersection_names(df_a, df_b, inters_names)
 
-    bed_a = BedTool.from_dataframe(df_a)
-    bed_b = BedTool.from_dataframe(df_b)
+    bed_a = pybed.BedTool.from_dataframe(df_a)
+    bed_b = pybed.BedTool.from_dataframe(df_b)
     bed_a = bed_a.intersect(bed_b, **kwargs)  # pylint: disable=E1121 #type: ignore
 
     inters = bed_to_df(bed_a, col_names[3:])

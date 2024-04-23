@@ -3,326 +3,25 @@
 The module contains:
 - `TableIntervals`: class for the handling of table intervals.
 - `Table`: base class for all table types in Hicona.
-- `RawTable`: class for the handling of raw pixel tables.
+- `Table`: class for the handling of raw pixel tables.
 - `HiconaTable`: class for the handling of processed pixel tables.
 """
 
-from collections import Counter
-from collections.abc import Iterable
-from math import dist
-import json
+import collections
+import math
 
-import cooler
 import numpy as np
 import pandas as pd
-from scipy.stats import false_discovery_control
+import scipy as sp
 
-import hicona.hicona_cooler as hicooler  # For circular import
-from .plotting import plot_alpha_grid, plot_dynamics_full, plot_dynamics_interval
-from .processing.processing_flow import ProcessingFlow
-from ._core.uris import Uris
-from ._utils._chunked_ops import chunked_quants
-from ._utils.dtypes import AlphaModType, OptionalAxes, PdChunks
-from ._utils import hdf5_ops
-from ._utils._misc import GenomicRegion
-from ._utils._numeric import round_half_up
-from ._utils._table_ops import swap_columns, serial_odds_ratios
+from hicona._core import base_table, uris
+from hicona._dtypes import AlphaModType, OptionalAxes
+from hicona._ops import chunked, dataf
+from hicona._numeric import rounding
+from hicona import _plotting
 
 
-FULL_TABLE = "full_table"
-
-
-class TableIntervals:
-    """Class to handle chunk fetching from pixel tables.
-
-    Chunk fetching is handled by storing indexes for each fixed size chunk.
-    When iterating through the table, each chunk is fetched and indexed.
-    When the number of fetched rows covers the full chunk size (or if no more
-    chunks are available), the chunk is returned and the process is repeated.
-
-    The class also implements operations such as subsetting and boolean logic
-    among indexes to facilitate the selection of complex intervals.
-
-    Parameters
-    ----------
-    table : Table
-        The table object to which the intervals belong.
-    indexes : list[pd.Index], optional
-        List of indexes for each chunk. If not provided, a full index is
-        created for each chunk (all pixels are iterated). Default is None.
-    interval_str : str, optional
-        String representation of the intervals, that is a description of the
-        operations used to generate the indexes. If not provided, it is set
-        to `full_table`. Default is None.
-    """
-
-    def __init__(
-        self,
-        table: "Table",
-        indexes: list[pd.Index] | None = None,
-        interval_str: str | None = None,
-    ):
-
-        if bool(indexes) != bool(interval_str):
-            raise ValueError(
-                "Both indexes and interval_str must be provided or neither."
-            )
-
-        self._table = table
-        self._indexes = indexes or self._initial_index()
-        self._interval_str = interval_str or FULL_TABLE
-        self._size: int = 0  # Random initialization value
-
-        self.update_size()
-
-    def __str__(self) -> str:
-
-        return self._interval_str
-
-    def __or__(self, other: "TableIntervals") -> "TableIntervals":
-
-        iterator = zip(self._indexes, other.get_indexes())
-        new_intervals = [i.join(j, how="outer") for i, j in iterator]
-        new_repr = f"({self._interval_str} | {other._interval_str})"
-
-        return TableIntervals(self._table, new_intervals, new_repr)
-
-    def __and__(self, other: "TableIntervals") -> "TableIntervals":
-
-        iterator = zip(self._indexes, other.get_indexes())
-        new_intervals = [i.join(j, how="inner") for i, j in iterator]
-        new_repr = f"({self._interval_str} & {other._interval_str})"
-
-        return TableIntervals(self._table, new_intervals, new_repr)
-
-    def _initial_index(self) -> list[pd.Index]:
-        """Return an index of the complete table split into chunks."""
-
-        table_size = hdf5_ops.get_table_size(self._table.uris)
-        chunk_size = self._table.chunk_size
-
-        num_full_chunks, partial_chunk_size = divmod(table_size, chunk_size)
-        full_chunk_ind = pd.Index(range(0, chunk_size), dtype="int32")
-        part_chunk_ind = pd.Index(range(0, partial_chunk_size), dtype="int32")
-
-        return [full_chunk_ind] * num_full_chunks + [part_chunk_ind]
-
-    @property
-    def size(self) -> int:
-        """Return the size of the complete table or the subset."""
-
-        return self._size
-
-    def update_size(self):
-        """Update the size of the complete table or the subset."""
-
-        self._size = sum(len(c) for c in self._indexes)
-
-    def subset(self, region: str, both: bool = True) -> "TableIntervals":
-        """Subset a full genomic table to a region of interest."""
-
-        # NOTE: currently not allowing the subset of subsets because it
-        #       is not clear how to handle the interval_str in that case.
-        #       Might be implemented in the future if needed.
-        if self._interval_str != FULL_TABLE:
-            raise ValueError("Cannot subset a subset. Use boolean operators instead.")
-
-        new_repr = f"{region}({'+' if both else '-'})"
-
-        gen_region = GenomicRegion(region)
-        gen_region.snap_to_bin(self._table.bin_size)
-        query_str = gen_region.to_query(both)
-
-        pd_chunks = self._table.chunks(annotated=True)
-        new_indexes = [c.query(query_str).index for c in pd_chunks]
-
-        return TableIntervals(self._table, new_indexes, new_repr)
-
-    def get_indexes(self) -> Iterable[pd.Index]:
-        """Return the indexes of the table or the subset."""
-
-        for index in self._indexes:
-            yield index
-
-
-class Table:
-    """Base class for all table types in Hicona."""
-
-    def __init__(
-        self,
-        uris: Uris,
-        intervals: TableIntervals | None = None,
-        bin_size: int | None = None,
-        chunk_size: int | None = None,
-    ):
-
-        def reconstruct_flow(uris: Uris) -> ProcessingFlow:
-            """Reconstruct the ProcessingFlow object from the store."""
-
-            # TODO: check whether the table is valid and skip if not
-            tab_attrs = hdf5_ops.get_attrs(uris)
-            flow_json = json.loads(tab_attrs["process_info"])
-            return ProcessingFlow.from_json(flow_json)
-
-        def get_bin_size(uris: Uris) -> int:
-            """Return the bin size of the cooler."""
-
-            parent_cool = hicooler.HiconaCooler(uris.cooler_uri())
-            return parent_cool.binsize
-
-        def get_chunk_size(uris: Uris) -> int:
-            """Return the default chunk size for the table."""
-
-            parent_cool = hicooler.HiconaCooler(uris.cooler_uri())
-            return parent_cool.chunk_size
-
-        self._uris = uris
-        self._flow = reconstruct_flow(uris)
-        self._bin_size = bin_size or get_bin_size(uris)
-        self._chunk_size = chunk_size or get_chunk_size(uris)
-        self._intervals = intervals or TableIntervals(self)
-
-    @property
-    def bin_size(self) -> int:
-        """Resolution of the original cooler (size of the bins in bp)."""
-        return self._bin_size
-
-    @property
-    def chunk_size(self) -> int:
-        """Size of the chunks to retrieve during iteration."""
-        return self._chunk_size
-
-    @property
-    def flow(self) -> ProcessingFlow:
-        """ProcessingFlow object containing all processing information."""
-        return self._flow
-
-    @property
-    def uris(self) -> Uris:
-        """Uris object containing all table uris."""
-        return self._uris
-
-    @property
-    def size(self) -> int:
-        """Total number of pixels in the table."""
-        return self._intervals.size
-
-    def chunks(
-        self,
-        columns: Iterable[str] | None = None,
-        annotated: bool = False,
-        query: str | None = None,
-    ) -> PdChunks:
-        """Returns an iterator of table chunks (as pandas DataFrames).
-
-        Parameters
-        ----------
-        columns: Iterable[str] or None, optional
-            If provided, only fetch the specified columns. Default is None.
-        annotated: bool, optional
-            Whether to annotate with the bin information. Default is False.
-        query: str or None, optional
-            If provided, only fetch the pixels that satisfy the query.
-            Query must be a valid pandas query string. Default is None.
-
-        Returns
-        -------
-        An iterator of table chunks (as pandas DataFrames).
-        """
-
-        def prepare_chunk(chunk, bins=None, columns=None, query=None) -> pd.DataFrame:
-            """Prepare the chunk for output with annotation of filtering."""
-
-            if bins is not None:
-                chunk = cooler.annotate(chunk, bins)
-            if query is not None:
-                chunk = chunk.query(query)
-            if columns is not None:
-                chunk = chunk[columns]
-
-            return chunk
-
-        # Fetch bins if needed for annotation
-        cool = hicooler.HiconaCooler(self.uris.cooler_uri())
-        bins = cool.bins()[:] if annotated else None
-
-        # Growing list to concat to create the full chunk
-        chunk_parts: list[pd.DataFrame] = []
-
-        # Iterate all indexes
-        indexes = self._intervals.get_indexes()
-        for num, index in enumerate(indexes):
-
-            # Skip chunk if no pixels from it need to be kept
-            if len(index) == 0:
-                continue
-
-            # Fetch and index the chunk
-            bounds = slice(num * self.chunk_size, (num + 1) * self.chunk_size)
-            chunk = hdf5_ops.fetch_chunk(self.uris, bounds)
-            chunk = chunk.iloc[index]
-
-            # Add kept pixels to the growing list
-            chunk_parts.append(chunk)
-
-            # Yield the chunk if it is complete
-            # Save extra pixels for the next chunk
-            new_chunks_size = sum(len(c) for c in chunk_parts)
-            if new_chunks_size >= self.chunk_size:
-
-                out_chunk = pd.concat(chunk_parts)
-
-                chunk_parts = [out_chunk.iloc[self.chunk_size :]]
-                out_chunk = out_chunk.iloc[: self.chunk_size]
-
-                yield prepare_chunk(out_chunk, bins, columns, query)
-
-        # Yield the remaining pixels as an incomplete chunk
-        if len(chunk_parts) > 0:
-            yield prepare_chunk(pd.concat(chunk_parts), bins, columns, query)
-
-    def dataframe(
-        self,
-        columns: Iterable[str] | None = None,
-        annotated: bool = False,
-        query: str | None = None,
-    ) -> pd.DataFrame:
-        """Return all table chunks in a single pandas DataFrame.
-
-        NOTE: This operation can be rather expensive in terms of memory,
-        especially for large or non subsetted tables.
-
-        Parameters
-        ----------
-        columns: Iterable[str], optional
-            If provided, only fetch the specified columns. Default is None.
-        annotated: bool, optional
-            Whether to annotate with the bin information. Default is False.
-        query: str, optional
-            If provided, only fetch the pixels that satisfy the query.
-            Query must be a valid pandas query string. Default is None.
-
-        Returns
-        -------
-        A pandas DataFrame with all table pixels.
-        """
-
-        iterator = self.chunks(columns, annotated, query)
-        return pd.concat(iterator).reset_index(drop=True)
-
-
-class RawTable(Table):
-    """Specialized class for the handling of raw pixel tables."""
-
-    def reset_index(self):
-        """Regenerate the indexes (useful after table resizing)."""
-
-        self._intervals = TableIntervals(self)
-        # TODO: check because this might not work as expected
-        # due to the way the table is resized in the hdf5 file
-
-
-class HiconaTable(Table):
+class HiconaTable(base_table.Table):
     """Class for sparsified pixel table handling.
 
     Class implementing everything needed to handle sparsified pixel tables,
@@ -333,15 +32,19 @@ class HiconaTable(Table):
 
     Parameters
     ----------
-    uris : Uris
+    uris_path : Uris
         Uris object specifying the location of the table in the cooler file.
     intervals : TableIntervals, optional
         TableIntervals object specifying the parts of the table to consider.
         If not provided, the full table is considered. Default is None.
     """
 
-    def __init__(self, uris: Uris, intervals: TableIntervals | None = None):
-        super().__init__(uris, intervals=intervals)
+    def __init__(
+        self,
+        uris_path: uris.Uris,
+        intervals: base_table.TableIntervals | None = None,
+    ):
+        super().__init__(uris_path, intervals=intervals)
 
     @property
     def region(self) -> str:
@@ -467,7 +170,7 @@ class HiconaTable(Table):
             A DataFrame with the alpha distribution.
         """
 
-        counter = Counter()
+        counter = collections.Counter()
         for chunk in self.chunks():
             counter.update(chunk[alpha_mod].tolist())
 
@@ -526,7 +229,7 @@ class AnnotDynamics:
         # Convert break points to quantiles if needed
         if as_quants:
             chunks = self._hic_table.chunks()
-            quants = chunked_quants(chunks, self._alpha_mod, points)
+            quants = chunked.chunked_quants(chunks, self._alpha_mod, points)
             points = quants[self._alpha_mod].tolist()
 
         return points
@@ -547,7 +250,7 @@ class AnnotDynamics:
         for chunk in self._hic_table.chunks(annotated=True, columns=chunk_cols):
 
             # Have annotations alpahebetically sorted to avoid duplicates
-            swap_columns(chunk, *anno_cols)
+            dataf.swap_columns(chunk, *anno_cols)
 
             # Compute cumulative absolute frequencies per interval per chunk
             for pt in points:
@@ -641,7 +344,7 @@ class AnnotDynamics:
         # Compute log odds ratios and p-values matrices
         ref_col = self._abs_dynam[self._abs_dynam.columns[-1]]
 
-        results = [serial_odds_ratios(dynam[c], ref_col) for c in dynam.columns]
+        results = [dataf.serial_odds_ratios(dynam[c], ref_col) for c in dynam.columns]
         axes = {"columns": dynam.columns, "index": dynam.index}
         log_odds = pd.DataFrame(np.array([r[0] for r in results]).T, **axes)
         p_values = pd.DataFrame(np.array([r[1] for r in results]).T, **axes)
@@ -649,7 +352,7 @@ class AnnotDynamics:
         # Apply FDR correction to p-values
         for _, row in p_values.iterrows():
             valid = (row >= 0) * (row <= 1)
-            adj_p_values = false_discovery_control(row[valid])
+            adj_p_values = sp.stats.false_discovery_control(row[valid])
             row[valid] = adj_p_values
 
         # Convert back to actual col names with duplicates
@@ -699,7 +402,7 @@ class AnnotDynamics:
         """
 
         odds, _ = self.get_dynamics(cumulative, intervals)
-        plot_dynamics_full(
+        _plotting.plot_dynamics_full(
             odds,
             self._alpha_distr,
             sort_rows=sort_rows,
@@ -745,7 +448,7 @@ class AnnotDynamics:
         interv = [lower_bound, upper_bound]
         odds, pvals = self.get_dynamics(intervals=interv, cumulative=False)
 
-        plot_dynamics_interval(
+        _plotting.plot_dynamics_interval(
             odds[upper_bound],
             pvals[upper_bound],
             img_path,
@@ -825,7 +528,7 @@ class AlphaGrid:
                     "edges_n": num_edges,
                     "nodes_f": (frac_nodes := num_nodes / tot_nodes),
                     "edges_f": (frac_edges := num_edges / tot_edges),
-                    "eu_dist": dist((1, 0), (frac_nodes, frac_edges)),
+                    "eu_dist": math.dist((1, 0), (frac_nodes, frac_edges)),
                 }
             )
 
@@ -869,7 +572,7 @@ class AlphaGrid:
         """Return the optimal alpha value for filtering the pixel table."""
 
         optimal_value = self._get_minimal_dist(self._alpha_grid)
-        return round_half_up(optimal_value, self._decimals)
+        return rounding.round_half_up(optimal_value, self._decimals)
 
     def plot(
         self,
@@ -898,4 +601,4 @@ class AlphaGrid:
             axes. Otherwise, return None.
         """
 
-        plot_alpha_grid(self._alpha_grid, img_path, show)
+        _plotting.plot_alpha_grid(self._alpha_grid, img_path, show)

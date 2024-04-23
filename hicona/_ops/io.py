@@ -6,14 +6,14 @@ import os
 import pathlib
 from typing import Any
 
-from .. import resources
+from hicona import _resources
 
 
 def _get_path(res_path: str, is_static: bool) -> str:
     """Modify path if it belongs to a static resource, else return as is."""
 
     if is_static:
-        folder: pathlib.PosixPath = imp_res.files(resources)  # type: ignore
+        folder: pathlib.PosixPath = imp_res.files(_resources)  # type: ignore
         return os.path.join(folder, res_path)
 
     return res_path

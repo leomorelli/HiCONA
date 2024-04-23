@@ -4,17 +4,18 @@ Extend the graph_tool.Graph class, without overwriting any of its methods,
 implementing algorithms for network analysis of pixel tables.
 """
 
-from collections.abc import Iterable
+import itertools
 import time
+from typing import Iterable
 
+import graph_tool.all as gt
 import numpy as np
 import pandas as pd
-import graph_tool.all as gt
 
-from .hicona_cooler import HiconaCooler
-from .hicona_table import HiconaTable
-from ._utils._misc import annotation_combinations
-from ._utils._table_ops import pd2gt_dtype
+from hicona._ops import dataf
+from hicona.cooler import HiconaCooler
+from hicona.table import HiconaTable
+
 
 __all__ = ["HiconaGraph"]
 
@@ -78,18 +79,18 @@ class HiconaGraph(gt.Graph):
         # Update the table
         self._ids_table = pd.concat([self._ids_table, new_chunk], ignore_index=True)
 
-    def _to_edge_list(self, dataf: pd.DataFrame) -> tuple[np.ndarray, list[tuple]]:
+    def _to_edge_list(self, df: pd.DataFrame) -> tuple[np.ndarray, list[tuple]]:
         """Convert the pixel table to an edge list and edge properties."""
 
         # Merge the data with the ids_table and drop the bin_id columns
-        dataf = dataf.merge(self._ids_table, left_on="bin1_id", right_on="bin_id")
-        dataf = dataf.merge(self._ids_table, left_on="bin2_id", right_on="bin_id")
-        dataf.drop(columns=["bin_id_x", "bin_id_y"], inplace=True)
+        df = df.merge(self._ids_table, left_on="bin1_id", right_on="bin_id")
+        df = df.merge(self._ids_table, left_on="bin2_id", right_on="bin_id")
+        df.drop(columns=["bin_id_x", "bin_id_y"], inplace=True)
 
         # Create the edge list and edge properties
-        prop_cols = [c for c in dataf.columns if c not in ["node_id_x", "node_id_y"]]
-        edge_prop = [(p, pd2gt_dtype(dataf[p].dtype.name)) for p in prop_cols]
-        edge_list = dataf[["node_id_x", "node_id_y"] + prop_cols].values
+        prop_cols = [c for c in df.columns if c not in ["node_id_x", "node_id_y"]]
+        edge_prop = [(p, dataf.pd2gt_dtype(df[p].dtype.name)) for p in prop_cols]
+        edge_list = df[["node_id_x", "node_id_y"] + prop_cols].values
 
         return (edge_list, edge_prop)
 
@@ -110,7 +111,7 @@ class HiconaGraph(gt.Graph):
         annot_df.reset_index(inplace=True, names="bin_id")
 
         # Update the properties
-        vprops = [(p, pd2gt_dtype(annot_df[p].dtype.name)) for p in annot_df]
+        vprops = [(p, dataf.pd2gt_dtype(annot_df[p].dtype.name)) for p in annot_df]
         for name, dtype in vprops:
             vprop = self.new_vertex_property(dtype, annot_df[name])
             self.vp[name] = vprop
@@ -229,6 +230,12 @@ class HiconaGraph(gt.Graph):
         # TODO: Maybe add more values in return (magnitude/fold change?)
         # TODO: Maybe add number of nodes per annotation and overlap
         # TODO: Maybe create an entire object to return and plot the results?
+
+        def annotation_combinations(iterable, k_vals=(1, 2)):
+            """Return iterable of all combinations for all k_vals"""
+
+            comb = [itertools.combinations(iterable, k) for k in k_vals]
+            return list(itertools.chain.from_iterable(comb))
 
         annos = [ann_list, None] if isinstance(ann_list, str) else ann_list
         node_vals = self._node_statistics(stat, np.ones(self.num_vertices()))
