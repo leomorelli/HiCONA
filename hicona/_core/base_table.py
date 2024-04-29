@@ -10,7 +10,7 @@ from hicona._core import uris
 from hicona._dtypes import PdChunks
 from hicona._ops import hdf5
 from hicona._core import genomic
-from hicona.preprocess import flow
+from hicona.preprocess import Flow
 
 
 FULL_TABLE = "full_table"
@@ -60,7 +60,6 @@ class TableIntervals:
         self.update_size()
 
     def __str__(self) -> str:
-
         return self._interval_str
 
     def __or__(self, other: "TableIntervals") -> "TableIntervals":
@@ -94,12 +93,10 @@ class TableIntervals:
     @property
     def size(self) -> int:
         """Return the size of the complete table or the subset."""
-
         return self._size
 
-    def update_size(self):
+    def update_size(self) -> None:
         """Update the size of the complete table or the subset."""
-
         self._size = sum(len(c) for c in self._indexes)
 
     def subset(self, region: str, both: bool = True) -> "TableIntervals":
@@ -124,7 +121,6 @@ class TableIntervals:
 
     def get_indexes(self) -> Iterable[pd.Index]:
         """Return the indexes of the table or the subset."""
-
         for index in self._indexes:
             yield index
 
@@ -140,13 +136,13 @@ class Table:
         chunk_size: int = 10_000_000,
     ):
 
-        def reconstruct_flow(uri_path: uris.Uris) -> flow.Flow:
+        def reconstruct_flow(uri_path: uris.Uris) -> Flow:
             """Reconstruct the flow.Flow object from the store."""
 
             # TODO: check whether the table is valid and skip if not
             tab_attrs = hdf5.get_attrs(uri_path)
             flow_json = json.loads(tab_attrs["process_info"])
-            return flow.Flow.from_json(flow_json)
+            return Flow.from_json(flow_json)
 
         def get_bin_size(uri_path: uris.Uris) -> int:
             """Return the bin size of the cooler."""
@@ -171,7 +167,7 @@ class Table:
         return self._chunk_size
 
     @property
-    def flow(self) -> flow.Flow:
+    def flow(self) -> Flow:
         """flow.Flow object containing all processing information."""
         return self._flow
 
@@ -195,11 +191,11 @@ class Table:
 
         Parameters
         ----------
-        columns: Iterable[str] or None, optional
+        columns : Iterable[str] or None, optional
             If provided, only fetch the specified columns. Default is None.
         annotated: bool, optional
             Whether to annotate with the bin information. Default is False.
-        query: str or None, optional
+        query : str or None, optional
             If provided, only fetch the pixels that satisfy the query.
             Query must be a valid pandas query string. Default is None.
 
@@ -208,7 +204,12 @@ class Table:
         An iterator of table chunks (as pandas DataFrames).
         """
 
-        def prepare_chunk(chunk, bins=None, columns=None, query=None) -> pd.DataFrame:
+        def prepare_chunk(
+            chunk: pd.DataFrame,
+            bins=None,
+            columns=None,
+            query=None,
+        ) -> pd.DataFrame:
             """Prepare the chunk for output with annotation of filtering."""
 
             if bins is not None:
@@ -267,28 +268,33 @@ class Table:
     ) -> pd.DataFrame:
         """Return all table chunks in a single pandas DataFrame.
 
-        NOTE: This operation can be rather expensive in terms of memory,
-        especially for large or non subsetted tables.
+        Obtain the full table by concatenating all chunks into a single
+        pandas DataFrame.
 
         Parameters
         ----------
-        columns: Iterable[str], optional
+        columns : Iterable[str], optional
             If provided, only fetch the specified columns. Default is None.
         annotated: bool, optional
             Whether to annotate with the bin information. Default is False.
-        query: str, optional
+        query : str, optional
             If provided, only fetch the pixels that satisfy the query.
             Query must be a valid pandas query string. Default is None.
 
         Returns
         -------
         A pandas DataFrame with all table pixels.
+
+        Notes
+        -----
+        This operation can be rather expensive in terms of memory, especially
+        for large or non subsetted tables.
         """
 
         iterator = self.chunks(columns, annotated, query)
         return pd.concat(iterator).reset_index(drop=True)
 
-    def reset_index(self):
+    def reset_index(self) -> None:
         """Regenerate the indexes (useful after table resizing)."""
 
         self._intervals = TableIntervals(self)

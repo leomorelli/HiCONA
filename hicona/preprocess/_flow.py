@@ -3,6 +3,7 @@
 This module contains the `Flow` class, which is used to schedule
 and retrieve the operations applied to a pixel table in order to filter and
 normalize it.
+
 """
 
 from functools import partial
@@ -33,9 +34,9 @@ class Operation:
 
     Parameters
     ----------
-    fun_obj: Callable
+    fun_obj : Callable
         The function object to be applied to the table.
-    fun_kwargs: dict[str, Any]
+    fun_kwargs : dict[str, Any]
         The kwargs to be passed to the function object.
     """
 

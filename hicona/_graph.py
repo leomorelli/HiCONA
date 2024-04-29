@@ -2,6 +2,7 @@
 
 Extend the graph_tool.Graph class, without overwriting any of its methods,
 implementing algorithms for network analysis of pixel tables.
+
 """
 
 import itertools
@@ -13,8 +14,8 @@ import numpy as np
 import pandas as pd
 
 from hicona._ops import dataf
-from hicona.cooler import HiconaCooler
-from hicona.table import HiconaTable
+from hicona._cooler import HiconaCooler
+from hicona._table import HiconaTable
 
 
 __all__ = ["HiconaGraph"]
@@ -62,7 +63,7 @@ class HiconaGraph(gt.Graph):
         # Add vertex properties
         self._refresh_vertex_properties()
 
-    def _update_ids_table(self, new_bins: Iterable[int]):
+    def _update_ids_table(self, new_bins: Iterable[int]) -> None:
         """Update the ids_table with new bin ids."""
 
         # List of new bins to add
@@ -101,7 +102,7 @@ class HiconaGraph(gt.Graph):
         handle = HiconaCooler(cooler_uri)
         return handle.bins()[:]  # type: ignore
 
-    def _refresh_vertex_properties(self):
+    def _refresh_vertex_properties(self) -> None:
         """Update the vertex properties with the latest bin data."""
 
         # Fetch the latest bin data
@@ -117,16 +118,16 @@ class HiconaGraph(gt.Graph):
             self.vp[name] = vprop
 
     @property
-    def ids_table(self):
+    def ids_table(self) -> pd.DataFrame:
         """Return the conversion table from bin_id to node_id."""
         return self._ids_table
 
     @property
-    def table(self):
+    def table(self) -> HiconaTable:
         """Return the pixel table used to create the graph."""
         return self._table
 
-    def _node_statistics(self, stat, mask):
+    def _node_statistics(self, stat: str, mask: np.ndarray) -> np.ndarray:
         """Compute node-level statistic (only required nodes if possible)."""
 
         # TODO: Look for an alternative to the big and ugly switch case
@@ -144,9 +145,11 @@ class HiconaGraph(gt.Graph):
         else:
             raise ValueError(f"{stat} is not among the supported statistics.")
 
+        assert isinstance(stats_list, np.ndarray)  # TODO: check if works
+
         return stats_list
 
-    def _create_ann_ohe(self, attr_list):
+    def _create_ann_ohe(self, attr_list: Iterable[str]) -> np.ndarray:
         """Create array with ohe of each annotation as rows."""
 
         ohe = np.vstack([self.vp[a].get_array() for a in attr_list if a])
@@ -154,9 +157,15 @@ class HiconaGraph(gt.Graph):
             ohe = np.vstack([ohe, np.ones(self.num_vertices())])
         return ohe
 
-    def _compute_perms(self, annot_ohe, node_vals, perms, rand_seed):
+    def _compute_perms(
+        self,
+        annot_ohe: np.ndarray,
+        node_vals: np.ndarray,
+        perms: int,
+        rand_seed: int,
+    ) -> float:
         """Return p-value for H1: stat(annA) - stat(annB) > 0"""
-        # TODO: Try multiple permutations at one to speed up (memory cost?)
+        # TODO: Try multiple permutations at once to speed up (memory cost?)
 
         def _perm_fc(values, ohe, rng=None):
             """Compute statistic fold change for a single permutation."""
@@ -222,8 +231,8 @@ class HiconaGraph(gt.Graph):
 
         Returns
         -------
-        pd.DataFrame:
-            dictionary containing permutation parameters and results
+        pd.DataFrame
+            Dataframe containing permutation parameters and results
         """
 
         # TODO: Add pvalue correction
@@ -257,7 +266,7 @@ class HiconaGraph(gt.Graph):
 
         return pd.DataFrame(res_dicts)
 
-    def add_chromsomal_edges(self):
+    def add_chromsomal_edges(self) -> None:
         """Add edges between consecutive genomic regions.
 
         Add edges between nodes representing consecutive genomic regions, i.e.
@@ -335,7 +344,7 @@ class HiconaGraph(gt.Graph):
 
         Returns
         -------
-        pd.DataFrame:
+        pd.DataFrame
             DataFrame with the cluster labels for each node at each level.
             Optionally, the DataFrame can also contain bin annotations.
         """

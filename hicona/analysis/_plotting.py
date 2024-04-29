@@ -10,9 +10,6 @@ from scipy.cluster.hierarchy import dendrogram, linkage
 
 __all__ = ["plot_alpha_grid"]
 
-# TODO: there probably is a better way to import the style, maybe in init
-plt.style.use("hicona/_resources/paper_style.mplstyle")
-
 
 def _empty_subplot(axes):
     """Create whitespace in specified plot axes."""

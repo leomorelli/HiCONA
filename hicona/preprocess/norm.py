@@ -1,16 +1,20 @@
 """Default functions for pixel table normalization."""
 
-import numpy as np
+from typing import TYPE_CHECKING as _TYPE_CHECKING
 
-from hicona._core import base_table
-from hicona._dtypes import PdChunks
-from hicona._ops import chunked
+import numpy as _np
+
+from hicona._dtypes import PdChunks as _PdChunks
+from hicona._ops import chunked as _chunked
+
+if _TYPE_CHECKING:
+    from hicona._core import base_table
 
 
 __all__ = ["norm_genomic_dist", "norm_none", "norm_binwise"]
 
 
-def norm_genomic_dist(table: base_table.Table, apply_col: str) -> PdChunks:
+def norm_genomic_dist(table: "base_table.Table", apply_col: str) -> _PdChunks:
     """Apply default HiCONA normalization to a table (genomic distance).
 
     The normalized value is computed as the log2 of 1 plus the ratio of the
@@ -20,9 +24,9 @@ def norm_genomic_dist(table: base_table.Table, apply_col: str) -> PdChunks:
 
     Parameters
     ----------
-    table: Table
+    table : Table
         Pixel table to normalize.
-    apply_col: str
+    apply_col : str
         Column to apply the normalization to.
 
     Returns
@@ -36,7 +40,7 @@ def norm_genomic_dist(table: base_table.Table, apply_col: str) -> PdChunks:
         chunks = table_obj.chunks(annotated=True)
         bin_size = table_obj.bin_size
 
-        for chunk in chunked.add_gen_dist(chunks, bin_size):
+        for chunk in _chunked.add_gen_dist(chunks, bin_size):
 
             # Check that inter-chromosomal pixels where removed
             if any(chunk["chrom1"] != chunk["chrom2"]):
@@ -44,7 +48,7 @@ def norm_genomic_dist(table: base_table.Table, apply_col: str) -> PdChunks:
 
             yield chunk
 
-    norm_curve = chunked.chunked_quants(
+    norm_curve = _chunked.chunked_quants(
         distance_iter(table),
         column=apply_col,
         quants=0.5,
@@ -55,12 +59,12 @@ def norm_genomic_dist(table: base_table.Table, apply_col: str) -> PdChunks:
 
     for chunk in distance_iter(table):
         chunk = chunk.merge(norm_curve, how="left", on=["chrom1", "dist"])
-        chunk["norm"] = np.log2(chunk[apply_col] / chunk["dist_norm"] + 1)
+        chunk["norm"] = _np.log2(chunk[apply_col] / chunk["dist_norm"] + 1)
 
         yield chunk[["bin1_id", "bin2_id", "count", "norm"]]
 
 
-def norm_none(table: base_table.Table) -> PdChunks:
+def norm_none(table: "base_table.Table") -> _PdChunks:
     """Apply no normalization to a table.
 
     Do not apply any normalization to the table, just return the original
@@ -69,7 +73,7 @@ def norm_none(table: base_table.Table) -> PdChunks:
 
     Parameters
     ----------
-    table: Table
+    table : Table
         Pixel table to normalize.
 
     Returns
@@ -83,12 +87,12 @@ def norm_none(table: base_table.Table) -> PdChunks:
 
 
 def norm_binwise(
-    table: base_table.Table,
+    table: "base_table.Table",
     apply_col: str,
     ann_name: str,
     divisive: bool = False,
     drop_nas: bool = False,
-) -> PdChunks:
+) -> _PdChunks:
     """Apply a binwise normalization to a table.
 
     The normalization factors to use for normalization must be preemtively
@@ -96,16 +100,16 @@ def norm_binwise(
 
     Parameters
     ----------
-    table: Table
+    table : Table
         Pixel table to normalize.
-    apply_col: str
+    apply_col : str
         Column to apply the normalization to.
-    ann_name: str
+    ann_name : str
         Name of the column in the bin table to use for normalization.
-    divisive: bool, optional
+    divisive : bool, optional
         If True, divide the values by the normalization factor, else multiply.
         Default is False.
-    drop_nas: bool, optional
+    drop_nas : bool, optional
         If True, drop rows with NaN values after normalization.
         Default is False.
 

@@ -1,10 +1,14 @@
 """Default functions for pixel table filtering."""
 
-import pandas as pd
+from typing import TYPE_CHECKING as _TYPE_CHECKING
 
-from hicona._core import base_table
-from hicona._dtypes import PdChunks
-from hicona._ops import chunked
+import pandas as _pd
+
+from hicona._dtypes import PdChunks as _PdChunks
+from hicona._ops import chunked as _chunked
+
+if _TYPE_CHECKING:
+    from hicona._core import base_table
 
 
 __all__ = [
@@ -17,11 +21,11 @@ __all__ = [
 
 
 def _inclusive_filter(
-    table: pd.DataFrame,
+    table: _pd.DataFrame,
     column: str,
     lower: int | float | None = None,
     upper: int | float | None = None,
-) -> pd.DataFrame:
+) -> _pd.DataFrame:
     """Remove pixels with column value outside of interval [lower, upper]."""
 
     table = table.loc[table[column] >= lower] if lower is not None else table
@@ -31,11 +35,11 @@ def _inclusive_filter(
 
 
 def _exclusive_filter(
-    table: pd.DataFrame,
+    table: _pd.DataFrame,
     column: str,
     lower: int | float | None = None,
     upper: int | float | None = None,
-) -> pd.DataFrame:
+) -> _pd.DataFrame:
     """Remove pixels with column value outside of interval (lower, upper)."""
 
     table = table.loc[table[column] > lower] if lower is not None else table
@@ -44,7 +48,7 @@ def _exclusive_filter(
     return table
 
 
-def _format_out_cols(chunk: pd.DataFrame) -> pd.DataFrame:
+def _format_out_cols(chunk: _pd.DataFrame) -> _pd.DataFrame:
     """Keep only bin1_id, bin2_id, count and norm (if present)."""
 
     base_cols = ["bin1_id", "bin2_id", "count", "norm"]
@@ -54,10 +58,10 @@ def _format_out_cols(chunk: pd.DataFrame) -> pd.DataFrame:
 
 
 def filt_genomic_dist(
-    table: base_table.Table,
+    table: "base_table.Table",
     min_dist: int | None = None,
     max_dist: int | None = None,
-) -> PdChunks:
+) -> _PdChunks:
     """Remove pixels whose genomic distance is outside of an interval.
 
     Genomic distance is calculated as the difference between bin1_id and
@@ -67,11 +71,11 @@ def filt_genomic_dist(
 
     Parameters
     ----------
-    table: Table
+    table : Table
         The table to be filtered.
-    min_dist: int or None, optional
+    min_dist : int or None, optional
         Remove pixels whose genomic distance greater than this value.
-    max_dist: int or None, optional
+    max_dist : int or None, optional
         Remove pixels whose genomic distance smaller than this value.
 
     Returns
@@ -92,12 +96,12 @@ def filt_genomic_dist(
 
 
 def filt_column_quant(
-    table: base_table.Table,
+    table: "base_table.Table",
     apply_col: str,
     lower_quant: float | None = None,
     upper_quant: float | None = None,
     chrom_wise: bool = True,
-) -> PdChunks:
+) -> _PdChunks:
     """Remove pixels with column value outside a certain quantile range.
 
     Filter out pixels where the value of the specified column is outside a
@@ -109,15 +113,15 @@ def filt_column_quant(
 
     Parameters
     ----------
-    table: Table
+    table : Table
         The table to be filtered.
-    apply_col: str
+    apply_col : str
         The column to apply the quantile filter to.
-    lower_quant: float or None, optional
+    lower_quant : float or None, optional
         Remove pixels whose column value is not greater than this quantile.
-    upper_quant: float or None, optional
+    upper_quant : float or None, optional
         Remove pixels whose column value is not smaller than this quantile.
-    chrom_wise: bool, optional
+    chrom_wise : bool, optional
         If True, compute quantiles for each pair of chromosomes separately.
         Default is True.
 
@@ -145,7 +149,7 @@ def filt_column_quant(
         raise ValueError("At least one quantile threshold must be provided.")
 
     # Compute quantiles for each chromosome
-    vals = chunked.chunked_quants(
+    vals = _chunked.chunked_quants(
         table.chunks(annotated=chrom_wise),
         column=apply_col,
         quants=all_quants,
@@ -164,11 +168,11 @@ def filt_column_quant(
 
 
 def filt_column_value(
-    table: base_table.Table,
+    table: "base_table.Table",
     apply_col: str,
     lower_value: float | int | None = None,
     upper_value: float | int | None = None,
-) -> PdChunks:
+) -> _PdChunks:
     """Remove pixels with column value outside a certain interval.
 
     Filter out pixels where the value of the specified column is outside a
@@ -176,13 +180,13 @@ def filt_column_value(
 
     Parameters
     ----------
-    table: Table
+    table : Table
         The table to be filtered.
-    apply_col: str
+    apply_col : str
         The column to apply the value filter to.
-    lower_value: float or int or None, optional
+    lower_value : float or int or None, optional
         Remove pixels whose column value is not greater than this value.
-    upper_value: float or int or None, optional
+    upper_value : float or int or None, optional
         Remove pixels whose column value is not smaller than this value.
 
     Returns
@@ -197,14 +201,14 @@ def filt_column_value(
         yield _inclusive_filter(chunk, apply_col, lower_value, upper_value)
 
 
-def filt_inter_chroms(table: base_table.Table) -> PdChunks:
+def filt_inter_chroms(table: "base_table.Table") -> _PdChunks:
     """Remove inter-chromosomal pixels from the table.
 
     Remove pixels whose bin1_id and bin2_id are on different chromosomes.
 
     Parameters
     ----------
-    table: Table
+    table : Table
         The table to be filtered.
 
     Returns
@@ -217,14 +221,14 @@ def filt_inter_chroms(table: base_table.Table) -> PdChunks:
         yield _format_out_cols(chunk)
 
 
-def filt_self_looping(table: base_table.Table) -> PdChunks:
+def filt_self_looping(table: "base_table.Table") -> _PdChunks:
     """Remove self-looping pixels from the table.
 
     Remove pixels whose bin1_id and bin2_id are the same.
 
     Parameters
     ----------
-    table: Table
+    table : Table
         The table to be filtered.
 
     Returns

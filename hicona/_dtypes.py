@@ -2,7 +2,7 @@
 
 from typing import Any, Iterable, Literal, TypeVar
 
-import matplotlib.axes as axes
+import matplotlib.axes as ax
 import pandas as pd
 
 
@@ -16,7 +16,7 @@ T = TypeVar("T")
 AlphaModType = Literal["alpha_min", "alpha_max"]
 
 # Type alias for the axes type.
-OptionalAxes = axes.Axes | None
+OptionalAxes = ax.Axes | None
 
 # Type alias for the options dictionary.
 OptionsDict = dict[str, Any]

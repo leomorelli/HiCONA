@@ -9,7 +9,7 @@ import scipy as sp
 from hicona._core import base_table
 from hicona._ops import chunked, hdf5
 from hicona._numeric import rounding
-from hicona.table import HiconaTable
+from hicona._table import HiconaTable
 
 
 def _compute_alpha(row: pd.Series) -> float:

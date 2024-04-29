@@ -10,4 +10,9 @@ All filtering and normalization functions share a common blueprint:
 - other arguments might be present (but not always)
 - an iterator of processed pixel chunks is returned
 - default arguments should be JSON types
+
 """
+
+from ._flow import Flow
+from . import filt
+from . import norm

@@ -9,12 +9,12 @@ class Uris:
 
     Parameters
     ----------
-    store: str
+    store : str
         The string specifying the system path of the cooler file.
-    root: str
+    root : str
         The string used to specify the group containing the cooler when
         working with multi-resolutions coolers, else simply "/".
-    path: str, optional
+    path : str, optional
         The string specifying the part of the cooler to consider, usually
         the whole cooler or a pixel table). Default is None.
     """
@@ -26,10 +26,12 @@ class Uris:
 
     def hdf5_uris(self) -> tuple[str, str]:
         """Return store and path parts up to the last specified."""
-
         return (self._store, "/".join([self._root, self._path]))
 
     def cooler_uri(self) -> str:
         """Return a uri to use to create a cooler handle."""
-
         return "::".join([self._store, self._root])
+
+    def add_path(self, path: str) -> "Uris":
+        """Add a part to the path uri and return a new instance."""
+        return Uris(self._store, self._root, "/".join([self._path, path]))
