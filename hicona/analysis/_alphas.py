@@ -128,7 +128,6 @@ class AlphaGrid:
             raise ValueError("Non numeric index. This should not happen.")
         return table["alpha"].iloc[position]
 
-    @property
     def optimal_alpha(self) -> float:
         """Return the optimal alpha value for filtering the pixel table."""
 
@@ -148,7 +147,7 @@ class AlphaGrid:
         edges on the ``y`` axis.
 
         Parameters
-        ---------
+        ----------
         img_path : str or None, optional
             If provided, path to save the plot to. (default is None)
         show : bool, optional

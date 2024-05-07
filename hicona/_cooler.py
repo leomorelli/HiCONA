@@ -92,6 +92,7 @@ class HiconaCooler(cooler.Cooler):
         """
         return self._tables_root
 
+    @property
     def bare_bins(self) -> pd.DataFrame:
         """Get full bin table without any annotation.
 
@@ -106,7 +107,7 @@ class HiconaCooler(cooler.Cooler):
         Examples
         --------
         >>> handle = HiconaCooler("path/to/file.cool")
-        >>> handle.bare_bins()
+        >>> handle.bare_bins
                chrom     start       end
         0       chr1         0     10000
         1       chr1     10000     20000
@@ -453,7 +454,7 @@ class HiconaCooler(cooler.Cooler):
 
         # Create the two bin df and merge on default bed columns
         # While reading, replace chrom, start, end of bed file with None.
-        bin_df = self.bare_bins()
+        bin_df = self.bare_bins
         ann_df = bed.bed_to_df(bed_path, to_keep)
         ann_df = bed.intersect_dfs(bin_df, ann_df, drop_none=False, loj=True)
 
@@ -690,7 +691,7 @@ class HiconaCooler(cooler.Cooler):
         annot_col, frac_col = f"{ann_name}_annot", f"{ann_name}_frac"
 
         ann_table = bed.bed_to_df(ann_file, [annot_col])
-        bin_table = self.bare_bins()
+        bin_table = self.bare_bins
         bkg_table = get_chrom_bed(self)
 
         col_names = annot_col, frac_col
