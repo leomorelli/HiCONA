@@ -46,7 +46,7 @@
     <script>DOCUMENTATION_OPTIONS.pagename = 'api_reference/api/hicona.HiconaGraph.ids_table';</script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
-    <link rel="next" title="hicona.HiconaGraph.add_chromsomal_edges" href="hicona.HiconaGraph.add_chromsomal_edges.html" />
+    <link rel="next" title="hicona.HiconaGraph.add_genomic_edges" href="hicona.HiconaGraph.add_genomic_edges.html" />
     <link rel="prev" title="hicona.HiconaGraph.table" href="hicona.HiconaGraph.table.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
@@ -294,11 +294,11 @@ document.write(`
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.create_table.html">hicona.HiconaCooler.create_table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.fetch_table.html">hicona.HiconaCooler.fetch_table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.list_tables.html">hicona.HiconaCooler.list_tables</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.annotation_list.html">hicona.HiconaCooler.annotation_list</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.add_bin_annotation.html">hicona.HiconaCooler.add_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.del_bin_annotation.html">hicona.HiconaCooler.del_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.hmm_bin_annotation.html">hicona.HiconaCooler.hmm_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.ohe_bin_annotation.html">hicona.HiconaCooler.ohe_bin_annotation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.annot_list.html">hicona.HiconaCooler.annot_list</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.add_bin_annot.html">hicona.HiconaCooler.add_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.del_bin_annot.html">hicona.HiconaCooler.del_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.hmm_bin_annot.html">hicona.HiconaCooler.hmm_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.ohe_bin_annot.html">hicona.HiconaCooler.ohe_bin_annot</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../table.html">HiconaTable</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-2"><i class="fa-solid fa-chevron-down"></i></label><ul>
@@ -322,7 +322,7 @@ document.write(`
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.html">hicona.HiconaGraph</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.table.html">hicona.HiconaGraph.table</a></li>
 <li class="toctree-l2 current active"><a class="current reference internal" href="#">hicona.HiconaGraph.ids_table</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.add_chromsomal_edges.html">hicona.HiconaGraph.add_chromsomal_edges</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.add_genomic_edges.html">hicona.HiconaGraph.add_genomic_edges</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.compute_clustering.html">hicona.HiconaGraph.compute_clustering</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.permute_annotations.html">hicona.HiconaGraph.permute_annotations</a></li>
 </ul>
@@ -425,7 +425,41 @@ document.write(`
 <dl class="py property">
 <dt class="sig sig-object py" id="hicona.HiconaGraph.ids_table">
 <em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">HiconaGraph.</span></span><span class="sig-name descname"><span class="pre">ids_table</span></span><a class="headerlink" href="#hicona.HiconaGraph.ids_table" title="Link to this definition">#</a></dt>
-<dd><p>Return the conversion table from bin_id to node_id.</p>
+<dd><p>Return the conversion table from bin id to node id.</p>
+<p>Return a <code class="docutils literal notranslate"><span class="pre">pandas.DataFrame</span></code> with the columns <code class="docutils literal notranslate"><span class="pre">bin_id</span></code> and
+<code class="docutils literal notranslate"><span class="pre">node_id</span></code>, which is used internally to convert bin ids to node ids
+and vice versa.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><dl class="simple">
+<dt>pandas.DataFrame</dt><dd><p>Conversion table from bin ids to node ids.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<p>Retrieve the id conversion table.</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">hicona</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">handle</span> <span class="o">=</span> <span class="n">hicona</span><span class="o">.</span><span class="n">HiconaCooler</span><span class="p">(</span><span class="s2">&quot;path/to/file.cool&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">table</span> <span class="o">=</span> <span class="n">handle</span><span class="o">.</span><span class="n">fetch_table</span><span class="p">(</span><span class="s2">&quot;hicona&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">graph</span> <span class="o">=</span> <span class="n">hicona</span><span class="o">.</span><span class="n">HiconaGraph</span><span class="p">(</span><span class="n">table</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">graph</span><span class="o">.</span><span class="n">ids_table</span>
+<span class="go">       bin_id  node_id</span>
+<span class="go">0           1        0</span>
+<span class="go">1           3        1</span>
+<span class="go">2           4        2</span>
+<span class="go">3           5        3</span>
+<span class="go">4           6        4</span>
+<span class="go">...       ...      ...</span>
+<span class="go">17969   20488    17969</span>
+<span class="go">17970   20491    17970</span>
+<span class="go">17971   20500    17971</span>
+<span class="go">17972   20508    17972</span>
+<span class="go">17973   20517    17973</span>
+
+<span class="go">[17974 rows x 2 columns]</span>
+</pre></div>
+</div>
 </dd></dl>
 
 </section>
@@ -450,11 +484,11 @@ document.write(`
       </div>
     </a>
     <a class="right-next"
-       href="hicona.HiconaGraph.add_chromsomal_edges.html"
+       href="hicona.HiconaGraph.add_genomic_edges.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">hicona.HiconaGraph.add_chromsomal_edges</p>
+        <p class="prev-next-title">hicona.HiconaGraph.add_genomic_edges</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>

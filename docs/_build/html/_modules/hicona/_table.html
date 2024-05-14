@@ -347,41 +347,48 @@ document.write(`
 <div class="viewcode-block" id="HiconaTable">
 <a class="viewcode-back" href="../../api_reference/api/hicona.HiconaTable.html#hicona.HiconaTable">[docs]</a>
 <span class="k">class</span> <span class="nc">HiconaTable</span><span class="p">(</span><span class="n">base_table</span><span class="o">.</span><span class="n">Table</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Class for sparsified pixel table handling.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Class for preprocessed pixel table handling.</span>
 
-<span class="sd">    Class implementing everything needed to handle sparsified pixel tables,</span>
+<span class="sd">    Class implementing everything needed to handle preprocessed pixel tables,</span>
 <span class="sd">    such as pixel fetching, subsetting, boolean operations and analysis.</span>
 
 <span class="sd">    In general, instances of this class should be created via the</span>
-<span class="sd">    `HiconaCooler.fetch_table` method rather than directly.</span>
+<span class="sd">    ``HiconaCooler.fetch_table`` method rather than directly, for this reason</span>
+<span class="sd">    the class constructor is not publicly documented.</span>
 
-<span class="sd">    Parameters</span>
-<span class="sd">    ----------</span>
-<span class="sd">    uris_path : Uris</span>
-<span class="sd">        Uris object specifying the location of the table in the cooler file.</span>
-<span class="sd">    intervals : TableIntervals, optional</span>
-<span class="sd">        TableIntervals object specifying the parts of the table to consider.</span>
-<span class="sd">        If not provided, the full table is considered. Default is None.</span>
+<span class="sd">    See Also</span>
+<span class="sd">    --------</span>
+<span class="sd">    HiconaCooler.fetch_table : Fetch a table from a cooler file.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-<div class="viewcode-block" id="HiconaTable.__init__">
-<a class="viewcode-back" href="../../api_reference/api/hicona.HiconaTable.html#hicona.HiconaTable.__init__">[docs]</a>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">uris_path</span><span class="p">:</span> <span class="n">uris</span><span class="o">.</span><span class="n">Uris</span><span class="p">,</span>
         <span class="n">intervals</span><span class="p">:</span> <span class="n">base_table</span><span class="o">.</span><span class="n">TableIntervals</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">):</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">uris_path</span><span class="p">,</span> <span class="n">intervals</span><span class="o">=</span><span class="n">intervals</span><span class="p">)</span></div>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize the HiconaTable object.</span>
 
+<span class="sd">        Constructor parameters documented in here to hide from the public API.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        uris_path : Uris</span>
+<span class="sd">            Uris object specifying the location of the table in the cooler file.</span>
+<span class="sd">        intervals : TableIntervals, optional</span>
+<span class="sd">            TableIntervals object specifying the parts of the table to consider.</span>
+<span class="sd">            If not provided, the full table is considered. Default is None.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">uris_path</span><span class="p">,</span> <span class="n">intervals</span><span class="o">=</span><span class="n">intervals</span><span class="p">)</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">region</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the region of the table or the subset.</span>
 
-<span class="sd">        The region is expressed using a custom notation:</span>
+<span class="sd">        The region is expressed as a string with a custom notation:</span>
 
 <span class="sd">        - ``full_table``: if the table was directly fetched from the cooler.</span>
-<span class="sd">        - bed-like intervals followed by `(+)` or `(-)`: this means that both</span>
+<span class="sd">        - bed-like intervals followed by ``(+)`` or ``(-)``: this means that both</span>
 <span class="sd">          or at least one of the bins of the pixel are in the specified region.</span>
 <span class="sd">          This is the result of a subset operation.</span>
 <span class="sd">        - bed-like intervals separated by boolean operators, if the region is</span>
@@ -397,7 +404,7 @@ document.write(`
 <span class="sd">        Full table fetched directly from the cooler:</span>
 
 <span class="sd">        &gt;&gt;&gt; handle = HiconaCooler(&quot;path/to/cool_file.cool&quot;)</span>
-<span class="sd">        &gt;&gt;&gt; table = handle.fetch_table(&quot;pixels&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; table = handle.fetch_table(&quot;hicona&quot;)</span>
 <span class="sd">        &gt;&gt;&gt; table.region</span>
 <span class="sd">        &#39;full_table&#39;</span>
 
@@ -424,20 +431,51 @@ document.write(`
     <span class="k">def</span> <span class="nf">subset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">region</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">both</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;HiconaTable&quot;</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a subset of the table based on pixel genomic regions.</span>
 
+<span class="sd">        Return a new ``HiconaTable`` object with only the pixels that have</span>
+<span class="sd">        both or at least one of their bins in the specified genomic region.</span>
+<span class="sd">        This is useful to restrict both visualization and analysis.</span>
+
+<span class="sd">        .. note::</span>
+<span class="sd">            Currently, subsetting of a subset is not supported. This behavior</span>
+<span class="sd">            may change in future versions. Currently, multiple subsetting can</span>
+<span class="sd">            be achieved by using a combination of boolean operations.</span>
+
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        region : str</span>
-<span class="sd">            Genomic region to keep. It must be a string in bed-like format,</span>
-<span class="sd">            such as &quot;chr1 10000 200000&quot; or just &quot;chr1&quot;.</span>
+<span class="sd">            Genomic region to keep. Allowed string formats are:</span>
+
+<span class="sd">            - chromosome: ``chr1``</span>
+<span class="sd">            - bed-like interval: ``chr1 10000 200000``</span>
+<span class="sd">            - position-like interval: ``chr1:10000-200000``</span>
+
 <span class="sd">        both : bool, optional</span>
 <span class="sd">            Whether to keep a pixel only if both of its bins are in the</span>
-<span class="sd">            specified region. If False, keep a pixel if at least one of its</span>
-<span class="sd">            bins is in the region. Default is True.</span>
+<span class="sd">            specified region. If &#39;False&#39;, keep a pixel if at least one of its</span>
+<span class="sd">            bins is in the region. Default is &#39;True&#39;.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
 <span class="sd">        HiconaTable</span>
 <span class="sd">            A new HiconaTable object with the subset of the original table.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        Subset a table based on a genomic region (both bins in interval):</span>
+
+<span class="sd">        &gt;&gt;&gt; handle = HiconaCooler(&quot;path/to/cool_file.cool&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; table = handle.fetch_table(&quot;hicona&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; print(table.size)</span>
+<span class="sd">        449642</span>
+<span class="sd">        &gt;&gt;&gt; both = table.subset(&quot;chr1 10000 5000000&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; print(both.size)</span>
+<span class="sd">        27728</span>
+
+<span class="sd">        Subset a table based on a genomic region (at least one bin in interval):</span>
+
+<span class="sd">        &gt;&gt;&gt; either = table.subset(&quot;chr1 10000 5000000&quot;, both=False)</span>
+<span class="sd">        &gt;&gt;&gt; print(either.size)</span>
+<span class="sd">        428400</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="n">new_intervals</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_intervals</span><span class="o">.</span><span class="n">subset</span><span class="p">(</span><span class="n">region</span><span class="p">,</span> <span class="n">both</span><span class="p">)</span>
@@ -473,29 +511,32 @@ document.write(`
         <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
         <span class="n">alpha_mod</span><span class="p">:</span> <span class="n">AlphaModType</span> <span class="o">=</span> <span class="s2">&quot;alpha_min&quot;</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;AlphaGrid&quot;</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a grid for the table filtered at different alpha values.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a grid of statistics for the table filtered at different alpha values.</span>
 
 <span class="sd">        Compute the number and fraction of nodes and edges remaining in the</span>
 <span class="sd">        table when filtered at different alpha values. Return this information</span>
-<span class="sd">        as an `AlphaGrid` object, which can also be used to plot the results</span>
+<span class="sd">        as an ``AlphaGrid`` object, which can also be used to plot the results</span>
 <span class="sd">        and retrieve the optimal alpha value for filtering the table.</span>
 
-<span class="sd">        For the threshold selection procedure see the `AlphaGrid` class.</span>
+<span class="sd">        For the threshold selection procedure see the ``AlphaGrid`` class.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
-<span class="sd">        alpha_mod : &quot;alpha_min&quot; or &quot;alpha_max&quot;, optional</span>
-<span class="sd">            The alpha mode to use for filtering. Default is &quot;alpha_min&quot;.</span>
+<span class="sd">        alpha_mod : &#39;alpha_min&#39; or &#39;alpha_max&#39;, optional</span>
+<span class="sd">            The alpha mode to use for filtering. Default is &#39;alpha_min&#39;.</span>
 <span class="sd">        decimals : int, optional</span>
-<span class="sd">            The number of decimal positions to consider when computing the</span>
-<span class="sd">            grid. Default is 3.</span>
+<span class="sd">            Maximum number of decimal positions for the thresholds. Default is 3.</span>
 <span class="sd">        verbose : bool, optional</span>
-<span class="sd">            Whether to log the progress of the computation. Default is True.</span>
+<span class="sd">            Whether to log the progress of the computation. Default is &#39;True&#39;.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
 <span class="sd">        AlphaGrid</span>
 <span class="sd">            An AlphaGrid object with the statistics for each alpha value.</span>
+
+<span class="sd">        See Also</span>
+<span class="sd">        --------</span>
+<span class="sd">        analysis.AlphaGrid : Class for the alpha grid computation and selection.</span>
 
 <span class="sd">        Examples</span>
 <span class="sd">        --------</span>
@@ -530,7 +571,7 @@ document.write(`
 <span class="sd">        each unordered pair of modalities of the annotation, rather than for</span>
 <span class="sd">        each modality individually.</span>
 
-<span class="sd">        The function returns an instance of the `AnnotDynamics` class, which</span>
+<span class="sd">        The function returns an instance of the ``AnnotDynamics`` class, which</span>
 <span class="sd">        can be used to compute, return and plot the annotation dynamics. See</span>
 <span class="sd">        object documentation for more information on parameters and outputs.</span>
 
@@ -540,23 +581,35 @@ document.write(`
 <span class="sd">            The name of the multimodal annotation column to consider.</span>
 <span class="sd">        as_quantiles : bool, optional</span>
 <span class="sd">            Whether the intervals are expressed in quantile points, rather than</span>
-<span class="sd">            in absolute percentage points. Default is True.</span>
-<span class="sd">        alpha_mod : &quot;alpha_min&quot; or &quot;alpha_max&quot;, optional</span>
-<span class="sd">            The alpha mode to use for filtering. Default is &quot;alpha_min&quot;.</span>
+<span class="sd">            in absolute percentage points. Default is &#39;True&#39;.</span>
+<span class="sd">        alpha_mod : &#39;alpha_min&#39; or &#39;alpha_max&#39;, optional</span>
+<span class="sd">            The alpha mode to use for filtering. Default is &#39;alpha_min&#39;.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
 <span class="sd">        AnnotDynamics</span>
 <span class="sd">            An AnnotDynamics object for the specified annotation and table.</span>
 
+<span class="sd">        See Also</span>
+<span class="sd">        --------</span>
+<span class="sd">        analysis.AnnotDynamics : Class for the annotation dynamics computation.</span>
+
 <span class="sd">        Examples</span>
 <span class="sd">        --------</span>
-<span class="sd">        Compute the annotation dynamics for a table:</span>
+<span class="sd">        Obtain an ``AnnotDynamics`` object and compute annotation dynamics for a table:</span>
 
 <span class="sd">        &gt;&gt;&gt; handle = HiconaCooler(&quot;path/to/cool_file.cool&quot;)</span>
 <span class="sd">        &gt;&gt;&gt; table = handle.fetch_table(&quot;hicona&quot;)</span>
-<span class="sd">        &gt;&gt;&gt; dynamics = table.get_annot_dynamics(&quot;multimodal_annot&quot;)</span>
-<span class="sd">        &gt;&gt;&gt; log_odds, pvals = dynamics.compute_dynamics()</span>
+<span class="sd">        &gt;&gt;&gt; dynamics = table.get_dynamics(&quot;multimodal_annot&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; log_odds, pvals = dynamics.get_dynamics()</span>
+<span class="sd">        &gt;&gt;&gt; log_odds.head()</span>
+<span class="sd">                                 0.1363    0.1605   ...     0.4455    0.5318</span>
+<span class="sd">        HMM_annot1 HMM_annot2</span>
+<span class="sd">        Enh        Enh        -0.066962 -0.262823   ...  -2.853268 -2.022946</span>
+<span class="sd">                   Het        -2.155885 -2.001988   ...   0.890271 -0.463665</span>
+<span class="sd">                   Prom        0.109445  0.323272   ...  -1.969398 -1.388097</span>
+<span class="sd">                   Repr_Pc    -0.396773 -0.668461   ...  -1.762391 -1.160337</span>
+<span class="sd">                   Tx         -0.470425 -0.023662   ...  -3.228512 -1.852930</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="c1"># TODO: Add check that it is a multimodal annotation</span>
@@ -567,20 +620,21 @@ document.write(`
 <div class="viewcode-block" id="HiconaTable.get_alpha_distr">
 <a class="viewcode-back" href="../../api_reference/api/hicona.HiconaTable.get_alpha_distr.html#hicona.HiconaTable.get_alpha_distr">[docs]</a>
     <span class="k">def</span> <span class="nf">get_alpha_distr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">alpha_mod</span><span class="p">:</span> <span class="n">AlphaModType</span> <span class="o">=</span> <span class="s2">&quot;alpha_min&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return alpha distribution in the table as a pd.DataFrame.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return alpha distribution in the table as a pandas DataFrame.</span>
 
-<span class="sd">        The distribution is provided as a pd.DataFrame with the columns</span>
-<span class="sd">        &quot;value&quot; and &quot;count&quot; representing the alpha values and their counts.</span>
+<span class="sd">        Obtain the distribution of the alpha values for a table and return it.</span>
+<span class="sd">        The distribution is provided as a ``pandas.DataFrame`` with the columns</span>
+<span class="sd">        ``value`` and ``count`` representing the alpha values and their counts.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
-<span class="sd">        alpha_mod : &quot;alpha_min&quot; or &quot;alpha_max&quot;, optional</span>
-<span class="sd">            The alpha mode to use for filtering. Default is &quot;alpha_min&quot;.</span>
+<span class="sd">        alpha_mod : &#39;alpha_min&#39; or &#39;alpha_max&#39;, optional</span>
+<span class="sd">            The alpha mode column to use. Default is &#39;alpha_min&#39;.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
-<span class="sd">        pd.DataFrame</span>
-<span class="sd">            A DataFrame with the alpha distribution.</span>
+<span class="sd">        pandas.DataFrame</span>
+<span class="sd">            A dataframe with the alpha distribution.</span>
 
 <span class="sd">        Examples</span>
 <span class="sd">        --------</span>
@@ -589,13 +643,13 @@ document.write(`
 <span class="sd">        &gt;&gt;&gt; handle = HiconaCooler(&quot;path/to/cool_file.cool&quot;)</span>
 <span class="sd">        &gt;&gt;&gt; table = handle.fetch_table(&quot;hicona&quot;)</span>
 <span class="sd">        &gt;&gt;&gt; alpha_distr = table.get_alpha_distr()</span>
-<span class="sd">        &gt;&gt;&gt; alpha_distr.head()</span>
+<span class="sd">        &gt;&gt;&gt; alpha_distr.head(3)</span>
 <span class="sd">            value  count</span>
 <span class="sd">        0   0.000    675</span>
 <span class="sd">        1   0.001   1245</span>
 <span class="sd">        2   0.002   1456</span>
 
-<span class="sd">        The distribution can be plotted directly using the `plot` method:</span>
+<span class="sd">        The distribution can be plotted directly using the ``plot`` method:</span>
 
 <span class="sd">        &gt;&gt;&gt; alpha_distr.plot(x=&quot;value&quot;, y=&quot;count&quot;)</span>
 <span class="sd">        &quot;&quot;&quot;</span>

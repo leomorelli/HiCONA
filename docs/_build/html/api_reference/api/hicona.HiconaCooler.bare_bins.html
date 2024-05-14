@@ -294,11 +294,11 @@ document.write(`
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.create_table.html">hicona.HiconaCooler.create_table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.fetch_table.html">hicona.HiconaCooler.fetch_table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.list_tables.html">hicona.HiconaCooler.list_tables</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.annotation_list.html">hicona.HiconaCooler.annotation_list</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.add_bin_annotation.html">hicona.HiconaCooler.add_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.del_bin_annotation.html">hicona.HiconaCooler.del_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.hmm_bin_annotation.html">hicona.HiconaCooler.hmm_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.ohe_bin_annotation.html">hicona.HiconaCooler.ohe_bin_annotation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.annot_list.html">hicona.HiconaCooler.annot_list</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.add_bin_annot.html">hicona.HiconaCooler.add_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.del_bin_annot.html">hicona.HiconaCooler.del_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.hmm_bin_annot.html">hicona.HiconaCooler.hmm_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.ohe_bin_annot.html">hicona.HiconaCooler.ohe_bin_annot</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../table.html">HiconaTable</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-2"><i class="fa-solid fa-chevron-down"></i></label><ul>
@@ -322,7 +322,7 @@ document.write(`
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.html">hicona.HiconaGraph</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.table.html">hicona.HiconaGraph.table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.ids_table.html">hicona.HiconaGraph.ids_table</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.add_chromsomal_edges.html">hicona.HiconaGraph.add_chromsomal_edges</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.add_genomic_edges.html">hicona.HiconaGraph.add_genomic_edges</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.compute_clustering.html">hicona.HiconaGraph.compute_clustering</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.permute_annotations.html">hicona.HiconaGraph.permute_annotations</a></li>
 </ul>
@@ -426,12 +426,13 @@ document.write(`
 <dt class="sig sig-object py" id="hicona.HiconaCooler.bare_bins">
 <em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">HiconaCooler.</span></span><span class="sig-name descname"><span class="pre">bare_bins</span></span><a class="headerlink" href="#hicona.HiconaCooler.bare_bins" title="Link to this definition">#</a></dt>
 <dd><p>Get full bin table without any annotation.</p>
-<p>Return the bins table as a pandas.DataFrame with only the columns
-<code class="docutils literal notranslate"><span class="pre">chrom</span></code>, <code class="docutils literal notranslate"><span class="pre">start</span></code>, and <code class="docutils literal notranslate"><span class="pre">end</span></code>.</p>
+<p>Return the <code class="docutils literal notranslate"><span class="pre">bins</span></code> table as a <code class="docutils literal notranslate"><span class="pre">pandas.DataFrame</span></code> with only
+the columns <code class="docutils literal notranslate"><span class="pre">chrom</span></code>, <code class="docutils literal notranslate"><span class="pre">start</span></code>, and <code class="docutils literal notranslate"><span class="pre">end</span></code> (and no annotation
+column).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns<span class="colon">:</span></dt>
 <dd class="field-odd"><dl class="simple">
-<dt>DataFrame</dt><dd><p>DataFrame with only the columns <code class="docutils literal notranslate"><span class="pre">chrom</span></code>, <code class="docutils literal notranslate"><span class="pre">start</span></code>, and <code class="docutils literal notranslate"><span class="pre">end</span></code>.</p>
+<dt>pandas.DataFrame</dt><dd><p>DataFrame with only the columns <code class="docutils literal notranslate"><span class="pre">chrom</span></code>, <code class="docutils literal notranslate"><span class="pre">start</span></code>, and <code class="docutils literal notranslate"><span class="pre">end</span></code>.</p>
 </dd>
 </dl>
 </dd>
@@ -451,9 +452,10 @@ document.write(`
 <span class="go">308834  chrY  57200000  57210000</span>
 <span class="go">308835  chrY  57210000  57220000</span>
 <span class="go">308836  chrY  57220000  57227415</span>
+
+<span class="go">[308837 rows x 3 columns]</span>
 </pre></div>
 </div>
-<p>[308837 rows x 3 columns]</p>
 </dd></dl>
 
 </section>

@@ -6,20 +6,30 @@
 .. autoclass:: AnnotDynamics
 
    
-   .. automethod:: __init__
+   .. rubric:: Attributes
 
+   .. autosummary::
+   
+   
+   
    
    .. rubric:: Methods
 
    .. autosummary::
    
-      ~AnnotDynamics.__init__
+      
+   
+      
       ~AnnotDynamics.get_dynamics
+      
+   
+      
       ~AnnotDynamics.plot_full
+      
+   
+      
       ~AnnotDynamics.plot_interval
+      
    
    
 
-   
-   
-   

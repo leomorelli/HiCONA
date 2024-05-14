@@ -47,7 +47,7 @@
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
     <link rel="next" title="hicona.HiconaGraph.permute_annotations" href="hicona.HiconaGraph.permute_annotations.html" />
-    <link rel="prev" title="hicona.HiconaGraph.add_chromsomal_edges" href="hicona.HiconaGraph.add_chromsomal_edges.html" />
+    <link rel="prev" title="hicona.HiconaGraph.add_genomic_edges" href="hicona.HiconaGraph.add_genomic_edges.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   </head>
@@ -294,11 +294,11 @@ document.write(`
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.create_table.html">hicona.HiconaCooler.create_table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.fetch_table.html">hicona.HiconaCooler.fetch_table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.list_tables.html">hicona.HiconaCooler.list_tables</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.annotation_list.html">hicona.HiconaCooler.annotation_list</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.add_bin_annotation.html">hicona.HiconaCooler.add_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.del_bin_annotation.html">hicona.HiconaCooler.del_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.hmm_bin_annotation.html">hicona.HiconaCooler.hmm_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.ohe_bin_annotation.html">hicona.HiconaCooler.ohe_bin_annotation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.annot_list.html">hicona.HiconaCooler.annot_list</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.add_bin_annot.html">hicona.HiconaCooler.add_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.del_bin_annot.html">hicona.HiconaCooler.del_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.hmm_bin_annot.html">hicona.HiconaCooler.hmm_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.ohe_bin_annot.html">hicona.HiconaCooler.ohe_bin_annot</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../table.html">HiconaTable</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-2"><i class="fa-solid fa-chevron-down"></i></label><ul>
@@ -322,7 +322,7 @@ document.write(`
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.html">hicona.HiconaGraph</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.table.html">hicona.HiconaGraph.table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.ids_table.html">hicona.HiconaGraph.ids_table</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.add_chromsomal_edges.html">hicona.HiconaGraph.add_chromsomal_edges</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.add_genomic_edges.html">hicona.HiconaGraph.add_genomic_edges</a></li>
 <li class="toctree-l2 current active"><a class="current reference internal" href="#">hicona.HiconaGraph.compute_clustering</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.permute_annotations.html">hicona.HiconaGraph.permute_annotations</a></li>
 </ul>
@@ -427,37 +427,61 @@ document.write(`
 <span class="sig-prename descclassname"><span class="pre">HiconaGraph.</span></span><span class="sig-name descname"><span class="pre">compute_clustering</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">min_steps</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">genomic_links</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">equilibrate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">annotate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hicona/_graph.html#HiconaGraph.compute_clustering"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.HiconaGraph.compute_clustering" title="Link to this definition">#</a></dt>
 <dd><p>Computed nested blockmodel clustering of the graph.</p>
 <p>Return hierarchical clustering of the graph using a nested blockmodel.
-The output is a <cite>pd.DataFrame</cite> with the cluster labels for each node
-at each level of the hierarchy, where level <cite>0</cite> is the level with the
-highest number of clusters, while level <cite>n</cite> is the level with the
+The output is a <code class="docutils literal notranslate"><span class="pre">pandas.DataFrame</span></code> with the cluster labels for each
+node at each level of the hierarchy, where level <cite>0</cite> is the level with
+the highest number of clusters, while level <cite>n</cite> is the level with the
 lowest number of clusters.</p>
-<p>For more detail on the clustering algorithm see the <cite>graph_tool</cite>
-documentation.</p>
+<p>This is a streamlined version of the clustering procedure provided by
+the <code class="docutils literal notranslate"><span class="pre">graph_tool</span></code> library. For an in-depth explanation, please refer
+to the official guide available <a class="reference external" href="https://graph-tool.skewed.de/static/doc/demos/inference/inference.html">here</a>.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>The clustering procedure can be very computationally expensive for
+large graphs. If you are experiencing long runtimes, consider
+subsetting the graph to a smaller region of interest.</p>
+</div>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><dl class="simple">
 <dt><strong>min_steps</strong><span class="classifier">int, optional</span></dt><dd><p>Number of iterations of the entropy minimization step.
-(Default is 10)</p>
+Default is ‘10’.</p>
 </dd>
 <dt><strong>genomic_links</strong><span class="classifier">bool, optional</span></dt><dd><p>Whether to add edges between genomically consecutive bins.
-(Default is True)</p>
+Default is ‘True’.</p>
 </dd>
 <dt><strong>equilibrate</strong><span class="classifier">bool, optional</span></dt><dd><p>Whether to equilibrate the model after the minimization step.
-(Default is True)</p>
+Default is ‘True’.</p>
 </dd>
 <dt><strong>annotate</strong><span class="classifier">bool, optional</span></dt><dd><p>Whether to add bin annotations to the output DataFrame.
-(Default is False)</p>
+Default is ‘False’.</p>
 </dd>
 </dl>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><dl class="simple">
-<dt>pd.DataFrame</dt><dd><p>DataFrame with the cluster labels for each node at each level.
+<dt>pandas.DataFrame</dt><dd><p>DataFrame with the cluster labels for each node at each level.
 Optionally, the DataFrame can also contain bin annotations.</p>
 </dd>
 </dl>
 </dd>
 </dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><a class="reference external" href="https://graph-tool.skewed.de/static/doc/autosummary/graph_tool.inference.minimize_nested_blockmodel_dl.html#graph_tool.inference.minimize_nested_blockmodel_dl" title="(in graph-tool v2.65)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">graph_tool.inference.minimize_nested_blockmodel_dl</span></code></a></dt><dd><p>Minimize nested blockmodel entropy.</p>
+</dd>
+</dl>
+</div>
+<p class="rubric">Examples</p>
+<p>Compute the clustering of the graph.</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">hicona</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">handle</span> <span class="o">=</span> <span class="n">hicona</span><span class="o">.</span><span class="n">HiconaCooler</span><span class="p">(</span><span class="s2">&quot;path/to/file.cool&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">table</span> <span class="o">=</span> <span class="n">handle</span><span class="o">.</span><span class="n">fetch_table</span><span class="p">(</span><span class="s2">&quot;hicona&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">graph</span> <span class="o">=</span> <span class="n">hicona</span><span class="o">.</span><span class="n">HiconaGraph</span><span class="p">(</span><span class="n">table</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">graph</span><span class="o">.</span><span class="n">compute_clustering</span><span class="p">()</span>
+<span class="go"># TODO: add result</span>
+</pre></div>
+</div>
 </dd></dl>
 
 </section>
@@ -473,12 +497,12 @@ Optionally, the DataFrame can also contain bin annotations.</p>
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="hicona.HiconaGraph.add_chromsomal_edges.html"
+       href="hicona.HiconaGraph.add_genomic_edges.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">hicona.HiconaGraph.add_chromsomal_edges</p>
+        <p class="prev-next-title">hicona.HiconaGraph.add_genomic_edges</p>
       </div>
     </a>
     <a class="right-next"

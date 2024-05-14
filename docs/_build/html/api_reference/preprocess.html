@@ -294,11 +294,11 @@ document.write(`
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaCooler.create_table.html">hicona.HiconaCooler.create_table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaCooler.fetch_table.html">hicona.HiconaCooler.fetch_table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaCooler.list_tables.html">hicona.HiconaCooler.list_tables</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaCooler.annotation_list.html">hicona.HiconaCooler.annotation_list</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaCooler.add_bin_annotation.html">hicona.HiconaCooler.add_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaCooler.del_bin_annotation.html">hicona.HiconaCooler.del_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaCooler.hmm_bin_annotation.html">hicona.HiconaCooler.hmm_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaCooler.ohe_bin_annotation.html">hicona.HiconaCooler.ohe_bin_annotation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaCooler.annot_list.html">hicona.HiconaCooler.annot_list</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaCooler.add_bin_annot.html">hicona.HiconaCooler.add_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaCooler.del_bin_annot.html">hicona.HiconaCooler.del_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaCooler.hmm_bin_annot.html">hicona.HiconaCooler.hmm_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaCooler.ohe_bin_annot.html">hicona.HiconaCooler.ohe_bin_annot</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="table.html">HiconaTable</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-2"><i class="fa-solid fa-chevron-down"></i></label><ul>
@@ -322,7 +322,7 @@ document.write(`
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaGraph.html">hicona.HiconaGraph</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaGraph.table.html">hicona.HiconaGraph.table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaGraph.ids_table.html">hicona.HiconaGraph.ids_table</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaGraph.add_chromsomal_edges.html">hicona.HiconaGraph.add_chromsomal_edges</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaGraph.add_genomic_edges.html">hicona.HiconaGraph.add_genomic_edges</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaGraph.compute_clustering.html">hicona.HiconaGraph.compute_clustering</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaGraph.permute_annotations.html">hicona.HiconaGraph.permute_annotations</a></li>
 </ul>
@@ -419,6 +419,22 @@ document.write(`
                   
   <section id="preprocessing">
 <span id="api-preprocess"></span><h1>Preprocessing<a class="headerlink" href="#preprocessing" title="Link to this heading">#</a></h1>
+<p>The preprocessing module provides a set of functionalities to customize the
+default preprocessing from the package. It mainly provides a <a class="reference internal" href="api/hicona.preprocess.Flow.html#hicona.preprocess.Flow" title="hicona.preprocess.Flow"><code class="xref py py-class docutils literal notranslate"><span class="pre">Flow</span></code></a> class
+and a set of preprocessing functions.</p>
+<p>The <a class="reference internal" href="api/hicona.preprocess.Flow.html#hicona.preprocess.Flow" title="hicona.preprocess.Flow"><code class="xref py py-class docutils literal notranslate"><span class="pre">Flow</span></code></a> can be used to specify the filtering and normalization operations
+to be applied to the data (in an order sensitive manner); it can be created from
+scratch or by modifying a default one. Moreover these objects can be saved and loaded
+for a later use.</p>
+<p>The package provides a set of filtering and normalization functions, namely those
+that are more likely to be used. Nevertheless, any function can be used as long as
+it satisfies the following conditions:</p>
+<ul class="simple">
+<li><p>It must take an instance of the <a class="reference internal" href="api/hicona.HiconaTable.html#hicona.HiconaTable" title="hicona.HiconaTable"><code class="xref py py-class docutils literal notranslate"><span class="pre">HiconaTable</span></code></a> as its first argument.</p></li>
+<li><p>All other arguments must be JSON-types.</p></li>
+<li><p>It must return an iterable of <code class="docutils literal notranslate"><span class="pre">pandas.DataFrame</span></code> objects representing processed
+table chunks.</p></li>
+</ul>
 <section id="flow-object">
 <h2>Flow object<a class="headerlink" href="#flow-object" title="Link to this heading">#</a></h2>
 <table class="autosummary longtable table autosummary">

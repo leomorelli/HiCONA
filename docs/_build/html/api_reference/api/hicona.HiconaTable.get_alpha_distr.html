@@ -294,11 +294,11 @@ document.write(`
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.create_table.html">hicona.HiconaCooler.create_table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.fetch_table.html">hicona.HiconaCooler.fetch_table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.list_tables.html">hicona.HiconaCooler.list_tables</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.annotation_list.html">hicona.HiconaCooler.annotation_list</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.add_bin_annotation.html">hicona.HiconaCooler.add_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.del_bin_annotation.html">hicona.HiconaCooler.del_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.hmm_bin_annotation.html">hicona.HiconaCooler.hmm_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.ohe_bin_annotation.html">hicona.HiconaCooler.ohe_bin_annotation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.annot_list.html">hicona.HiconaCooler.annot_list</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.add_bin_annot.html">hicona.HiconaCooler.add_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.del_bin_annot.html">hicona.HiconaCooler.del_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.hmm_bin_annot.html">hicona.HiconaCooler.hmm_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.ohe_bin_annot.html">hicona.HiconaCooler.ohe_bin_annot</a></li>
 </ul>
 </li>
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="../table.html">HiconaTable</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-2"><i class="fa-solid fa-chevron-down"></i></label><ul class="current">
@@ -322,7 +322,7 @@ document.write(`
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.html">hicona.HiconaGraph</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.table.html">hicona.HiconaGraph.table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.ids_table.html">hicona.HiconaGraph.ids_table</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.add_chromsomal_edges.html">hicona.HiconaGraph.add_chromsomal_edges</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.add_genomic_edges.html">hicona.HiconaGraph.add_genomic_edges</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.compute_clustering.html">hicona.HiconaGraph.compute_clustering</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.permute_annotations.html">hicona.HiconaGraph.permute_annotations</a></li>
 </ul>
@@ -425,19 +425,20 @@ document.write(`
 <dl class="py method">
 <dt class="sig sig-object py" id="hicona.HiconaTable.get_alpha_distr">
 <span class="sig-prename descclassname"><span class="pre">HiconaTable.</span></span><span class="sig-name descname"><span class="pre">get_alpha_distr</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">alpha_mod</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'alpha_min'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hicona/_table.html#HiconaTable.get_alpha_distr"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.HiconaTable.get_alpha_distr" title="Link to this definition">#</a></dt>
-<dd><p>Return alpha distribution in the table as a pd.DataFrame.</p>
-<p>The distribution is provided as a pd.DataFrame with the columns
-“value” and “count” representing the alpha values and their counts.</p>
+<dd><p>Return alpha distribution in the table as a pandas DataFrame.</p>
+<p>Obtain the distribution of the alpha values for a table and return it.
+The distribution is provided as a <code class="docutils literal notranslate"><span class="pre">pandas.DataFrame</span></code> with the columns
+<code class="docutils literal notranslate"><span class="pre">value</span></code> and <code class="docutils literal notranslate"><span class="pre">count</span></code> representing the alpha values and their counts.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><dl class="simple">
-<dt><strong>alpha_mod</strong><span class="classifier">“alpha_min” or “alpha_max”, optional</span></dt><dd><p>The alpha mode to use for filtering. Default is “alpha_min”.</p>
+<dt><strong>alpha_mod</strong><span class="classifier">‘alpha_min’ or ‘alpha_max’, optional</span></dt><dd><p>The alpha mode column to use. Default is ‘alpha_min’.</p>
 </dd>
 </dl>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><dl class="simple">
-<dt>pd.DataFrame</dt><dd><p>A DataFrame with the alpha distribution.</p>
+<dt>pandas.DataFrame</dt><dd><p>A dataframe with the alpha distribution.</p>
 </dd>
 </dl>
 </dd>
@@ -447,14 +448,14 @@ document.write(`
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">handle</span> <span class="o">=</span> <span class="n">HiconaCooler</span><span class="p">(</span><span class="s2">&quot;path/to/cool_file.cool&quot;</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">table</span> <span class="o">=</span> <span class="n">handle</span><span class="o">.</span><span class="n">fetch_table</span><span class="p">(</span><span class="s2">&quot;hicona&quot;</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">alpha_distr</span> <span class="o">=</span> <span class="n">table</span><span class="o">.</span><span class="n">get_alpha_distr</span><span class="p">()</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">alpha_distr</span><span class="o">.</span><span class="n">head</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">alpha_distr</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
 <span class="go">    value  count</span>
 <span class="go">0   0.000    675</span>
 <span class="go">1   0.001   1245</span>
 <span class="go">2   0.002   1456</span>
 </pre></div>
 </div>
-<p>The distribution can be plotted directly using the <cite>plot</cite> method:</p>
+<p>The distribution can be plotted directly using the <code class="docutils literal notranslate"><span class="pre">plot</span></code> method:</p>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">alpha_distr</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="s2">&quot;value&quot;</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="s2">&quot;count&quot;</span><span class="p">)</span>
 </pre></div>
 </div>

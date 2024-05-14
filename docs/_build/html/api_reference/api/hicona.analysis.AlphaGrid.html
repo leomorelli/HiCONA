@@ -294,11 +294,11 @@ document.write(`
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.create_table.html">hicona.HiconaCooler.create_table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.fetch_table.html">hicona.HiconaCooler.fetch_table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.list_tables.html">hicona.HiconaCooler.list_tables</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.annotation_list.html">hicona.HiconaCooler.annotation_list</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.add_bin_annotation.html">hicona.HiconaCooler.add_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.del_bin_annotation.html">hicona.HiconaCooler.del_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.hmm_bin_annotation.html">hicona.HiconaCooler.hmm_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.ohe_bin_annotation.html">hicona.HiconaCooler.ohe_bin_annotation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.annot_list.html">hicona.HiconaCooler.annot_list</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.add_bin_annot.html">hicona.HiconaCooler.add_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.del_bin_annot.html">hicona.HiconaCooler.del_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.hmm_bin_annot.html">hicona.HiconaCooler.hmm_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.ohe_bin_annot.html">hicona.HiconaCooler.ohe_bin_annot</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../table.html">HiconaTable</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-2"><i class="fa-solid fa-chevron-down"></i></label><ul>
@@ -322,7 +322,7 @@ document.write(`
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.html">hicona.HiconaGraph</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.table.html">hicona.HiconaGraph.table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.ids_table.html">hicona.HiconaGraph.ids_table</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.add_chromsomal_edges.html">hicona.HiconaGraph.add_chromsomal_edges</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.add_genomic_edges.html">hicona.HiconaGraph.add_genomic_edges</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.compute_clustering.html">hicona.HiconaGraph.compute_clustering</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.permute_annotations.html">hicona.HiconaGraph.permute_annotations</a></li>
 </ul>
@@ -452,21 +452,18 @@ in the space <code class="docutils literal notranslate"><span class="pre">x:</sp
 </dl>
 </dd>
 </dl>
-<dl class="py method">
-<dt class="sig sig-object py" id="hicona.analysis.AlphaGrid.__init__">
-<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">table</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha_mod</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">decimals</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hicona/analysis/_alphas.html#AlphaGrid.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.analysis.AlphaGrid.__init__" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
+<p class="rubric">Attributes</p>
+<table class="autosummary longtable table autosummary">
+<tbody>
+</tbody>
+</table>
 <p class="rubric">Methods</p>
 <table class="autosummary longtable table autosummary">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="#hicona.analysis.AlphaGrid.__init__" title="hicona.analysis.AlphaGrid.__init__"><code class="xref py py-obj docutils literal notranslate"><span class="pre">__init__</span></code></a>(table, alpha_mod, decimals, verbose)</p></td>
-<td><p></p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="hicona.analysis.AlphaGrid.optimal_alpha.html#hicona.analysis.AlphaGrid.optimal_alpha" title="hicona.analysis.AlphaGrid.optimal_alpha"><code class="xref py py-obj docutils literal notranslate"><span class="pre">optimal_alpha</span></code></a>()</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="hicona.analysis.AlphaGrid.optimal_alpha.html#hicona.analysis.AlphaGrid.optimal_alpha" title="hicona.analysis.AlphaGrid.optimal_alpha"><code class="xref py py-obj docutils literal notranslate"><span class="pre">optimal_alpha</span></code></a>()</p></td>
 <td><p>Return the optimal alpha value for filtering the pixel table.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="hicona.analysis.AlphaGrid.plot.html#hicona.analysis.AlphaGrid.plot" title="hicona.analysis.AlphaGrid.plot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">plot</span></code></a>([img_path, show])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="hicona.analysis.AlphaGrid.plot.html#hicona.analysis.AlphaGrid.plot" title="hicona.analysis.AlphaGrid.plot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">plot</span></code></a>([img_path, show])</p></td>
 <td><p>Plot the grid object.</p></td>
 </tr>
 </tbody>
@@ -521,10 +518,7 @@ in the space <code class="docutils literal notranslate"><span class="pre">x:</sp
   </div>
   <nav class="bd-toc-nav page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#hicona.analysis.AlphaGrid"><code class="docutils literal notranslate"><span class="pre">AlphaGrid</span></code></a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#hicona.analysis.AlphaGrid.__init__"><code class="docutils literal notranslate"><span class="pre">AlphaGrid.__init__()</span></code></a></li>
-</ul>
-</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#hicona.analysis.AlphaGrid"><code class="docutils literal notranslate"><span class="pre">AlphaGrid</span></code></a></li>
 </ul>
   </nav></div>
 

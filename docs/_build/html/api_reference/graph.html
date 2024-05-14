@@ -295,11 +295,11 @@ document.write(`
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaCooler.create_table.html">hicona.HiconaCooler.create_table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaCooler.fetch_table.html">hicona.HiconaCooler.fetch_table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaCooler.list_tables.html">hicona.HiconaCooler.list_tables</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaCooler.annotation_list.html">hicona.HiconaCooler.annotation_list</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaCooler.add_bin_annotation.html">hicona.HiconaCooler.add_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaCooler.del_bin_annotation.html">hicona.HiconaCooler.del_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaCooler.hmm_bin_annotation.html">hicona.HiconaCooler.hmm_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaCooler.ohe_bin_annotation.html">hicona.HiconaCooler.ohe_bin_annotation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaCooler.annot_list.html">hicona.HiconaCooler.annot_list</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaCooler.add_bin_annot.html">hicona.HiconaCooler.add_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaCooler.del_bin_annot.html">hicona.HiconaCooler.del_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaCooler.hmm_bin_annot.html">hicona.HiconaCooler.hmm_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaCooler.ohe_bin_annot.html">hicona.HiconaCooler.ohe_bin_annot</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="table.html">HiconaTable</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-2"><i class="fa-solid fa-chevron-down"></i></label><ul>
@@ -323,7 +323,7 @@ document.write(`
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaGraph.html">hicona.HiconaGraph</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaGraph.table.html">hicona.HiconaGraph.table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaGraph.ids_table.html">hicona.HiconaGraph.ids_table</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaGraph.add_chromsomal_edges.html">hicona.HiconaGraph.add_chromsomal_edges</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaGraph.add_genomic_edges.html">hicona.HiconaGraph.add_genomic_edges</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaGraph.compute_clustering.html">hicona.HiconaGraph.compute_clustering</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaGraph.permute_annotations.html">hicona.HiconaGraph.permute_annotations</a></li>
 </ul>
@@ -420,12 +420,28 @@ document.write(`
                   
   <section id="hiconagraph">
 <span id="api-graph"></span><h1>HiconaGraph<a class="headerlink" href="#hiconagraph" title="Link to this heading">#</a></h1>
+<p>The <code class="docutils literal notranslate"><span class="pre">HiconaGraph</span></code> class is used for the bulk of the network analysis in Hicona.
+It allows to represent a processed (and usually sliced) part of the data as a graph,
+with nodes representing bins (genomic regions) and edges representing pixels
+(interactions among them).</p>
+<p>Since <code class="docutils literal notranslate"><span class="pre">HiconaGraph</span></code> extends the <a class="reference external" href="https://graph-tool.skewed.de/static/doc/autosummary/graph_tool.Graph.html#graph_tool.Graph" title="(in graph-tool v2.65)"><code class="xref py py-class docutils literal notranslate"><span class="pre">graph_tool.Graph</span></code></a> class, this means that:</p>
+<ul class="simple">
+<li><p>All sorts of bin and pixel annotations can be easily added as edge and node properties.</p></li>
+<li><p>All methods and attributes of the <a class="reference external" href="https://graph-tool.skewed.de/static/doc/autosummary/graph_tool.Graph.html#graph_tool.Graph" title="(in graph-tool v2.65)"><code class="xref py py-class docutils literal notranslate"><span class="pre">graph_tool.Graph</span></code></a> class are still available.</p></li>
+<li><p>Specialized versions of some network analysis algorithms are available.</p></li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>All algorithms implemented by <code class="docutils literal notranslate"><span class="pre">HiconaGraph</span></code> are explained in depth in the
+&lt;add docs page&gt; section of the documentation, while their usage is shown
+&lt;add hyperlink&gt;.</p>
+</div>
 <section id="constructor">
 <h2>Constructor<a class="headerlink" href="#constructor" title="Link to this heading">#</a></h2>
 <table class="autosummary longtable table autosummary">
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="api/hicona.HiconaGraph.html#hicona.HiconaGraph" title="hicona.HiconaGraph"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HiconaGraph</span></code></a>(table[, query])</p></td>
-<td><p>Graph-tool <cite>Graph</cite> specialized for Hi-C data network analysis.</p></td>
+<td><p>Graph-tool Graph class specialized for Hi-C data network analysis.</p></td>
 </tr>
 </tbody>
 </table>
@@ -438,7 +454,7 @@ document.write(`
 <td><p>Return the pixel table used to create the graph.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="api/hicona.HiconaGraph.ids_table.html#hicona.HiconaGraph.ids_table" title="hicona.HiconaGraph.ids_table"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HiconaGraph.ids_table</span></code></a></p></td>
-<td><p>Return the conversion table from bin_id to node_id.</p></td>
+<td><p>Return the conversion table from bin id to node id.</p></td>
 </tr>
 </tbody>
 </table>
@@ -447,7 +463,7 @@ document.write(`
 <h2>Manipulation<a class="headerlink" href="#manipulation" title="Link to this heading">#</a></h2>
 <table class="autosummary longtable table autosummary">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="api/hicona.HiconaGraph.add_chromsomal_edges.html#hicona.HiconaGraph.add_chromsomal_edges" title="hicona.HiconaGraph.add_chromsomal_edges"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HiconaGraph.add_chromsomal_edges</span></code></a>()</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="api/hicona.HiconaGraph.add_genomic_edges.html#hicona.HiconaGraph.add_genomic_edges" title="hicona.HiconaGraph.add_genomic_edges"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HiconaGraph.add_genomic_edges</span></code></a>()</p></td>
 <td><p>Add edges between consecutive genomic regions.</p></td>
 </tr>
 </tbody>

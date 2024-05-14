@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>hicona.HiconaCooler.ohe_bin_annotation &#8212; HiCONA alpha documentation</title>
+    <title>hicona.HiconaCooler.ohe_bin_annot &#8212; HiCONA alpha documentation</title>
   
   
   
@@ -43,11 +43,11 @@
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
     <script src="../../_static/copybutton.js?v=f281be69"></script>
     <script src="../../_static/design-tabs.js?v=36754332"></script>
-    <script>DOCUMENTATION_OPTIONS.pagename = 'api_reference/api/hicona.HiconaCooler.ohe_bin_annotation';</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'api_reference/api/hicona.HiconaCooler.ohe_bin_annot';</script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
     <link rel="next" title="HiconaTable" href="../table.html" />
-    <link rel="prev" title="hicona.HiconaCooler.hmm_bin_annotation" href="hicona.HiconaCooler.hmm_bin_annotation.html" />
+    <link rel="prev" title="hicona.HiconaCooler.hmm_bin_annot" href="hicona.HiconaCooler.hmm_bin_annot.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   </head>
@@ -294,11 +294,11 @@ document.write(`
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.create_table.html">hicona.HiconaCooler.create_table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.fetch_table.html">hicona.HiconaCooler.fetch_table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.list_tables.html">hicona.HiconaCooler.list_tables</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.annotation_list.html">hicona.HiconaCooler.annotation_list</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.add_bin_annotation.html">hicona.HiconaCooler.add_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.del_bin_annotation.html">hicona.HiconaCooler.del_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.hmm_bin_annotation.html">hicona.HiconaCooler.hmm_bin_annotation</a></li>
-<li class="toctree-l2 current active"><a class="current reference internal" href="#">hicona.HiconaCooler.ohe_bin_annotation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.annot_list.html">hicona.HiconaCooler.annot_list</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.add_bin_annot.html">hicona.HiconaCooler.add_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.del_bin_annot.html">hicona.HiconaCooler.del_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.hmm_bin_annot.html">hicona.HiconaCooler.hmm_bin_annot</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">hicona.HiconaCooler.ohe_bin_annot</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../table.html">HiconaTable</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-2"><i class="fa-solid fa-chevron-down"></i></label><ul>
@@ -322,7 +322,7 @@ document.write(`
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.html">hicona.HiconaGraph</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.table.html">hicona.HiconaGraph.table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.ids_table.html">hicona.HiconaGraph.ids_table</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.add_chromsomal_edges.html">hicona.HiconaGraph.add_chromsomal_edges</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.add_genomic_edges.html">hicona.HiconaGraph.add_genomic_edges</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.compute_clustering.html">hicona.HiconaGraph.compute_clustering</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.permute_annotations.html">hicona.HiconaGraph.permute_annotations</a></li>
 </ul>
@@ -420,42 +420,45 @@ document.write(`
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="hicona-hiconacooler-ohe-bin-annotation">
-<h1>hicona.HiconaCooler.ohe_bin_annotation<a class="headerlink" href="#hicona-hiconacooler-ohe-bin-annotation" title="Link to this heading">#</a></h1>
+  <section id="hicona-hiconacooler-ohe-bin-annot">
+<h1>hicona.HiconaCooler.ohe_bin_annot<a class="headerlink" href="#hicona-hiconacooler-ohe-bin-annot" title="Link to this heading">#</a></h1>
 <dl class="py method">
-<dt class="sig sig-object py" id="hicona.HiconaCooler.ohe_bin_annotation">
-<span class="sig-prename descclassname"><span class="pre">HiconaCooler.</span></span><span class="sig-name descname"><span class="pre">ohe_bin_annotation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">to_ohe</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">remove_original</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">remove_nan_mod</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_num_mods</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hicona/_cooler.html#HiconaCooler.ohe_bin_annotation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.HiconaCooler.ohe_bin_annotation" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object py" id="hicona.HiconaCooler.ohe_bin_annot">
+<span class="sig-prename descclassname"><span class="pre">HiconaCooler.</span></span><span class="sig-name descname"><span class="pre">ohe_bin_annot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">to_ohe</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">remove_original</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">remove_nan_mod</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_num_mods</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hicona/_cooler.html#HiconaCooler.ohe_bin_annot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.HiconaCooler.ohe_bin_annot" title="Link to this definition">#</a></dt>
 <dd><p>Convert one (or more) bin annotation(s) to one hot encoding form.</p>
 <p>For each specified bin annotation, perform one-hot encoding, that is,
 create a new column for each modality of the annotation, where the
-column is 1 if the bin has that modality, 0 otherwise.</p>
+column is 1 if the bin has that modality, 0 otherwise.
+Non-existent annotations are skipped without raising warning/errors.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><dl class="simple">
-<dt><strong>to_ohe</strong><span class="classifier">str or Iterable[str]</span></dt><dd><p>Names of the annotations to perform one-hot encoding on.
+<dt><strong>to_ohe</strong><span class="classifier">str or iterable of str</span></dt><dd><p>Names of the annotations to perform one-hot encoding on.
 Generated columns are named using <code class="docutils literal notranslate"><span class="pre">{original</span> <span class="pre">name}_{modality}</span></code>.</p>
 </dd>
 <dt><strong>remove_original</strong><span class="classifier">bool, optional</span></dt><dd><p>Whether to remove the original annotation columns on which ohe is
-performed on. Default is False.</p>
+performed on. Default is ‘False’.</p>
 </dd>
 <dt><strong>remove_nan_mod</strong><span class="classifier">bool, optional</span></dt><dd><p>Whether to remove columns originated from ohe of the NaN modality,
-meaning <code class="docutils literal notranslate"><span class="pre">{original</span> <span class="pre">name}_NaN</span></code>, if any. Default is True.</p>
+meaning <code class="docutils literal notranslate"><span class="pre">{original</span> <span class="pre">name}_NaN</span></code>, if any. Default is ‘True’.</p>
 </dd>
 <dt><strong>max_num_mods</strong><span class="classifier">int, optional</span></dt><dd><p>Do not perform ohe if the number of modalities is greater than
-<code class="docutils literal notranslate"><span class="pre">max_num_mods</span></code>. Default is 10.</p>
+<code class="docutils literal notranslate"><span class="pre">max_num_mods</span></code>. Default is ‘10’.</p>
 </dd>
 </dl>
 </dd>
 </dl>
 <p class="rubric">Notes</p>
 <p><code class="docutils literal notranslate"><span class="pre">max_num_mods</span></code> is a safety measure to avoid huge file size increase
-due to trying to ohe a column with non categorical values.</p>
-<p>Non-existent annotations are skipped without raising warning/errors.</p>
+due to trying to one hot encode a column with non categorical values.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
 <p>Removed columns still take space, due to HDF5 specifications. To
 actually reduce the file size, you might want to repack the file
-(see h5repack tool).</p>
+(see <a class="reference external" href="https://manpages.ubuntu.com/manpages/lunar/man1/h5repack.1.html">h5repack</a> tool).</p>
+</div>
 <p class="rubric">Examples</p>
-<p>Print the head of the bins table.</p>
+<p>Print the head of the <code class="docutils literal notranslate"><span class="pre">bins</span></code> table.</p>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">handle</span> <span class="o">=</span> <span class="n">HiconaCooler</span><span class="p">(</span><span class="s2">&quot;path/to/file.cool&quot;</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">handle</span><span class="o">.</span><span class="n">bins</span><span class="p">()[:]</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
 <span class="go">    chrom   start    end  mod</span>
@@ -464,8 +467,8 @@ actually reduce the file size, you might want to repack the file
 <span class="go">2   chr1   20000   30000    A</span>
 </pre></div>
 </div>
-<p>Perform one-hot encoding on the <cite>mod</cite> column.</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">handle</span><span class="o">.</span><span class="n">ohe_bin_annotation</span><span class="p">(</span><span class="s2">&quot;mod&quot;</span><span class="p">)</span>
+<p>Perform one-hot encoding on the <code class="docutils literal notranslate"><span class="pre">mod</span></code> column.</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">handle</span><span class="o">.</span><span class="n">ohe_bin_annot</span><span class="p">(</span><span class="s2">&quot;mod&quot;</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">handle</span><span class="o">.</span><span class="n">bins</span><span class="p">()[:]</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
 <span class="go">    chrom   start    end  mod  mod_A  mod_B</span>
 <span class="go">0   chr1       0   10000    A      1      0</span>
@@ -488,12 +491,12 @@ actually reduce the file size, you might want to repack the file
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="hicona.HiconaCooler.hmm_bin_annotation.html"
+       href="hicona.HiconaCooler.hmm_bin_annot.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">hicona.HiconaCooler.hmm_bin_annotation</p>
+        <p class="prev-next-title">hicona.HiconaCooler.hmm_bin_annot</p>
       </div>
     </a>
     <a class="right-next"
@@ -523,14 +526,14 @@ actually reduce the file size, you might want to repack the file
   </div>
   <nav class="bd-toc-nav page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#hicona.HiconaCooler.ohe_bin_annotation"><code class="docutils literal notranslate"><span class="pre">HiconaCooler.ohe_bin_annotation()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#hicona.HiconaCooler.ohe_bin_annot"><code class="docutils literal notranslate"><span class="pre">HiconaCooler.ohe_bin_annot()</span></code></a></li>
 </ul>
   </nav></div>
 
   <div class="sidebar-secondary-item">
 
   <div class="tocsection sourcelink">
-    <a href="../../_sources/api_reference/api/hicona.HiconaCooler.ohe_bin_annotation.rst.txt">
+    <a href="../../_sources/api_reference/api/hicona.HiconaCooler.ohe_bin_annot.rst.txt">
       <i class="fa-solid fa-file-lines"></i> Show Source
     </a>
   </div>

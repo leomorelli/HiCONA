@@ -295,11 +295,11 @@ document.write(`
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.create_table.html">hicona.HiconaCooler.create_table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.fetch_table.html">hicona.HiconaCooler.fetch_table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.list_tables.html">hicona.HiconaCooler.list_tables</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.annotation_list.html">hicona.HiconaCooler.annotation_list</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.add_bin_annotation.html">hicona.HiconaCooler.add_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.del_bin_annotation.html">hicona.HiconaCooler.del_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.hmm_bin_annotation.html">hicona.HiconaCooler.hmm_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.ohe_bin_annotation.html">hicona.HiconaCooler.ohe_bin_annotation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.annot_list.html">hicona.HiconaCooler.annot_list</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.add_bin_annot.html">hicona.HiconaCooler.add_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.del_bin_annot.html">hicona.HiconaCooler.del_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.hmm_bin_annot.html">hicona.HiconaCooler.hmm_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.ohe_bin_annot.html">hicona.HiconaCooler.ohe_bin_annot</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../table.html">HiconaTable</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-2"><i class="fa-solid fa-chevron-down"></i></label><ul>
@@ -323,7 +323,7 @@ document.write(`
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.html">hicona.HiconaGraph</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.table.html">hicona.HiconaGraph.table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.ids_table.html">hicona.HiconaGraph.ids_table</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.add_chromsomal_edges.html">hicona.HiconaGraph.add_chromsomal_edges</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.add_genomic_edges.html">hicona.HiconaGraph.add_genomic_edges</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.compute_clustering.html">hicona.HiconaGraph.compute_clustering</a></li>
 <li class="toctree-l2 current active"><a class="current reference internal" href="#">hicona.HiconaGraph.permute_annotations</a></li>
 </ul>
@@ -430,18 +430,29 @@ document.write(`
 <p>Given a subset of node annotations of the graph, first compute all
 combinations of one (annA vs universe, e.i. all nodes in the graph)
 or two annotations (annA vs annB), then for each of them compute the
-p-value for the test <span class="math notranslate nohighlight">\(H1: log_2(stat(annA) / stat(annB)) &gt; 0\)</span>
+p-value for the test</p>
+<div class="math notranslate nohighlight">
+\begin{align*}
+H0: &amp; log_2(S(annA) / S(annB)) &lt;= 0 \\
+H1: &amp; log_2(S(annA) / S(annB)) &gt; 0
+\end{align*}</div><p>where <cite>S</cite> is a node-level statistic of interest. The p-value is computed
 using node label permutations (randomly permute the attributes among
-nodes without changing graph structure).</p>
-<p>Annotations must be in OHE form.
+nodes without changing graph structure, then compare the distributions;
+see <cite>here</cite> for more details).</p>
+<p>Annotations must be in One-Hot-Encoding form.
 The annotations can be overlapping, in which case the number of nodes
-with overlapping annotations remains constant (e.i. if N nodes have
-both annotations in the original set, N nodes will have both
+with overlapping annotations remains constant (e.i. if <cite>N</cite> nodes have
+both annotations in the original set, <cite>N</cite> nodes will have both
 annotations in each individual permutation).</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>currently, p-values are not corrected for multiple testing since.
+An option to do so might be added in the future.</p>
+</div>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><dl class="simple">
-<dt><strong>ann_list</strong><span class="classifier">str or Iterable[str]</span></dt><dd><p>List of annotations (or single annotation) to permute.</p>
+<dt><strong>ann_list</strong><span class="classifier">str or iterable of str</span></dt><dd><p>Annotation(s) to permute.</p>
 </dd>
 <dt><strong>stat</strong><span class="classifier">str</span></dt><dd><p>Node-level statistic to use in the test. Currently supported:</p>
 <ul class="simple">
@@ -450,19 +461,29 @@ annotations in each individual permutation).</p>
 <li><p><code class="docutils literal notranslate"><span class="pre">clustering_coeff</span></code>: local clustering coefficient</p></li>
 </ul>
 </dd>
-<dt><strong>num_perms</strong><span class="classifier">int, optional</span></dt><dd><p>Number of permutation iterations to perform. (Default is 1000)</p>
+<dt><strong>num_perms</strong><span class="classifier">int, optional</span></dt><dd><p>Number of permutation iterations to perform. Default is ‘1000’.</p>
 </dd>
-<dt><strong>seed</strong><span class="classifier">int, optional</span></dt><dd><p>Rng seed for the permutations. (Default is 94206)</p>
+<dt><strong>seed</strong><span class="classifier">int, optional</span></dt><dd><p>Rng seed for the permutations. Default is ‘94206’.</p>
 </dd>
 </dl>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><dl class="simple">
-<dt>pd.DataFrame</dt><dd><p>Dataframe containing permutation parameters and results</p>
+<dt>pandas.DataFrame</dt><dd><p>Dataframe containing permutation parameters and results</p>
 </dd>
 </dl>
 </dd>
 </dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><a class="reference internal" href="hicona.HiconaCooler.ohe_bin_annot.html#hicona.HiconaCooler.ohe_bin_annot" title="hicona.HiconaCooler.ohe_bin_annot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HiconaCooler.ohe_bin_annot</span></code></a></dt><dd><p>Convert bin annotations to one-hot-encoding.</p>
+</dd>
+</dl>
+</div>
+<p class="rubric">Examples</p>
+<p>Compute p-values for two annotations.</p>
+<p># TODO: Add example</p>
 </dd></dl>
 
 </section>

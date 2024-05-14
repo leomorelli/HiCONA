@@ -35,11 +35,11 @@ _TABLE_COLUMNS = {
 
 
 class HiconaCooler(cooler.Cooler):
-    """Class to handle I/O and annotation of cooler-like files.
+    """Class to handle I/O, annotation and processing of cooler-like files.
 
-    Class extending the :class:`cooler.Cooler` class to allow for the creation
+    Class extending the ``cooler.Cooler`` class to allow for the creation
     and retrieval of processed pixel tables. Moreover, it allows to easily add
-    and remove annotations to/from the "bins" table.
+    and remove annotations to/from the ``bins`` table.
 
     Parameters
     ----------
@@ -47,19 +47,25 @@ class HiconaCooler(cooler.Cooler):
         Path to a cooler file, URI string, or open handle to the root HDF5
         group of a cooler data collection.
     kwargs : optional
-        Options to be passed to h5py.File upon every access via methods from
-        the cooler.Cooler class. These keyword arguments are not passed when
-        accessing the HDF5 file via functions from hicona.
-        See class constructor for cooler.Cooler for more details.
+        Options to be passed to ``h5py.File`` upon every access via methods
+        from the ``cooler.Cooler`` class. These keyword arguments are not
+        passed when accessing the HDF5 file via functions from ``hicona``.
+        See ``cooler.Cooler`` class constructor for more details.
+
+    See Also
+    --------
+    cooler.Cooler : Parent class extended by HiconaCooler.
+    h5py.File : Handle to an HDF5 file object.
+    h5py.Group : Handle to an HDF5 group object.
 
     Notes
     -----
-    The class should not break any functionality of the cooler.Cooler class,
-    though it was not tested. Please, report any issue you might find.
+    The class should not break any functionality of the ``cooler.Cooler``
+    class, though it was not thoroughly tested. Please, report any issue you might find.
 
     Examples
     --------
-    Creating an HiconaCooler object from a cool file path.
+    Creating an ``HiconaCooler`` object from a cool file path.
 
     >>> handle = HiconaCooler("path/to/file.cool")
     >>> handle = HiconaCooler("path/to/file.mcool::resolutions/10000")
@@ -80,9 +86,14 @@ class HiconaCooler(cooler.Cooler):
     def tables_root(self) -> str:
         """Return URI of the group in which processed pixel tables are rooted.
 
-        String representing where to store and look for the processed pixel
+        String representing where to store and look for processed ``pixel``
         tables. This is a relative path starting from the position specified
         by the ``self.root`` attribute.
+
+        Returns
+        -------
+        str :
+            URI of the group where processed pixel tables are stored.
 
         Examples
         --------
@@ -96,12 +107,13 @@ class HiconaCooler(cooler.Cooler):
     def bare_bins(self) -> pd.DataFrame:
         """Get full bin table without any annotation.
 
-        Return the bins table as a pandas.DataFrame with only the columns
-        ``chrom``, ``start``, and ``end``.
+        Return the ``bins`` table as a ``pandas.DataFrame`` with only
+        the columns ``chrom``, ``start``, and ``end`` (and no annotation
+        column).
 
         Returns
         -------
-        DataFrame :
+        pandas.DataFrame :
             DataFrame with only the columns ``chrom``, ``start``, and ``end``.
 
         Examples
@@ -120,8 +132,9 @@ class HiconaCooler(cooler.Cooler):
         308834  chrY  57200000  57210000
         308835  chrY  57210000  57220000
         308836  chrY  57220000  57227415
-
+        <BLANKLINE>
         [308837 rows x 3 columns]
+
         """
         return self.bins()[["chrom", "start", "end"]][:]  # type: ignore
 
@@ -175,19 +188,19 @@ class HiconaCooler(cooler.Cooler):
     ) -> HiconaTable:
         """Create a normalized and sparsified pixels table.
 
-        Starting from the full pixel table, create a new pixel table by
-        filtering, normalizing and then sparsifying the table (see [1]_).
-        The exact steps to be performed are specified via a `Flow` object.
+        Starting from the full ``pixel`` table, create a new ``pixel`` table
+        by filtering, normalizing and then sparsifying the table (see [1]_).
+        The exact steps to be performed are specified via a ``Flow`` object.
 
         Parameters
         ----------
         ops_flow : str or Flow, optional
             Flow of operations to use to filter and normalize the table. If a
             string is provided, the default flow for the corresponding method
-            is used. Default is `hicona`.
+            is used. Default is 'hicona'.
         chunk_size : int, optional
             Number of pixels per chunk when processing the raw table.
-            Default is 10,000,000.
+            Default is '10,000,000'.
 
         Returns
         -------
@@ -196,7 +209,7 @@ class HiconaCooler(cooler.Cooler):
 
         See Also
         --------
-        preprocess.Flow : Used to specify the operations to perform.
+        preprocess.Flow : Used to define a preprocessing workflow.
 
         References
         ----------
@@ -205,7 +218,7 @@ class HiconaCooler(cooler.Cooler):
 
         Examples
         --------
-        Create a new table using the default `hicona` method.
+        Create a new table using the default 'hicona' method.
 
         >>> handle = HiconaCooler("path/to/file.cool")
         >>> table = handle.create_table()
@@ -246,25 +259,31 @@ class HiconaCooler(cooler.Cooler):
     def fetch_table(self, ops_flow: str | Flow = "hicona") -> HiconaTable:
         """Retrieve a previously created sparsified pixel table.
 
-        Get a previously created sparsified pixel table as a `HiconaTable`
+        Get a previously sparsified ``pixel`` table as a ``HiconaTable``
         object. The list of available tables can be printed using the
-        `list_tables` method.
+        ``HiconaCooler.list_tables`` method.
 
         Parameters
         ----------
         ops_flow : str or Flow, optional
             Flow originally used to create the table, provided as either a
-            string or a `Flow` object. If a string is provided, the default
-            flow for the corresponding method is used. Default is `hicona`.
+            string or a ``Flow`` object. If a string is provided, the default
+            flow for the corresponding method is used. Default is 'hicona'.
 
         Returns
         -------
         HiconaTable :
-            The requested table as a HiconaTable object.
+            The requested table as a ``HiconaTable`` object.
+
+        See Also
+        --------
+        preprocess.Flow : Used to define a preprocessing workflow.
+        HiconaTable : Object to handle a sparsified pixel table.
+        HiconaCooler.list_tables : Print the available pixel tables.
 
         Examples
         --------
-        Retrieve a previously created table using the default `hicona` method.
+        Retrieve a previously created table using the default 'hicona' method.
 
         >>> handle = HiconaCooler("path/to/file.cool")
         >>> table = handle.fetch_table()
@@ -297,8 +316,8 @@ class HiconaCooler(cooler.Cooler):
     def list_tables(self) -> None:
         """Print the available pixel tables.
 
-        Print the available tables and the operations used to create them in
-        a tabular format.
+        Print the available sparsified ``pixel`` tables and the operations
+        used to create them in a tabular format.
 
         Notes
         -----
@@ -333,20 +352,20 @@ class HiconaCooler(cooler.Cooler):
 
         names = names or []
         names = [names] if isinstance(names, str) else names
-        names = [n for n in names if n in self.annotation_list()]
+        names = [n for n in names if n in self.annot_list()]
 
         return names
 
-    def annotation_list(self) -> list[str]:
+    def annot_list(self) -> list[str]:
         """Return a list of available bin annotation columns.
 
         Return a list of all available bin annotation columns (that is, all
-        columns in the bins group besides `chrom`, `start`, and `end`)
-        sorted alphabetically.
+        columns in the ``bins`` group besides ``chrom``, ``start``, and
+        ``end``) sorted alphabetically.
 
         Returns
         -------
-        list[str] :
+        list of str :
             List of bin annotation names in alphabetical order.
 
         Examples
@@ -354,7 +373,7 @@ class HiconaCooler(cooler.Cooler):
         >>> handle = HiconaCooler("path/to/file.cool")
         >>> handle.bins()[:].columns
         Index(['chrom', 'start', 'end', 'HMM_ann', 'weight'], dtype='object')
-        >>> handle.annotation_list()
+        >>> handle.annot_list()
         ['HMM_ann', 'weight']
         """
 
@@ -364,7 +383,7 @@ class HiconaCooler(cooler.Cooler):
 
         return ann_list
 
-    def add_bin_annotation(
+    def add_bin_annot(
         self,
         bed_path: str,
         *,
@@ -373,12 +392,13 @@ class HiconaCooler(cooler.Cooler):
     ) -> None:
         """Add one (or more) bin annotation(s) from a bed-like file.
 
-        Add one or more annotation columns to the bins group. One can add:
+        Add one or more annotation columns to the ``bins`` group. One can add:
+
         - 0/1 column representing an overlap of the bin in the bed-like file
         - any number of annotation columns from the bed-like file
 
-        A bed-like file is a tab-separated file with the `chrom`, `start`,
-        `end` columns followed by any number of other columns.
+        A bed-like file is a tab-separated file with the ``chrom``, ``start``,
+        ``end`` columns followed by any number of other columns.
 
         Parameters
         ----------
@@ -387,23 +407,25 @@ class HiconaCooler(cooler.Cooler):
         in_file : str, optional
             Name of the 0/1 annotation column, containing 1 if the bin has at
             least one overlap with any interval in the bed-file, 0 otherwise.
-            If `None`, no such column is created. Default is None.
-        to_keep : str or list[str | None], optional
+            If set to 'None', no such column is created. Default is 'None'.
+        to_keep : str or list of (str, None), optional
             Names for the columns of the bed-like file to add to the bins.
-            Names are assigned from left to right ignoring `chrom`, `start`,
-            `end`. Any column that receives a name is kept, while any column
-            without a name is discarded. To skip a column, place a `None` in
-            its position. Excess names are ignored. Default is None.
+            Names are assigned from left to right ignoring ``chrom``, ``start``,
+            ``end``. Any column that receives a name is kept, while any column
+            without a name is discarded. To skip a column, place a 'None' in
+            its position. Excess names are ignored. Default is 'None'.
 
         Notes
         -----
-        Adding annotation can drastically increase file size, especially for
-        non-numerical annotations; limit string-like non categorical
-        annotations (names, ids, ...).
+        .. warning::
+
+            Adding annotations can drastically increase file size, especially
+            for non-numerical annotations; limit string-like non categorical
+            annotations (names, ids, ...).
 
         Examples
         --------
-        Printing a snippet of the bed using pybedtools.
+        Printing a snippet of the bed using ``pybedtools``.
 
         >>> import pybedtools
         >>> bed = pybedtools.BedTool("path/file.bed")
@@ -412,7 +434,7 @@ class HiconaCooler(cooler.Cooler):
         chr1    2000   4000    A  0.2
         chr1   20400  30000    B  0.3
 
-        Print the head of the bins table.
+        Print the head of the ``bins`` table.
 
         >>> handle = HiconaCooler("path/to/file.cool")
         >>> handle.bins()[:].head(3)
@@ -423,7 +445,7 @@ class HiconaCooler(cooler.Cooler):
 
         Add a 0/1 column indicating overlap with the bed file.
 
-        >>> handle.add_bin_annotation("path/file.bed", in_file="overlap")
+        >>> handle.add_bin_annot("path/file.bed", in_file="overlap")
         >>> handle.bins()[:].head(3)
             chrom   start    end  overlap
         0   chr1       0   10000        1
@@ -432,7 +454,7 @@ class HiconaCooler(cooler.Cooler):
 
         Add only the second annotation column from the bed file (skip first).
 
-        >>> handle.add_bin_annotation("path/file.bed", to_keep=[None, "pval"])
+        >>> handle.add_bin_annot("path/file.bed", to_keep=[None, "pval"])
         >>> handle.bins()[:].head(3)
             chrom   start    end  overlap  pval
         0   chr1       0   10000        1   0.6
@@ -447,9 +469,9 @@ class HiconaCooler(cooler.Cooler):
         # to_keep = to_keep if any(to_keep) and to_keep else None
 
         # Check for no overlap in old and new annotations
-        if in_file in self.annotation_list():
+        if in_file in self.annot_list():
             raise ValueError("E: 'in file' annotation name already exists.")
-        if to_keep and any(ann in to_keep for ann in self.annotation_list()):
+        if to_keep and any(ann in to_keep for ann in self.annot_list()):
             raise ValueError("E: Overlap with old annotations, stopping.")
 
         # Create the two bin df and merge on default bed columns
@@ -471,27 +493,30 @@ class HiconaCooler(cooler.Cooler):
         ann_df = ann_df.drop(labels=[None] + list(bin_df.columns), axis=1)
         hdf5.save_table(self._uris.add_path("bins"), ann_df)
 
-    def del_bin_annotation(self, to_del: str | Iterable[str]) -> None:
+    def del_bin_annot(self, to_del: str | Iterable[str]) -> None:
         """Remove one (or more) bin annotation columns.
 
         Given one or more bin annotation names, remove those columns from the
-        bins table. Non-existent annotations or default columns (`chrom`,
-        `start`, `end`) are skipped without raising warning/errors.
+        ``bins`` table. Non-existent annotations or default columns (``chrom``,
+        ``start``, ``end``) are skipped without raising warning/errors.
 
         Parameters
         ----------
-        to_del : str or Iterable[str]
+        to_del : str or iterable of str
             String or iterable of them representing bin annotations to remove.
 
         Notes
         -----
-        Removed columns still take space, due to HDF5 specifications. To
-        actually reduce the file size, you might want to repack the file
-        (see h5repack tool).
+        .. warning::
+            Removed columns still take space, due to HDF5 specifications. To
+            actually reduce the file size, you might want to repack the file
+            (see `h5repack`_ tool).
+
+        .. _h5repack: https://manpages.ubuntu.com/manpages/lunar/man1/h5repack.1.html
 
         Examples
         --------
-        Print the head of the bins table.
+        Print the head of the ``bins`` table.
 
         >>> handle = HiconaCooler("path/to/file.cool")
         >>> handle.bins()[:].head(3)
@@ -500,9 +525,9 @@ class HiconaCooler(cooler.Cooler):
         1   chr1   10000   20000        0   NaN
         2   chr1   20000   30000        1   0.3
 
-        Remove the `overlap` column.
+        Remove the ``overlap`` column.
 
-        >>> handle.del_bin_annotation("overlap")
+        >>> handle.del_bin_annot("overlap")
         >>> handle.bins()[:].head(3)
             chrom   start    end  pval
         0   chr1       0   10000   0.6
@@ -517,9 +542,10 @@ class HiconaCooler(cooler.Cooler):
 
         hdf5.del_keys(self._uris.add_path("bins"), to_del)
 
-    def ohe_bin_annotation(
+    def ohe_bin_annot(
         self,
         to_ohe: str | Iterable[str],
+        *,
         remove_original: bool = False,
         remove_nan_mod: bool = True,
         max_num_mods: int = 10,
@@ -529,36 +555,38 @@ class HiconaCooler(cooler.Cooler):
         For each specified bin annotation, perform one-hot encoding, that is,
         create a new column for each modality of the annotation, where the
         column is 1 if the bin has that modality, 0 otherwise.
+        Non-existent annotations are skipped without raising warning/errors.
 
         Parameters
         ----------
-        to_ohe : str or Iterable[str]
+        to_ohe : str or iterable of str
             Names of the annotations to perform one-hot encoding on.
             Generated columns are named using ``{original name}_{modality}``.
         remove_original : bool, optional
             Whether to remove the original annotation columns on which ohe is
-            performed on. Default is False.
+            performed on. Default is 'False'.
         remove_nan_mod : bool, optional
             Whether to remove columns originated from ohe of the NaN modality,
-            meaning ``{original name}_NaN``, if any. Default is True.
+            meaning ``{original name}_NaN``, if any. Default is 'True'.
         max_num_mods : int, optional
             Do not perform ohe if the number of modalities is greater than
-            ``max_num_mods``. Default is 10.
+            ``max_num_mods``. Default is '10'.
 
         Notes
         -----
         ``max_num_mods`` is a safety measure to avoid huge file size increase
-        due to trying to ohe a column with non categorical values.
+        due to trying to one hot encode a column with non categorical values.
 
-        Non-existent annotations are skipped without raising warning/errors.
+        .. warning::
+            Removed columns still take space, due to HDF5 specifications. To
+            actually reduce the file size, you might want to repack the file
+            (see `h5repack`_ tool).
 
-        Removed columns still take space, due to HDF5 specifications. To
-        actually reduce the file size, you might want to repack the file
-        (see h5repack tool).
+        .. _h5repack: https://manpages.ubuntu.com/manpages/lunar/man1/h5repack.1.html
 
         Examples
         --------
-        Print the head of the bins table.
+        Print the head of the ``bins`` table.
 
         >>> handle = HiconaCooler("path/to/file.cool")
         >>> handle.bins()[:].head(3)
@@ -567,9 +595,9 @@ class HiconaCooler(cooler.Cooler):
         1   chr1   10000   20000    B
         2   chr1   20000   30000    A
 
-        Perform one-hot encoding on the `mod` column.
+        Perform one-hot encoding on the ``mod`` column.
 
-        >>> handle.ohe_bin_annotation("mod")
+        >>> handle.ohe_bin_annot("mod")
         >>> handle.bins()[:].head(3)
             chrom   start    end  mod  mod_A  mod_B
         0   chr1       0   10000    A      1      0
@@ -603,9 +631,9 @@ class HiconaCooler(cooler.Cooler):
 
         # Remove original columns if selected
         if remove_original:
-            self.del_bin_annotation(to_ohe)
+            self.del_bin_annot(to_ohe)
 
-    def hmm_bin_annotation(
+    def hmm_bin_annot(
         self,
         ann_file: str,
         *,
@@ -623,16 +651,17 @@ class HiconaCooler(cooler.Cooler):
         annotation with the highest fold change between the observed and
         expected fraction of bases with that annotation. The expected fraction
         is computed as the fraction of bases with that annotation in the whole
-        genome of the bin.
+        genome. The observed fraction is the fraction of bases with that
+        annotation in the bin.
 
         Parameters
         ----------
         ann_file : str
             Path to the bed file containing the chromHMM-like annotation.
         ann_name : str, optional
-            Name of the new annotation column. Default is "hmm".
+            Name of the new annotation column. Default is 'hmm'.
         nan_annot : str, optional
-            Name of the modality replacing gaps. Default is "Void".
+            Name of the modality replacing gaps. Default is 'Void'.
 
         Notes
         -----
@@ -668,7 +697,7 @@ class HiconaCooler(cooler.Cooler):
 
         Add the chromHMM-like annotation to the bins table.
 
-        >>> handle.hmm_bin_annotation("path/file.bed")
+        >>> handle.hmm_bin_annot("path/file.bed")
         >>> handle.bins()[:].head(3)
             chrom   start    end   hmm
         0   chr1       0   10000  Void

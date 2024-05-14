@@ -6,19 +6,26 @@
 .. autoclass:: AlphaGrid
 
    
-   .. automethod:: __init__
+   .. rubric:: Attributes
 
+   .. autosummary::
+   
+   
+   
    
    .. rubric:: Methods
 
    .. autosummary::
    
-      ~AlphaGrid.__init__
+      
+   
+      
       ~AlphaGrid.optimal_alpha
+      
+   
+      
       ~AlphaGrid.plot
+      
    
    
 
-   
-   
-   

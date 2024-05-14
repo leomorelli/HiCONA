@@ -158,27 +158,101 @@ class Table:
 
     @property
     def bin_size(self) -> int:
-        """Resolution of the original cooler (size of the bins in bp)."""
+        """Resolution of the original cooler (size of the bins in bp).
+
+        Returns
+        -------
+        int
+            Bin size in base pairs.
+
+        Examples
+        --------
+        >>> handle = HiconaCooler("path/to/cool_file.cool")
+        >>> table = handle.fetch_table("hicona")
+        >>> table.bin_size
+        10000
+        """
         return self._bin_size
 
     @property
     def chunk_size(self) -> int:
-        """Size of the chunks to retrieve during iteration."""
+        """Number of bins per chunk to retrieve during iteration.
+
+        Returns
+        -------
+        int
+            Number of bins per chunk.
+
+        Examples
+        --------
+        >>> handle = HiconaCooler("path/to/cool_file.cool")
+        >>> table = handle.fetch_table("hicona")
+        >>> table.chunk_size
+        10000000  # default value
+        """
         return self._chunk_size
 
     @property
     def flow(self) -> Flow:
-        """flow.Flow object containing all processing information."""
+        """Flow object containing all preprocessing information.
+
+        Returns
+        -------
+        Flow
+            Workflow used during table creation.
+
+        See Also
+        --------
+        hicona.preprocess.Flow : Used to define a preprocessing workflow.
+
+        Examples
+        --------
+        >>> handle = HiconaCooler("path/to/cool_file.cool")
+        >>> table = handle.fetch_table("hicona")
+        >>> table.flow
+        <hicona.preprocess._flow.Flow object at 0x73e704c9d090>
+        """
         return self._flow
 
     @property
     def uris(self) -> uris.Uris:
-        """uris.Uris object containing all table uris."""
+        """Uris object containing all table uris.
+
+        Returns
+        -------
+        Uris
+            Object specifying the path to the table in the cooler file.
+
+        See Also
+        --------
+        hicona._core.uris.Uris : Used to handle all uris in Hicona.
+
+        Examples
+        --------
+        >>> handle = HiconaCooler("path/to/cool_file.cool")
+        >>> table = handle.fetch_table("hicona")
+        >>> table.uris
+        <hicona._core.uris.Uris object at 0x73e704c9d090>
+        """
+        # TODO: fix docs after moving uris
         return self._uris
 
     @property
     def size(self) -> int:
-        """Total number of pixels in the table."""
+        """Total number of pixels in the table.
+
+        Returns
+        -------
+        int
+            Number of pixels in the table.
+
+        Examples
+        --------
+        >>> handle = HiconaCooler("path/to/cool_file.cool")
+        >>> table = handle.fetch_table("hicona")
+        >>> table.size
+        656880
+        """
         return self._intervals.size
 
     def chunks(
@@ -187,21 +261,95 @@ class Table:
         annotated: bool = False,
         query: str | None = None,
     ) -> PdChunks:
-        """Returns an iterator of table chunks (as pandas DataFrames).
+        """Return an iterable of table chunks (as pandas.DataFrames).
+
+        Read table chunks from memory only when needed and return them as
+        ``pandas.DataFrame`` objects. Optionally, the bins can be annotated.
+
+        Chunk size is determined by the ``chunk_size`` attribute of the table,
+        unless a query is provided; in that case the chunk size is equal or
+        smaller than the ``chunk_size`` attribute.
+
+        .. note::
+            This is the preferred way to access table data, since loading it
+            fully into memory can be quite slow and memory intensive. If the
+            full table is absolutely needed, use the ``dataframe`` method
+            instead (which equates to calling this method and concatenating).
 
         Parameters
         ----------
-        columns : Iterable[str] or None, optional
-            If provided, only fetch the specified columns. Default is None.
+        columns : iterable of str or None, optional
+            If provided, only fetch the specified columns. Default is 'None'.
         annotated: bool, optional
-            Whether to annotate with the bin information. Default is False.
+            Whether to annotate with the bin information. Performed prior to
+            column selection to allow for complex queries. Default is 'False'.
         query : str or None, optional
             If provided, only fetch the pixels that satisfy the query.
-            Query must be a valid pandas query string. Default is None.
+            Query must be a valid pandas query string, since internally it is
+            passed to pandas.DataFrame.query. Default is 'None'.
 
         Returns
         -------
-        An iterator of table chunks (as pandas DataFrames).
+        Iterable of pandas.DataFrame
+            Processed table chunks.
+
+        See Also
+        --------
+        hicona.HiconaTable.dataframe : Used to fetch the full table as a DataFrame.
+        pandas.DataFrame.query : Used to filter the table based on a query string.
+
+        Examples
+        --------
+        Iterate over the first chunk of a table:
+
+        >>> handle = HiconaCooler("path/to/cool_file.cool")
+        >>> table = handle.fetch_table("hicona")
+        >>> for chunk in table.chunks():
+        ...     print(chunk.head())
+        ...     break
+           alpha_max  alpha_min  bin1_id  bin2_id  count  norm
+        0     0.4219     0.4037        1     2720      1   1.0
+        1     0.4219     0.3737        1     5476      1   1.0
+        2     0.4219     0.3814        1     5802      1   1.0
+        3     0.4219     0.3816        1    18419      1   1.0
+        4     0.4219     0.4155        3      890      1   1.0
+
+        Only fetch the count values for the first chunk of the table:
+
+        >>> for chunk in table.chunks(columns=["count"]):
+        ...     print(chunk.head())
+        ...     break
+              count
+        0        1
+        1        1
+        2        1
+        3        1
+        4        1
+
+        Iterate over the first chunk of a table with bin annotations:
+
+        >>> for chunk in table.chunks(annotated=True):
+        ...     print(chunk.head())
+        ...     break
+              chrom1  start1    end1 HMM_annot1  ...  bin1_id bin2_id  count  norm
+        0       chr1   10000   20000         Tx  ...        1    2720      1   1.0
+        1       chr1   10000   20000         Tx  ...        1    5476      1   1.0
+        2       chr1   10000   20000         Tx  ...        1    5802      1   1.0
+        3       chr1   10000   20000         Tx  ...        1   18419      1   1.0
+        4       chr1   30000   40000       Void  ...        3     890      1   1.0
+
+        Iterate over the first chunk of a table with a query:
+
+        >>> for chunk in table.chunks(query="alpha_min < 0.1"):
+        ...     print(chunk.head())
+        ...     break
+              alpha_max  alpha_min  bin1_id  bin2_id  count      norm
+        0        0.0839     0.0787       94      130     35  2.772590
+        1        0.0900     0.0895       94      131     26  2.632268
+        2        0.1039     0.0947       95      126     33  2.514573
+        3        0.0776     0.0739       98      123     48  2.807355
+        4        0.1031     0.0963       98      126     38  2.523562
+
         """
 
         def prepare_chunk(
@@ -269,34 +417,125 @@ class Table:
         """Return all table chunks in a single pandas DataFrame.
 
         Obtain the full table by concatenating all chunks into a single
-        pandas DataFrame.
+        ``pandas.DataFrame`` object. The table can be optionally annotated and
+        filtered.
+
+        .. warning::
+            This operation can be rather expensive in terms of memory,
+            especially for large or non subsetted tables. If possible, use
+            the ``chunks`` method to iterate over the table in chunks instead.
 
         Parameters
         ----------
-        columns : Iterable[str], optional
-            If provided, only fetch the specified columns. Default is None.
+        columns : iterable of str, optional
+            If provided, only fetch the specified columns. Default is 'None'.
         annotated: bool, optional
-            Whether to annotate with the bin information. Default is False.
+            Whether to annotate with the bin information. Performed prior to
+            column selection to allow for complex queries. Default is 'False'.
         query : str, optional
             If provided, only fetch the pixels that satisfy the query.
-            Query must be a valid pandas query string. Default is None.
+            Query must be a valid pandas query string, since internally it is
+            passed to pandas.DataFrame.query. Default is 'None'.
 
         Returns
         -------
-        A pandas DataFrame with all table pixels.
+        A pandas.DataFrame with all table pixels.
 
-        Notes
-        -----
-        This operation can be rather expensive in terms of memory, especially
-        for large or non subsetted tables.
+        See Also
+        --------
+        hicona.HiconaTable.chunks : Used to fetch the table in chunks.
+        pandas.DataFrame.query : Used to filter the table based on a query string.
+
+        Examples
+        --------
+        Load a small table in memory at once:
+
+        >>> handle = HiconaCooler("path/to/cool_file.cool")
+        >>> table = handle.fetch_table("hicona")
+        >>> table.dataframe()  # Usually tables are much larger than this
+                alpha_max  alpha_min  bin1_id  bin2_id  count  norm
+        0          0.4219     0.4037        1     2720      1   1.0
+        1          0.4219     0.3737        1     5476      1   1.0
+        2          0.4219     0.3814        1     5802      1   1.0
+        3          0.4219     0.3816        1    18419      1   1.0
+        4          0.4219     0.4155        3      890      1   1.0
+        ...           ...        ...      ...      ...    ...   ...
+        449637     0.4574     0.4220      520     4700      1   1.0
+        449638     0.4574     0.3963      520     4701      1   1.0
+        449639     0.4574     0.3909      520     4702      1   1.0
+        449640     0.2091     0.1761      520     4704      3   2.0
+        449641     0.4574     0.4107      520     4706      1   1.0
+        <BLANKLINE>
+        [449642 rows x 6 columns]
+
+        Only fetch the bin ids in the table:
+
+        >>> table.dataframe(columns=["bin1_id", "bin2_id"])
+                bin1_id  bin2_id
+        0             1     2720
+        1             1     5476
+        2             1     5802
+        3             1    18419
+        4             3      890
+        ...         ...      ...
+        449637      520     4700
+        449638      520     4701
+        449639      520     4702
+        449640      520     4704
+        449641      520     4706
+        <BLANKLINE>
+        [449642 rows x 2 columns]
+
+        Fetch the table with bin annotations:
+
+        >>> table.dataframe(annotated=True)
+               chrom1   start1     end1 HMM_annot1  ...  bin1_id bin2_id  count  norm
+        0        chr1    10000    20000         Tx  ...        1    2720      1   1.0
+        1        chr1    10000    20000         Tx  ...        1    5476      1   1.0
+        2        chr1    10000    20000         Tx  ...        1    5802      1   1.0
+        3        chr1    10000    20000         Tx  ...        1   18419      1   1.0
+        4        chr1    30000    40000       Void  ...        3     890      1   1.0
+        ...       ...      ...      ...        ...  ...      ...     ...    ...   ...
+        449637   chr1  5200000  5210000        Het  ...      520    4700      1   1.0
+        449638   chr1  5200000  5210000        Het  ...      520    4701      1   1.0
+        449639   chr1  5200000  5210000        Het  ...      520    4702      1   1.0
+        449640   chr1  5200000  5210000        Het  ...      520    4704      3   2.0
+        449641   chr1  5200000  5210000        Het  ...      520    4706      1   1.0
+        <BLANKLINE>
+        [449642 rows x 16 columns]
+
+        Only fetch the rows where the ``alpha_min`` is smaller than 0.1:
+
+        >>> table.dataframe(query="alpha_min < 0.1")
+              alpha_max  alpha_min  bin1_id  bin2_id  count      norm
+        0        0.0839     0.0787       94      130     35  2.772590
+        1        0.0900     0.0895       94      131     26  2.632268
+        2        0.1039     0.0947       95      126     33  2.514573
+        3        0.0776     0.0739       98      123     48  2.807355
+        4        0.1031     0.0963       98      126     38  2.523562
+        ...         ...        ...      ...      ...    ...       ...
+        1173     0.1313     0.0734      517     1311      8  3.169925
+        1174     0.1668     0.0990      517     1339      6  2.807355
+        1175     0.1158     0.0844      517     1359      7  3.000000
+        1176     0.0990     0.0969      517     1427      6  2.807355
+        1177     0.1937     0.0747      519     1323      7  3.000000
+        <BLANKLINE>
+        [1178 rows x 6 columns]
         """
 
         iterator = self.chunks(columns, annotated, query)
         return pd.concat(iterator).reset_index(drop=True)
 
     def reset_index(self) -> None:
-        """Regenerate the indexes (useful after table resizing)."""
+        """Refresh indexes to pixel position in the full table.
+
+        Update the indexes to the pixels to consider from the full table in
+        memory. This is used to refresh the object when the table changes on
+        disk. In general, should not be needed by the user.
+        """
 
         self._intervals = TableIntervals(self)
         # TODO: check because this might not work as expected
         # due to the way the table is resized in the hdf5 file
+
+        # TODO: Maybe recreate the table from scratch and remove this method

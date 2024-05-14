@@ -294,11 +294,11 @@ document.write(`
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.create_table.html">hicona.HiconaCooler.create_table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.fetch_table.html">hicona.HiconaCooler.fetch_table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.list_tables.html">hicona.HiconaCooler.list_tables</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.annotation_list.html">hicona.HiconaCooler.annotation_list</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.add_bin_annotation.html">hicona.HiconaCooler.add_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.del_bin_annotation.html">hicona.HiconaCooler.del_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.hmm_bin_annotation.html">hicona.HiconaCooler.hmm_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.ohe_bin_annotation.html">hicona.HiconaCooler.ohe_bin_annotation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.annot_list.html">hicona.HiconaCooler.annot_list</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.add_bin_annot.html">hicona.HiconaCooler.add_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.del_bin_annot.html">hicona.HiconaCooler.del_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.hmm_bin_annot.html">hicona.HiconaCooler.hmm_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.ohe_bin_annot.html">hicona.HiconaCooler.ohe_bin_annot</a></li>
 </ul>
 </li>
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="../table.html">HiconaTable</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-2"><i class="fa-solid fa-chevron-down"></i></label><ul class="current">
@@ -322,7 +322,7 @@ document.write(`
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.html">hicona.HiconaGraph</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.table.html">hicona.HiconaGraph.table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.ids_table.html">hicona.HiconaGraph.ids_table</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.add_chromsomal_edges.html">hicona.HiconaGraph.add_chromsomal_edges</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.add_genomic_edges.html">hicona.HiconaGraph.add_genomic_edges</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.compute_clustering.html">hicona.HiconaGraph.compute_clustering</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.permute_annotations.html">hicona.HiconaGraph.permute_annotations</a></li>
 </ul>
@@ -425,56 +425,19 @@ document.write(`
 <dl class="py class">
 <dt class="sig sig-object py" id="hicona.HiconaTable">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">hicona.</span></span><span class="sig-name descname"><span class="pre">HiconaTable</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">uris_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">intervals</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hicona/_table.html#HiconaTable"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.HiconaTable" title="Link to this definition">#</a></dt>
-<dd><p>Class for sparsified pixel table handling.</p>
-<p>Class implementing everything needed to handle sparsified pixel tables,
+<dd><p>Class for preprocessed pixel table handling.</p>
+<p>Class implementing everything needed to handle preprocessed pixel tables,
 such as pixel fetching, subsetting, boolean operations and analysis.</p>
 <p>In general, instances of this class should be created via the
-<cite>HiconaCooler.fetch_table</cite> method rather than directly.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><dl class="simple">
-<dt><strong>uris_path</strong><span class="classifier">Uris</span></dt><dd><p>Uris object specifying the location of the table in the cooler file.</p>
-</dd>
-<dt><strong>intervals</strong><span class="classifier">TableIntervals, optional</span></dt><dd><p>TableIntervals object specifying the parts of the table to consider.
-If not provided, the full table is considered. Default is None.</p>
+<code class="docutils literal notranslate"><span class="pre">HiconaCooler.fetch_table</span></code> method rather than directly, for this reason
+the class constructor is not publicly documented.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><a class="reference internal" href="hicona.HiconaCooler.fetch_table.html#hicona.HiconaCooler.fetch_table" title="hicona.HiconaCooler.fetch_table"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HiconaCooler.fetch_table</span></code></a></dt><dd><p>Fetch a table from a cooler file.</p>
 </dd>
 </dl>
-</dd>
-</dl>
-<dl class="py method">
-<dt class="sig sig-object py" id="hicona.HiconaTable.__init__">
-<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">uris_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">intervals</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hicona/_table.html#HiconaTable.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.HiconaTable.__init__" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<p class="rubric">Methods</p>
-<table class="autosummary longtable table autosummary">
-<tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="#hicona.HiconaTable.__init__" title="hicona.HiconaTable.__init__"><code class="xref py py-obj docutils literal notranslate"><span class="pre">__init__</span></code></a>(uris_path[, intervals])</p></td>
-<td><p></p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="hicona.HiconaTable.chunks.html#hicona.HiconaTable.chunks" title="hicona.HiconaTable.chunks"><code class="xref py py-obj docutils literal notranslate"><span class="pre">chunks</span></code></a>([columns, annotated, query])</p></td>
-<td><p>Returns an iterator of table chunks (as pandas DataFrames).</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="hicona.HiconaTable.dataframe.html#hicona.HiconaTable.dataframe" title="hicona.HiconaTable.dataframe"><code class="xref py py-obj docutils literal notranslate"><span class="pre">dataframe</span></code></a>([columns, annotated, query])</p></td>
-<td><p>Return all table chunks in a single pandas DataFrame.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="hicona.HiconaTable.get_alpha_distr.html#hicona.HiconaTable.get_alpha_distr" title="hicona.HiconaTable.get_alpha_distr"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_alpha_distr</span></code></a>([alpha_mod])</p></td>
-<td><p>Return alpha distribution in the table as a pd.DataFrame.</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="hicona.HiconaTable.get_alpha_grid.html#hicona.HiconaTable.get_alpha_grid" title="hicona.HiconaTable.get_alpha_grid"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_alpha_grid</span></code></a>([decimals, verbose, alpha_mod])</p></td>
-<td><p>Return a grid for the table filtered at different alpha values.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="hicona.HiconaTable.get_annot_dynamics.html#hicona.HiconaTable.get_annot_dynamics" title="hicona.HiconaTable.get_annot_dynamics"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_annot_dynamics</span></code></a>(annot[, as_quantiles, ...])</p></td>
-<td><p>Return annotation dynamics as a function of alpha filtering.</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="hicona.HiconaTable.reset_index.html#hicona.HiconaTable.reset_index" title="hicona.HiconaTable.reset_index"><code class="xref py py-obj docutils literal notranslate"><span class="pre">reset_index</span></code></a>()</p></td>
-<td><p>Regenerate the indexes (useful after table resizing).</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="hicona.HiconaTable.subset.html#hicona.HiconaTable.subset" title="hicona.HiconaTable.subset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">subset</span></code></a>(region[, both])</p></td>
-<td><p>Return a subset of the table based on pixel genomic regions.</p></td>
-</tr>
-</tbody>
-</table>
+</div>
 <p class="rubric">Attributes</p>
 <table class="autosummary longtable table autosummary">
 <tbody>
@@ -482,10 +445,10 @@ If not provided, the full table is considered. Default is None.</p>
 <td><p>Resolution of the original cooler (size of the bins in bp).</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="hicona.HiconaTable.chunk_size.html#hicona.HiconaTable.chunk_size" title="hicona.HiconaTable.chunk_size"><code class="xref py py-obj docutils literal notranslate"><span class="pre">chunk_size</span></code></a></p></td>
-<td><p>Size of the chunks to retrieve during iteration.</p></td>
+<td><p>Number of bins per chunk to retrieve during iteration.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="hicona.HiconaTable.flow.html#hicona.HiconaTable.flow" title="hicona.HiconaTable.flow"><code class="xref py py-obj docutils literal notranslate"><span class="pre">flow</span></code></a></p></td>
-<td><p>flow.Flow object containing all processing information.</p></td>
+<td><p>Flow object containing all preprocessing information.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="hicona.HiconaTable.region.html#hicona.HiconaTable.region" title="hicona.HiconaTable.region"><code class="xref py py-obj docutils literal notranslate"><span class="pre">region</span></code></a></p></td>
 <td><p>Return the region of the table or the subset.</p></td>
@@ -494,7 +457,33 @@ If not provided, the full table is considered. Default is None.</p>
 <td><p>Total number of pixels in the table.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="hicona.HiconaTable.uris.html#hicona.HiconaTable.uris" title="hicona.HiconaTable.uris"><code class="xref py py-obj docutils literal notranslate"><span class="pre">uris</span></code></a></p></td>
-<td><p>uris.Uris object containing all table uris.</p></td>
+<td><p>Uris object containing all table uris.</p></td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Methods</p>
+<table class="autosummary longtable table autosummary">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="hicona.HiconaTable.chunks.html#hicona.HiconaTable.chunks" title="hicona.HiconaTable.chunks"><code class="xref py py-obj docutils literal notranslate"><span class="pre">chunks</span></code></a>([columns, annotated, query])</p></td>
+<td><p>Return an iterable of table chunks (as pandas.DataFrames).</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="hicona.HiconaTable.dataframe.html#hicona.HiconaTable.dataframe" title="hicona.HiconaTable.dataframe"><code class="xref py py-obj docutils literal notranslate"><span class="pre">dataframe</span></code></a>([columns, annotated, query])</p></td>
+<td><p>Return all table chunks in a single pandas DataFrame.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="hicona.HiconaTable.get_alpha_distr.html#hicona.HiconaTable.get_alpha_distr" title="hicona.HiconaTable.get_alpha_distr"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_alpha_distr</span></code></a>([alpha_mod])</p></td>
+<td><p>Return alpha distribution in the table as a pandas DataFrame.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="hicona.HiconaTable.get_alpha_grid.html#hicona.HiconaTable.get_alpha_grid" title="hicona.HiconaTable.get_alpha_grid"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_alpha_grid</span></code></a>([decimals, verbose, alpha_mod])</p></td>
+<td><p>Return a grid of statistics for the table filtered at different alpha values.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="hicona.HiconaTable.get_annot_dynamics.html#hicona.HiconaTable.get_annot_dynamics" title="hicona.HiconaTable.get_annot_dynamics"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_annot_dynamics</span></code></a>(annot[, as_quantiles, ...])</p></td>
+<td><p>Return annotation dynamics as a function of alpha filtering.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="hicona.HiconaTable.reset_index.html#hicona.HiconaTable.reset_index" title="hicona.HiconaTable.reset_index"><code class="xref py py-obj docutils literal notranslate"><span class="pre">reset_index</span></code></a>()</p></td>
+<td><p>Refresh indexes to pixel position in the full table.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="hicona.HiconaTable.subset.html#hicona.HiconaTable.subset" title="hicona.HiconaTable.subset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">subset</span></code></a>(region[, both])</p></td>
+<td><p>Return a subset of the table based on pixel genomic regions.</p></td>
 </tr>
 </tbody>
 </table>
@@ -548,10 +537,7 @@ If not provided, the full table is considered. Default is None.</p>
   </div>
   <nav class="bd-toc-nav page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#hicona.HiconaTable"><code class="docutils literal notranslate"><span class="pre">HiconaTable</span></code></a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#hicona.HiconaTable.__init__"><code class="docutils literal notranslate"><span class="pre">HiconaTable.__init__()</span></code></a></li>
-</ul>
-</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#hicona.HiconaTable"><code class="docutils literal notranslate"><span class="pre">HiconaTable</span></code></a></li>
 </ul>
   </nav></div>
 

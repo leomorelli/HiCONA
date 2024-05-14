@@ -355,22 +355,46 @@ document.write(`
 <div class="viewcode-block" id="HiconaGraph">
 <a class="viewcode-back" href="../../api_reference/api/hicona.HiconaGraph.html#hicona.HiconaGraph">[docs]</a>
 <span class="k">class</span> <span class="nc">HiconaGraph</span><span class="p">(</span><span class="n">gt</span><span class="o">.</span><span class="n">Graph</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Graph-tool `Graph` specialized for Hi-C data network analysis.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Graph-tool Graph class specialized for Hi-C data network analysis.</span>
 
-<span class="sd">    This class extends the `graph_tool.Graph` class, adding methods to</span>
-<span class="sd">    facilitate the analysis of Hi-C data networks. All the methods from the</span>
-<span class="sd">    parent class are still available and are not overwritten.</span>
+<span class="sd">    This class extends the ``graph_tool.Graph`` class by adding methods to</span>
+<span class="sd">    facilitate the analysis of Hi-C data (and Hi-C data-like) derived networks.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        Creating an instance of ``HiconaGraph`` requires loading the full</span>
+<span class="sd">        pixel table into memory. This can be very expensive for large tables.</span>
+<span class="sd">        Consider subsetting the table to a smaller region of interest.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
 <span class="sd">    table : HiconaTable</span>
 <span class="sd">        Pixel table to create the graph from.</span>
 <span class="sd">    query : str, optional</span>
-<span class="sd">        Pandas-like query string to filter the pixel table. (Default is None)</span>
+<span class="sd">        Pandas-like query string to filter the pixel table. Default is &#39;None&#39;.</span>
+
+<span class="sd">    See Also</span>
+<span class="sd">    --------</span>
+<span class="sd">    graph_tool.Graph : Parent class for ``HiconaGraph``.</span>
+<span class="sd">    pandas.DataFrame.query : Used to filter the table based on a query string.</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    The class should not break any functionality of the ``graph_tool.Graph``</span>
+<span class="sd">    class, though it was not thoroughly tested. Please, report any issue you might find.</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    Create a graph from a pixel table.</span>
+
+<span class="sd">    &gt;&gt;&gt; import hicona</span>
+<span class="sd">    &gt;&gt;&gt; handle = hicona.HiconaCooler(&quot;path/to/file.cool&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; table = handle.fetch_table(&quot;hicona&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; graph = hicona.HiconaGraph(table)</span>
+<span class="sd">    &lt;HiconaGraph object, undirected, with 17974 vertices and 449642 edges ...&gt;</span>
+<span class="sd">    # Output cropped for brevity</span>
+
 <span class="sd">    &quot;&quot;&quot;</span>
 
-<div class="viewcode-block" id="HiconaGraph.__init__">
-<a class="viewcode-back" href="../../api_reference/api/hicona.HiconaGraph.html#hicona.HiconaGraph.__init__">[docs]</a>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">table</span><span class="p">:</span> <span class="n">HiconaTable</span><span class="p">,</span> <span class="n">query</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
 
         <span class="c1"># Initialize the object</span>
@@ -396,8 +420,7 @@ document.write(`
         <span class="c1"># TODO: Maybe remove bin1_id and bin2_id from the edge properties?</span>
 
         <span class="c1"># Add vertex properties</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_refresh_vertex_properties</span><span class="p">()</span></div>
-
+        <span class="bp">self</span><span class="o">.</span><span class="n">_refresh_vertex_properties</span><span class="p">()</span>
 
     <span class="k">def</span> <span class="nf">_update_ids_table</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">new_bins</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Update the ids_table with new bin ids.&quot;&quot;&quot;</span>
@@ -455,12 +478,69 @@ document.write(`
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">ids_table</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the conversion table from bin_id to node_id.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the conversion table from bin id to node id.</span>
+
+<span class="sd">        Return a ``pandas.DataFrame`` with the columns ``bin_id`` and</span>
+<span class="sd">        ``node_id``, which is used internally to convert bin ids to node ids</span>
+<span class="sd">        and vice versa.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        pandas.DataFrame</span>
+<span class="sd">            Conversion table from bin ids to node ids.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        Retrieve the id conversion table.</span>
+
+<span class="sd">        &gt;&gt;&gt; import hicona</span>
+<span class="sd">        &gt;&gt;&gt; handle = hicona.HiconaCooler(&quot;path/to/file.cool&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; table = handle.fetch_table(&quot;hicona&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; graph = hicona.HiconaGraph(table)</span>
+<span class="sd">        &gt;&gt;&gt; graph.ids_table</span>
+<span class="sd">               bin_id  node_id</span>
+<span class="sd">        0           1        0</span>
+<span class="sd">        1           3        1</span>
+<span class="sd">        2           4        2</span>
+<span class="sd">        3           5        3</span>
+<span class="sd">        4           6        4</span>
+<span class="sd">        ...       ...      ...</span>
+<span class="sd">        17969   20488    17969</span>
+<span class="sd">        17970   20491    17970</span>
+<span class="sd">        17971   20500    17971</span>
+<span class="sd">        17972   20508    17972</span>
+<span class="sd">        17973   20517    17973</span>
+<span class="sd">        &lt;BLANKLINE&gt;</span>
+<span class="sd">        [17974 rows x 2 columns]</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ids_table</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">table</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">HiconaTable</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the pixel table used to create the graph.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the pixel table used to create the graph.</span>
+
+<span class="sd">        Return the instance of the ``HiconaTable`` class which was used to</span>
+<span class="sd">        create the graph.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        HiconaTable</span>
+<span class="sd">            Pixel table used to create the graph.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        Check that the pixel table used to create the graph is returned.</span>
+
+<span class="sd">        &gt;&gt;&gt; import hicona</span>
+<span class="sd">        &gt;&gt;&gt; handle = hicona.HiconaCooler(&quot;path/to/file.cool&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; table = handle.fetch_table(&quot;hicona&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; graph = hicona.HiconaGraph(table)</span>
+<span class="sd">        &gt;&gt;&gt; graph.table == table</span>
+<span class="sd">        True</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_table</span>
 
     <span class="k">def</span> <span class="nf">_node_statistics</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stat</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">mask</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
@@ -536,25 +616,40 @@ document.write(`
         <span class="n">num_perms</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1000</span><span class="p">,</span>
         <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">94206</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute p-values for node label permutations.</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Compute p-values for node label permutations.</span>
 
 <span class="sd">        Given a subset of node annotations of the graph, first compute all</span>
 <span class="sd">        combinations of one (annA vs universe, e.i. all nodes in the graph)</span>
 <span class="sd">        or two annotations (annA vs annB), then for each of them compute the</span>
-<span class="sd">        p-value for the test :math:`H1: log_2(stat(annA) / stat(annB)) &gt; 0`</span>
-<span class="sd">        using node label permutations (randomly permute the attributes among</span>
-<span class="sd">        nodes without changing graph structure).</span>
+<span class="sd">        p-value for the test</span>
 
-<span class="sd">        Annotations must be in OHE form.</span>
+<span class="sd">        .. math::</span>
+<span class="sd">            :nowrap:</span>
+
+<span class="sd">            \begin{align*}</span>
+<span class="sd">            H0: &amp; log_2(S(annA) / S(annB)) &lt;= 0 \\</span>
+<span class="sd">            H1: &amp; log_2(S(annA) / S(annB)) &gt; 0</span>
+<span class="sd">            \end{align*}</span>
+
+<span class="sd">        where `S` is a node-level statistic of interest. The p-value is computed</span>
+<span class="sd">        using node label permutations (randomly permute the attributes among</span>
+<span class="sd">        nodes without changing graph structure, then compare the distributions;</span>
+<span class="sd">        see `here` for more details).</span>
+
+<span class="sd">        Annotations must be in One-Hot-Encoding form.</span>
 <span class="sd">        The annotations can be overlapping, in which case the number of nodes</span>
-<span class="sd">        with overlapping annotations remains constant (e.i. if N nodes have</span>
-<span class="sd">        both annotations in the original set, N nodes will have both</span>
+<span class="sd">        with overlapping annotations remains constant (e.i. if `N` nodes have</span>
+<span class="sd">        both annotations in the original set, `N` nodes will have both</span>
 <span class="sd">        annotations in each individual permutation).</span>
+
+<span class="sd">        .. warning::</span>
+<span class="sd">            currently, p-values are not corrected for multiple testing since.</span>
+<span class="sd">            An option to do so might be added in the future.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
-<span class="sd">        ann_list : str or Iterable[str]</span>
-<span class="sd">            List of annotations (or single annotation) to permute.</span>
+<span class="sd">        ann_list : str or iterable of str</span>
+<span class="sd">            Annotation(s) to permute.</span>
 <span class="sd">        stat : str</span>
 <span class="sd">            Node-level statistic to use in the test. Currently supported:</span>
 
@@ -563,20 +658,31 @@ document.write(`
 <span class="sd">            - ``clustering_coeff``: local clustering coefficient</span>
 
 <span class="sd">        num_perms : int, optional</span>
-<span class="sd">            Number of permutation iterations to perform. (Default is 1000)</span>
+<span class="sd">            Number of permutation iterations to perform. Default is &#39;1000&#39;.</span>
 <span class="sd">        seed : int, optional</span>
-<span class="sd">            Rng seed for the permutations. (Default is 94206)</span>
+<span class="sd">            Rng seed for the permutations. Default is &#39;94206&#39;.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
-<span class="sd">        pd.DataFrame</span>
+<span class="sd">        pandas.DataFrame</span>
 <span class="sd">            Dataframe containing permutation parameters and results</span>
+<span class="sd">        </span>
+<span class="sd">        See Also</span>
+<span class="sd">        --------</span>
+<span class="sd">        HiconaCooler.ohe_bin_annot : Convert bin annotations to one-hot-encoding.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        Compute p-values for two annotations.</span>
+
+<span class="sd">        # TODO: Add example</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="c1"># TODO: Add pvalue correction</span>
         <span class="c1"># TODO: Maybe add more values in return (magnitude/fold change?)</span>
         <span class="c1"># TODO: Maybe add number of nodes per annotation and overlap</span>
         <span class="c1"># TODO: Maybe create an entire object to return and plot the results?</span>
+        <span class="c1"># TODO: Add page with full algorithm explanation</span>
 
         <span class="k">def</span> <span class="nf">annotation_combinations</span><span class="p">(</span><span class="n">iterable</span><span class="p">,</span> <span class="n">k_vals</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)):</span>
 <span class="w">            </span><span class="sd">&quot;&quot;&quot;Return iterable of all combinations for all k_vals&quot;&quot;&quot;</span>
@@ -605,24 +711,47 @@ document.write(`
         <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">res_dicts</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="HiconaGraph.add_chromsomal_edges">
-<a class="viewcode-back" href="../../api_reference/api/hicona.HiconaGraph.add_chromsomal_edges.html#hicona.HiconaGraph.add_chromsomal_edges">[docs]</a>
-    <span class="k">def</span> <span class="nf">add_chromsomal_edges</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<div class="viewcode-block" id="HiconaGraph.add_genomic_edges">
+<a class="viewcode-back" href="../../api_reference/api/hicona.HiconaGraph.add_genomic_edges.html#hicona.HiconaGraph.add_genomic_edges">[docs]</a>
+    <span class="k">def</span> <span class="nf">add_genomic_edges</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Add edges between consecutive genomic regions.</span>
 
 <span class="sd">        Add edges between nodes representing consecutive genomic regions, i.e.</span>
 <span class="sd">        add an edge between nodes with consecutive bin ids.</span>
-<span class="sd">        A new edge property map is added to the graph to store whether an edge</span>
-<span class="sd">        is chromosomal or not.</span>
+<span class="sd">        Nodes corresponding to bin ids that are between the minimum and maximum</span>
+<span class="sd">        bin ids in the pixel table, but are not already present in the graph,</span>
+<span class="sd">        are added to it.</span>
+<span class="sd">        A new edge property map (``is_genomic_link``) is added to the graph to</span>
+<span class="sd">        store whether an edge is genomic or not.</span>
 
-<span class="sd">        NOTE: Currently the start end end bin for consecutive chromosomes are</span>
-<span class="sd">        joined. Until this is fixed, be sure to provide an intrachromosomal</span>
-<span class="sd">        pixel table.</span>
+<span class="sd">        .. warning::</span>
+<span class="sd">            Currently the start end end bin for consecutive chromosomes are</span>
+<span class="sd">            joined if they fall within the bin ids interval. Until this is</span>
+<span class="sd">            fixed, be sure to provide an intrachromosomal pixel table.</span>
 
-<span class="sd">        NOTE: Older edge maps are filled with the default value for those</span>
-<span class="sd">        maps. This behaviour might lead to unexpected results and will be</span>
-<span class="sd">        changed in the future.</span>
+<span class="sd">        .. warning::</span>
+<span class="sd">            Older edge maps are filled with the default value for those maps.</span>
+<span class="sd">            This behaviour might lead to unexpected results and will be likely</span>
+<span class="sd">            changed in the future.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        Add chromosomal edges to the graph.</span>
+
+<span class="sd">        &gt;&gt;&gt; import hicona</span>
+<span class="sd">        &gt;&gt;&gt; handle = hicona.HiconaCooler(&quot;path/to/file.cool&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; table = handle.fetch_table(&quot;hicona&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; graph = hicona.HiconaGraph(table)</span>
+<span class="sd">        &gt;&gt;&gt; graph</span>
+<span class="sd">        &lt;HiconaGraph object, undirected, with 17974 vertices and 449642 edges ...&gt;</span>
+<span class="sd">        &lt;BLANKLINE&gt;</span>
+<span class="sd">        &gt;&gt;&gt; graph.add_genomic_edges()</span>
+<span class="sd">        &gt;&gt;&gt; graph</span>
+<span class="sd">        &lt;HiconaGraph object, undirected, with 20517 vertices and 470158 edges ...&gt;</span>
+
 <span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># TODO: maybe add nodes during table creation?</span>
 
         <span class="n">min_bin</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ids_table</span><span class="p">[</span><span class="s2">&quot;bin_id&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">min</span><span class="p">()</span>
         <span class="n">max_bin</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ids_table</span><span class="p">[</span><span class="s2">&quot;bin_id&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
@@ -663,42 +792,70 @@ document.write(`
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Computed nested blockmodel clustering of the graph.</span>
 
 <span class="sd">        Return hierarchical clustering of the graph using a nested blockmodel.</span>
-<span class="sd">        The output is a `pd.DataFrame` with the cluster labels for each node</span>
-<span class="sd">        at each level of the hierarchy, where level `0` is the level with the</span>
-<span class="sd">        highest number of clusters, while level `n` is the level with the</span>
+<span class="sd">        The output is a ``pandas.DataFrame`` with the cluster labels for each</span>
+<span class="sd">        node at each level of the hierarchy, where level `0` is the level with</span>
+<span class="sd">        the highest number of clusters, while level `n` is the level with the</span>
 <span class="sd">        lowest number of clusters.</span>
 
-<span class="sd">        For more detail on the clustering algorithm see the `graph_tool`</span>
-<span class="sd">        documentation.</span>
+<span class="sd">        This is a streamlined version of the clustering procedure provided by</span>
+<span class="sd">        the ``graph_tool`` library. For an in-depth explanation, please refer</span>
+<span class="sd">        to the official guide available `here</span>
+<span class="sd">        &lt;https://graph-tool.skewed.de/static/doc/demos/inference/inference.html&gt;`__.</span>
+
+<span class="sd">        .. warning::</span>
+<span class="sd">            The clustering procedure can be very computationally expensive for</span>
+<span class="sd">            large graphs. If you are experiencing long runtimes, consider</span>
+<span class="sd">            subsetting the graph to a smaller region of interest.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        min_steps : int, optional</span>
 <span class="sd">            Number of iterations of the entropy minimization step.</span>
-<span class="sd">            (Default is 10)</span>
+<span class="sd">            Default is &#39;10&#39;.</span>
 <span class="sd">        genomic_links : bool, optional</span>
 <span class="sd">            Whether to add edges between genomically consecutive bins.</span>
-<span class="sd">            (Default is True)</span>
+<span class="sd">            Default is &#39;True&#39;.</span>
 <span class="sd">        equilibrate : bool, optional</span>
 <span class="sd">            Whether to equilibrate the model after the minimization step.</span>
-<span class="sd">            (Default is True)</span>
+<span class="sd">            Default is &#39;True&#39;.</span>
 <span class="sd">        annotate : bool, optional</span>
 <span class="sd">            Whether to add bin annotations to the output DataFrame.</span>
-<span class="sd">            (Default is False)</span>
+<span class="sd">            Default is &#39;False&#39;.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
-<span class="sd">        pd.DataFrame</span>
+<span class="sd">        pandas.DataFrame</span>
 <span class="sd">            DataFrame with the cluster labels for each node at each level.</span>
 <span class="sd">            Optionally, the DataFrame can also contain bin annotations.</span>
+
+<span class="sd">        See Also</span>
+<span class="sd">        --------</span>
+<span class="sd">        graph_tool.inference.minimize_nested_blockmodel_dl :</span>
+<span class="sd">            Minimize nested blockmodel entropy.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        Compute the clustering of the graph.</span>
+
+<span class="sd">        &gt;&gt;&gt; import hicona</span>
+<span class="sd">        &gt;&gt;&gt; handle = hicona.HiconaCooler(&quot;path/to/file.cool&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; table = handle.fetch_table(&quot;hicona&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; graph = hicona.HiconaGraph(table)</span>
+<span class="sd">        &gt;&gt;&gt; graph.compute_clustering()</span>
+<span class="sd">        # TODO: add result</span>
+
 <span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># TODO: make logging toggleable</span>
+        <span class="c1"># TODO: use logging rather than print</span>
+        <span class="c1"># TODO: maybe split and move to another file</span>
 
         <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Starting clustering...&quot;</span><span class="p">)</span>
         <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
 
         <span class="k">if</span> <span class="n">genomic_links</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_has_genomic_links</span><span class="p">:</span>
             <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Adding chromosomal edges...&quot;</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">add_chromsomal_edges</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_genomic_edges</span><span class="p">()</span>
 
         <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Starting model creation...&quot;</span><span class="p">)</span>
         <span class="n">state_args</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;deg_corr&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">}</span>  <span class="c1"># Usually lower entropy</span>

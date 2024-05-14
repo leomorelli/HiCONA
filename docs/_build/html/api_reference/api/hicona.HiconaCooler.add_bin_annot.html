@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>hicona.HiconaCooler.hmm_bin_annotation &#8212; HiCONA alpha documentation</title>
+    <title>hicona.HiconaCooler.add_bin_annot &#8212; HiCONA alpha documentation</title>
   
   
   
@@ -43,11 +43,11 @@
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
     <script src="../../_static/copybutton.js?v=f281be69"></script>
     <script src="../../_static/design-tabs.js?v=36754332"></script>
-    <script>DOCUMENTATION_OPTIONS.pagename = 'api_reference/api/hicona.HiconaCooler.hmm_bin_annotation';</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'api_reference/api/hicona.HiconaCooler.add_bin_annot';</script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
-    <link rel="next" title="hicona.HiconaCooler.ohe_bin_annotation" href="hicona.HiconaCooler.ohe_bin_annotation.html" />
-    <link rel="prev" title="hicona.HiconaCooler.del_bin_annotation" href="hicona.HiconaCooler.del_bin_annotation.html" />
+    <link rel="next" title="hicona.HiconaCooler.del_bin_annot" href="hicona.HiconaCooler.del_bin_annot.html" />
+    <link rel="prev" title="hicona.HiconaCooler.annot_list" href="hicona.HiconaCooler.annot_list.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   </head>
@@ -294,11 +294,11 @@ document.write(`
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.create_table.html">hicona.HiconaCooler.create_table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.fetch_table.html">hicona.HiconaCooler.fetch_table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.list_tables.html">hicona.HiconaCooler.list_tables</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.annotation_list.html">hicona.HiconaCooler.annotation_list</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.add_bin_annotation.html">hicona.HiconaCooler.add_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.del_bin_annotation.html">hicona.HiconaCooler.del_bin_annotation</a></li>
-<li class="toctree-l2 current active"><a class="current reference internal" href="#">hicona.HiconaCooler.hmm_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.ohe_bin_annotation.html">hicona.HiconaCooler.ohe_bin_annotation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.annot_list.html">hicona.HiconaCooler.annot_list</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">hicona.HiconaCooler.add_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.del_bin_annot.html">hicona.HiconaCooler.del_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.hmm_bin_annot.html">hicona.HiconaCooler.hmm_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.ohe_bin_annot.html">hicona.HiconaCooler.ohe_bin_annot</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../table.html">HiconaTable</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-2"><i class="fa-solid fa-chevron-down"></i></label><ul>
@@ -322,7 +322,7 @@ document.write(`
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.html">hicona.HiconaGraph</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.table.html">hicona.HiconaGraph.table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.ids_table.html">hicona.HiconaGraph.ids_table</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.add_chromsomal_edges.html">hicona.HiconaGraph.add_chromsomal_edges</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.add_genomic_edges.html">hicona.HiconaGraph.add_genomic_edges</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.compute_clustering.html">hicona.HiconaGraph.compute_clustering</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.permute_annotations.html">hicona.HiconaGraph.permute_annotations</a></li>
 </ul>
@@ -420,46 +420,55 @@ document.write(`
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="hicona-hiconacooler-hmm-bin-annotation">
-<h1>hicona.HiconaCooler.hmm_bin_annotation<a class="headerlink" href="#hicona-hiconacooler-hmm-bin-annotation" title="Link to this heading">#</a></h1>
+  <section id="hicona-hiconacooler-add-bin-annot">
+<h1>hicona.HiconaCooler.add_bin_annot<a class="headerlink" href="#hicona-hiconacooler-add-bin-annot" title="Link to this heading">#</a></h1>
 <dl class="py method">
-<dt class="sig sig-object py" id="hicona.HiconaCooler.hmm_bin_annotation">
-<span class="sig-prename descclassname"><span class="pre">HiconaCooler.</span></span><span class="sig-name descname"><span class="pre">hmm_bin_annotation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ann_file</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ann_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'hmm'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nan_annot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'Void'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hicona/_cooler.html#HiconaCooler.hmm_bin_annotation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.HiconaCooler.hmm_bin_annotation" title="Link to this definition">#</a></dt>
-<dd><p>Add a chromHMM style annotation to the bins table.</p>
-<p>A chromHMM-like annotation is a multimodal annotation without
-overlaps (one region of the genome cannot have two annotations).
-In general, it should also cover the entirety of the genome (though
-this is not strictly required).</p>
-<p>Each bin is annotated with the most enriched annotation, that is, the
-annotation with the highest fold change between the observed and
-expected fraction of bases with that annotation. The expected fraction
-is computed as the fraction of bases with that annotation in the whole
-genome of the bin.</p>
+<dt class="sig sig-object py" id="hicona.HiconaCooler.add_bin_annot">
+<span class="sig-prename descclassname"><span class="pre">HiconaCooler.</span></span><span class="sig-name descname"><span class="pre">add_bin_annot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">bed_path</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">in_file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">to_keep</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hicona/_cooler.html#HiconaCooler.add_bin_annot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.HiconaCooler.add_bin_annot" title="Link to this definition">#</a></dt>
+<dd><p>Add one (or more) bin annotation(s) from a bed-like file.</p>
+<p>Add one or more annotation columns to the <code class="docutils literal notranslate"><span class="pre">bins</span></code> group. One can add:</p>
+<ul class="simple">
+<li><p>0/1 column representing an overlap of the bin in the bed-like file</p></li>
+<li><p>any number of annotation columns from the bed-like file</p></li>
+</ul>
+<p>A bed-like file is a tab-separated file with the <code class="docutils literal notranslate"><span class="pre">chrom</span></code>, <code class="docutils literal notranslate"><span class="pre">start</span></code>,
+<code class="docutils literal notranslate"><span class="pre">end</span></code> columns followed by any number of other columns.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><dl class="simple">
-<dt><strong>ann_file</strong><span class="classifier">str</span></dt><dd><p>Path to the bed file containing the chromHMM-like annotation.</p>
+<dt><strong>bed_path</strong><span class="classifier">str</span></dt><dd><p>Path to the bed-like file to use for the annotation.</p>
 </dd>
-<dt><strong>ann_name</strong><span class="classifier">str, optional</span></dt><dd><p>Name of the new annotation column. Default is “hmm”.</p>
+<dt><strong>in_file</strong><span class="classifier">str, optional</span></dt><dd><p>Name of the 0/1 annotation column, containing 1 if the bin has at
+least one overlap with any interval in the bed-file, 0 otherwise.
+If set to ‘None’, no such column is created. Default is ‘None’.</p>
 </dd>
-<dt><strong>nan_annot</strong><span class="classifier">str, optional</span></dt><dd><p>Name of the modality replacing gaps. Default is “Void”.</p>
+<dt><strong>to_keep</strong><span class="classifier">str or list of (str, None), optional</span></dt><dd><p>Names for the columns of the bed-like file to add to the bins.
+Names are assigned from left to right ignoring <code class="docutils literal notranslate"><span class="pre">chrom</span></code>, <code class="docutils literal notranslate"><span class="pre">start</span></code>,
+<code class="docutils literal notranslate"><span class="pre">end</span></code>. Any column that receives a name is kept, while any column
+without a name is discarded. To skip a column, place a ‘None’ in
+its position. Excess names are ignored. Default is ‘None’.</p>
 </dd>
 </dl>
 </dd>
 </dl>
 <p class="rubric">Notes</p>
-<p>This function was created to add annotations coming from the chromHMM
-software <a class="reference internal" href="#r9b895664a34c-2" id="id1">[2]</a>, though it can be used with any similar annotation.</p>
-<p class="rubric">References</p>
-<div role="list" class="citation-list">
-<div class="citation" id="r9b895664a34c-2" role="doc-biblioentry">
-<span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id1">2</a><span class="fn-bracket">]</span></span>
-<p>Ernst and Kellis, “Chromatin-state discovery and genome
-annotation with ChromHMM”, Nature Protocols, 2017.</p>
-</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Adding annotations can drastically increase file size, especially
+for non-numerical annotations; limit string-like non categorical
+annotations (names, ids, …).</p>
 </div>
 <p class="rubric">Examples</p>
-<p>Print the head of the bins table.</p>
+<p>Printing a snippet of the bed using <code class="docutils literal notranslate"><span class="pre">pybedtools</span></code>.</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">pybedtools</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">bed</span> <span class="o">=</span> <span class="n">pybedtools</span><span class="o">.</span><span class="n">BedTool</span><span class="p">(</span><span class="s2">&quot;path/file.bed&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">bed</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">3</span><span class="p">))</span>
+<span class="go">chr1       0    200    A  0.6</span>
+<span class="go">chr1    2000   4000    A  0.2</span>
+<span class="go">chr1   20400  30000    B  0.3</span>
+</pre></div>
+</div>
+<p>Print the head of the <code class="docutils literal notranslate"><span class="pre">bins</span></code> table.</p>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">handle</span> <span class="o">=</span> <span class="n">HiconaCooler</span><span class="p">(</span><span class="s2">&quot;path/to/file.cool&quot;</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">handle</span><span class="o">.</span><span class="n">bins</span><span class="p">()[:]</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
 <span class="go">    chrom   start    end</span>
@@ -468,22 +477,22 @@ annotation with ChromHMM”, Nature Protocols, 2017.</p>
 <span class="go">2   chr1   20000   30000</span>
 </pre></div>
 </div>
-<p>Display the head of the chromHMM-like annotation file.</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">pybedtools</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">bed</span> <span class="o">=</span> <span class="n">pybedtools</span><span class="o">.</span><span class="n">BedTool</span><span class="p">(</span><span class="s2">&quot;path/file.bed&quot;</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">bed</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">3</span><span class="p">))</span>
-<span class="go">chr1   10000  10800   Het</span>
-<span class="go">chr1   10800  13000  Void</span>
-<span class="go">chr1   13000  13200  Prom</span>
+<p>Add a 0/1 column indicating overlap with the bed file.</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">handle</span><span class="o">.</span><span class="n">add_bin_annot</span><span class="p">(</span><span class="s2">&quot;path/file.bed&quot;</span><span class="p">,</span> <span class="n">in_file</span><span class="o">=</span><span class="s2">&quot;overlap&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">handle</span><span class="o">.</span><span class="n">bins</span><span class="p">()[:]</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+<span class="go">    chrom   start    end  overlap</span>
+<span class="go">0   chr1       0   10000        1</span>
+<span class="go">1   chr1   10000   20000        0</span>
+<span class="go">2   chr1   20000   30000        1</span>
 </pre></div>
 </div>
-<p>Add the chromHMM-like annotation to the bins table.</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">handle</span><span class="o">.</span><span class="n">hmm_bin_annotation</span><span class="p">(</span><span class="s2">&quot;path/file.bed&quot;</span><span class="p">)</span>
+<p>Add only the second annotation column from the bed file (skip first).</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">handle</span><span class="o">.</span><span class="n">add_bin_annot</span><span class="p">(</span><span class="s2">&quot;path/file.bed&quot;</span><span class="p">,</span> <span class="n">to_keep</span><span class="o">=</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;pval&quot;</span><span class="p">])</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">handle</span><span class="o">.</span><span class="n">bins</span><span class="p">()[:]</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
-<span class="go">    chrom   start    end   hmm</span>
-<span class="go">0   chr1       0   10000  Void</span>
-<span class="go">1   chr1   10000   20000   Het</span>
-<span class="go">2   chr1   20000   30000  Prom</span>
+<span class="go">    chrom   start    end  overlap  pval</span>
+<span class="go">0   chr1       0   10000        1   0.6</span>
+<span class="go">1   chr1   10000   20000        0   NaN</span>
+<span class="go">2   chr1   20000   30000        1   0.3</span>
 </pre></div>
 </div>
 </dd></dl>
@@ -501,20 +510,20 @@ annotation with ChromHMM”, Nature Protocols, 2017.</p>
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="hicona.HiconaCooler.del_bin_annotation.html"
+       href="hicona.HiconaCooler.annot_list.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">hicona.HiconaCooler.del_bin_annotation</p>
+        <p class="prev-next-title">hicona.HiconaCooler.annot_list</p>
       </div>
     </a>
     <a class="right-next"
-       href="hicona.HiconaCooler.ohe_bin_annotation.html"
+       href="hicona.HiconaCooler.del_bin_annot.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">hicona.HiconaCooler.ohe_bin_annotation</p>
+        <p class="prev-next-title">hicona.HiconaCooler.del_bin_annot</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -536,14 +545,14 @@ annotation with ChromHMM”, Nature Protocols, 2017.</p>
   </div>
   <nav class="bd-toc-nav page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#hicona.HiconaCooler.hmm_bin_annotation"><code class="docutils literal notranslate"><span class="pre">HiconaCooler.hmm_bin_annotation()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#hicona.HiconaCooler.add_bin_annot"><code class="docutils literal notranslate"><span class="pre">HiconaCooler.add_bin_annot()</span></code></a></li>
 </ul>
   </nav></div>
 
   <div class="sidebar-secondary-item">
 
   <div class="tocsection sourcelink">
-    <a href="../../_sources/api_reference/api/hicona.HiconaCooler.hmm_bin_annotation.rst.txt">
+    <a href="../../_sources/api_reference/api/hicona.HiconaCooler.add_bin_annot.rst.txt">
       <i class="fa-solid fa-file-lines"></i> Show Source
     </a>
   </div>

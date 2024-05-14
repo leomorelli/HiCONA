@@ -14,5 +14,5 @@ All filtering and normalization functions share a common blueprint:
 """
 
 from ._flow import Flow
-from .filt import *
-from .norm import *
+from ._filt import *
+from ._norm import *

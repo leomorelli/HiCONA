@@ -22,18 +22,44 @@ __all__ = ["HiconaGraph"]
 
 
 class HiconaGraph(gt.Graph):
-    """Graph-tool `Graph` specialized for Hi-C data network analysis.
+    """Graph-tool Graph class specialized for Hi-C data network analysis.
 
-    This class extends the `graph_tool.Graph` class, adding methods to
-    facilitate the analysis of Hi-C data networks. All the methods from the
-    parent class are still available and are not overwritten.
+    This class extends the ``graph_tool.Graph`` class by adding methods to
+    facilitate the analysis of Hi-C data (and Hi-C data-like) derived networks.
+
+    .. warning::
+        Creating an instance of ``HiconaGraph`` requires loading the full
+        pixel table into memory. This can be very expensive for large tables.
+        Consider subsetting the table to a smaller region of interest.
 
     Parameters
     ----------
     table : HiconaTable
         Pixel table to create the graph from.
     query : str, optional
-        Pandas-like query string to filter the pixel table. (Default is None)
+        Pandas-like query string to filter the pixel table. Default is 'None'.
+
+    See Also
+    --------
+    graph_tool.Graph : Parent class for ``HiconaGraph``.
+    pandas.DataFrame.query : Used to filter the table based on a query string.
+
+    Notes
+    -----
+    The class should not break any functionality of the ``graph_tool.Graph``
+    class, though it was not thoroughly tested. Please, report any issue you might find.
+
+    Examples
+    --------
+    Create a graph from a pixel table.
+
+    >>> import hicona
+    >>> handle = hicona.HiconaCooler("path/to/file.cool")
+    >>> table = handle.fetch_table("hicona")
+    >>> graph = hicona.HiconaGraph(table)
+    <HiconaGraph object, undirected, with 17974 vertices and 449642 edges ...>
+    # Output cropped for brevity
+
     """
 
     def __init__(self, table: HiconaTable, query: str | None = None):
@@ -119,12 +145,69 @@ class HiconaGraph(gt.Graph):
 
     @property
     def ids_table(self) -> pd.DataFrame:
-        """Return the conversion table from bin_id to node_id."""
+        """Return the conversion table from bin id to node id.
+
+        Return a ``pandas.DataFrame`` with the columns ``bin_id`` and
+        ``node_id``, which is used internally to convert bin ids to node ids
+        and vice versa.
+
+        Returns
+        -------
+        pandas.DataFrame
+            Conversion table from bin ids to node ids.
+
+        Examples
+        --------
+        Retrieve the id conversion table.
+
+        >>> import hicona
+        >>> handle = hicona.HiconaCooler("path/to/file.cool")
+        >>> table = handle.fetch_table("hicona")
+        >>> graph = hicona.HiconaGraph(table)
+        >>> graph.ids_table
+               bin_id  node_id
+        0           1        0
+        1           3        1
+        2           4        2
+        3           5        3
+        4           6        4
+        ...       ...      ...
+        17969   20488    17969
+        17970   20491    17970
+        17971   20500    17971
+        17972   20508    17972
+        17973   20517    17973
+        <BLANKLINE>
+        [17974 rows x 2 columns]
+
+        """
+
         return self._ids_table
 
     @property
     def table(self) -> HiconaTable:
-        """Return the pixel table used to create the graph."""
+        """Return the pixel table used to create the graph.
+
+        Return the instance of the ``HiconaTable`` class which was used to
+        create the graph.
+
+        Returns
+        -------
+        HiconaTable
+            Pixel table used to create the graph.
+
+        Examples
+        --------
+        Check that the pixel table used to create the graph is returned.
+
+        >>> import hicona
+        >>> handle = hicona.HiconaCooler("path/to/file.cool")
+        >>> table = handle.fetch_table("hicona")
+        >>> graph = hicona.HiconaGraph(table)
+        >>> graph.table == table
+        True
+
+        """
         return self._table
 
     def _node_statistics(self, stat: str, mask: np.ndarray) -> np.ndarray:
@@ -198,25 +281,40 @@ class HiconaGraph(gt.Graph):
         num_perms: int = 1000,
         seed: int = 94206,
     ) -> pd.DataFrame:
-        """Compute p-values for node label permutations.
+        r"""Compute p-values for node label permutations.
 
         Given a subset of node annotations of the graph, first compute all
         combinations of one (annA vs universe, e.i. all nodes in the graph)
         or two annotations (annA vs annB), then for each of them compute the
-        p-value for the test :math:`H1: log_2(stat(annA) / stat(annB)) > 0`
-        using node label permutations (randomly permute the attributes among
-        nodes without changing graph structure).
+        p-value for the test
 
-        Annotations must be in OHE form.
+        .. math::
+            :nowrap:
+
+            \begin{align*}
+            H0: & log_2(S(annA) / S(annB)) <= 0 \\
+            H1: & log_2(S(annA) / S(annB)) > 0
+            \end{align*}
+
+        where `S` is a node-level statistic of interest. The p-value is computed
+        using node label permutations (randomly permute the attributes among
+        nodes without changing graph structure, then compare the distributions;
+        see `here` for more details).
+
+        Annotations must be in One-Hot-Encoding form.
         The annotations can be overlapping, in which case the number of nodes
-        with overlapping annotations remains constant (e.i. if N nodes have
-        both annotations in the original set, N nodes will have both
+        with overlapping annotations remains constant (e.i. if `N` nodes have
+        both annotations in the original set, `N` nodes will have both
         annotations in each individual permutation).
+
+        .. warning::
+            currently, p-values are not corrected for multiple testing since.
+            An option to do so might be added in the future.
 
         Parameters
         ----------
-        ann_list : str or Iterable[str]
-            List of annotations (or single annotation) to permute.
+        ann_list : str or iterable of str
+            Annotation(s) to permute.
         stat : str
             Node-level statistic to use in the test. Currently supported:
 
@@ -225,20 +323,31 @@ class HiconaGraph(gt.Graph):
             - ``clustering_coeff``: local clustering coefficient
 
         num_perms : int, optional
-            Number of permutation iterations to perform. (Default is 1000)
+            Number of permutation iterations to perform. Default is '1000'.
         seed : int, optional
-            Rng seed for the permutations. (Default is 94206)
+            Rng seed for the permutations. Default is '94206'.
 
         Returns
         -------
-        pd.DataFrame
+        pandas.DataFrame
             Dataframe containing permutation parameters and results
+        
+        See Also
+        --------
+        HiconaCooler.ohe_bin_annot : Convert bin annotations to one-hot-encoding.
+
+        Examples
+        --------
+        Compute p-values for two annotations.
+
+        # TODO: Add example
         """
 
         # TODO: Add pvalue correction
         # TODO: Maybe add more values in return (magnitude/fold change?)
         # TODO: Maybe add number of nodes per annotation and overlap
         # TODO: Maybe create an entire object to return and plot the results?
+        # TODO: Add page with full algorithm explanation
 
         def annotation_combinations(iterable, k_vals=(1, 2)):
             """Return iterable of all combinations for all k_vals"""
@@ -266,22 +375,45 @@ class HiconaGraph(gt.Graph):
 
         return pd.DataFrame(res_dicts)
 
-    def add_chromsomal_edges(self) -> None:
+    def add_genomic_edges(self) -> None:
         """Add edges between consecutive genomic regions.
 
         Add edges between nodes representing consecutive genomic regions, i.e.
         add an edge between nodes with consecutive bin ids.
-        A new edge property map is added to the graph to store whether an edge
-        is chromosomal or not.
+        Nodes corresponding to bin ids that are between the minimum and maximum
+        bin ids in the pixel table, but are not already present in the graph,
+        are added to it.
+        A new edge property map (``is_genomic_link``) is added to the graph to
+        store whether an edge is genomic or not.
 
-        NOTE: Currently the start end end bin for consecutive chromosomes are
-        joined. Until this is fixed, be sure to provide an intrachromosomal
-        pixel table.
+        .. warning::
+            Currently the start end end bin for consecutive chromosomes are
+            joined if they fall within the bin ids interval. Until this is
+            fixed, be sure to provide an intrachromosomal pixel table.
 
-        NOTE: Older edge maps are filled with the default value for those
-        maps. This behaviour might lead to unexpected results and will be
-        changed in the future.
+        .. warning::
+            Older edge maps are filled with the default value for those maps.
+            This behaviour might lead to unexpected results and will be likely
+            changed in the future.
+
+        Examples
+        --------
+        Add chromosomal edges to the graph.
+
+        >>> import hicona
+        >>> handle = hicona.HiconaCooler("path/to/file.cool")
+        >>> table = handle.fetch_table("hicona")
+        >>> graph = hicona.HiconaGraph(table)
+        >>> graph
+        <HiconaGraph object, undirected, with 17974 vertices and 449642 edges ...>
+        <BLANKLINE>
+        >>> graph.add_genomic_edges()
+        >>> graph
+        <HiconaGraph object, undirected, with 20517 vertices and 470158 edges ...>
+
         """
+
+        # TODO: maybe add nodes during table creation?
 
         min_bin: int = self.ids_table["bin_id"].min()
         max_bin: int = self.ids_table["bin_id"].max()
@@ -319,42 +451,70 @@ class HiconaGraph(gt.Graph):
         """Computed nested blockmodel clustering of the graph.
 
         Return hierarchical clustering of the graph using a nested blockmodel.
-        The output is a `pd.DataFrame` with the cluster labels for each node
-        at each level of the hierarchy, where level `0` is the level with the
-        highest number of clusters, while level `n` is the level with the
+        The output is a ``pandas.DataFrame`` with the cluster labels for each
+        node at each level of the hierarchy, where level `0` is the level with
+        the highest number of clusters, while level `n` is the level with the
         lowest number of clusters.
 
-        For more detail on the clustering algorithm see the `graph_tool`
-        documentation.
+        This is a streamlined version of the clustering procedure provided by
+        the ``graph_tool`` library. For an in-depth explanation, please refer
+        to the official guide available `here
+        <https://graph-tool.skewed.de/static/doc/demos/inference/inference.html>`__.
+
+        .. warning::
+            The clustering procedure can be very computationally expensive for
+            large graphs. If you are experiencing long runtimes, consider
+            subsetting the graph to a smaller region of interest.
 
         Parameters
         ----------
         min_steps : int, optional
             Number of iterations of the entropy minimization step.
-            (Default is 10)
+            Default is '10'.
         genomic_links : bool, optional
             Whether to add edges between genomically consecutive bins.
-            (Default is True)
+            Default is 'True'.
         equilibrate : bool, optional
             Whether to equilibrate the model after the minimization step.
-            (Default is True)
+            Default is 'True'.
         annotate : bool, optional
             Whether to add bin annotations to the output DataFrame.
-            (Default is False)
+            Default is 'False'.
 
         Returns
         -------
-        pd.DataFrame
+        pandas.DataFrame
             DataFrame with the cluster labels for each node at each level.
             Optionally, the DataFrame can also contain bin annotations.
+
+        See Also
+        --------
+        graph_tool.inference.minimize_nested_blockmodel_dl :
+            Minimize nested blockmodel entropy.
+
+        Examples
+        --------
+        Compute the clustering of the graph.
+
+        >>> import hicona
+        >>> handle = hicona.HiconaCooler("path/to/file.cool")
+        >>> table = handle.fetch_table("hicona")
+        >>> graph = hicona.HiconaGraph(table)
+        >>> graph.compute_clustering()
+        # TODO: add result
+
         """
+
+        # TODO: make logging toggleable
+        # TODO: use logging rather than print
+        # TODO: maybe split and move to another file
 
         print("Starting clustering...")
         start_time = time.time()
 
         if genomic_links and not self._has_genomic_links:
             print("Adding chromosomal edges...")
-            self.add_chromsomal_edges()
+            self.add_genomic_edges()
 
         print("Starting model creation...")
         state_args = {"deg_corr": True}  # Usually lower entropy

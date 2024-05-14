@@ -294,11 +294,11 @@ document.write(`
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.create_table.html">hicona.HiconaCooler.create_table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.fetch_table.html">hicona.HiconaCooler.fetch_table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.list_tables.html">hicona.HiconaCooler.list_tables</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.annotation_list.html">hicona.HiconaCooler.annotation_list</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.add_bin_annotation.html">hicona.HiconaCooler.add_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.del_bin_annotation.html">hicona.HiconaCooler.del_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.hmm_bin_annotation.html">hicona.HiconaCooler.hmm_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.ohe_bin_annotation.html">hicona.HiconaCooler.ohe_bin_annotation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.annot_list.html">hicona.HiconaCooler.annot_list</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.add_bin_annot.html">hicona.HiconaCooler.add_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.del_bin_annot.html">hicona.HiconaCooler.del_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.hmm_bin_annot.html">hicona.HiconaCooler.hmm_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.ohe_bin_annot.html">hicona.HiconaCooler.ohe_bin_annot</a></li>
 </ul>
 </li>
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="../table.html">HiconaTable</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-2"><i class="fa-solid fa-chevron-down"></i></label><ul class="current">
@@ -322,7 +322,7 @@ document.write(`
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.html">hicona.HiconaGraph</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.table.html">hicona.HiconaGraph.table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.ids_table.html">hicona.HiconaGraph.ids_table</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.add_chromsomal_edges.html">hicona.HiconaGraph.add_chromsomal_edges</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.add_genomic_edges.html">hicona.HiconaGraph.add_genomic_edges</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.compute_clustering.html">hicona.HiconaGraph.compute_clustering</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.permute_annotations.html">hicona.HiconaGraph.permute_annotations</a></li>
 </ul>
@@ -427,28 +427,118 @@ document.write(`
 <span class="sig-prename descclassname"><span class="pre">HiconaTable.</span></span><span class="sig-name descname"><span class="pre">dataframe</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">columns</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">annotated</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">query</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#hicona.HiconaTable.dataframe" title="Link to this definition">#</a></dt>
 <dd><p>Return all table chunks in a single pandas DataFrame.</p>
 <p>Obtain the full table by concatenating all chunks into a single
-pandas DataFrame.</p>
+<code class="docutils literal notranslate"><span class="pre">pandas.DataFrame</span></code> object. The table can be optionally annotated and
+filtered.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This operation can be rather expensive in terms of memory,
+especially for large or non subsetted tables. If possible, use
+the <code class="docutils literal notranslate"><span class="pre">chunks</span></code> method to iterate over the table in chunks instead.</p>
+</div>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><dl class="simple">
-<dt><strong>columns</strong><span class="classifier">Iterable[str], optional</span></dt><dd><p>If provided, only fetch the specified columns. Default is None.</p>
+<dt><strong>columns</strong><span class="classifier">iterable of str, optional</span></dt><dd><p>If provided, only fetch the specified columns. Default is ‘None’.</p>
 </dd>
-<dt><strong>annotated: bool, optional</strong></dt><dd><p>Whether to annotate with the bin information. Default is False.</p>
+<dt><strong>annotated: bool, optional</strong></dt><dd><p>Whether to annotate with the bin information. Performed prior to
+column selection to allow for complex queries. Default is ‘False’.</p>
 </dd>
 <dt><strong>query</strong><span class="classifier">str, optional</span></dt><dd><p>If provided, only fetch the pixels that satisfy the query.
-Query must be a valid pandas query string. Default is None.</p>
+Query must be a valid pandas query string, since internally it is
+passed to pandas.DataFrame.query. Default is ‘None’.</p>
 </dd>
 </dl>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><dl class="simple">
-<dt>A pandas DataFrame with all table pixels.</dt><dd></dd>
+<dt>A pandas.DataFrame with all table pixels.</dt><dd></dd>
 </dl>
 </dd>
 </dl>
-<p class="rubric">Notes</p>
-<p>This operation can be rather expensive in terms of memory, especially
-for large or non subsetted tables.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><a class="reference internal" href="hicona.HiconaTable.chunks.html#hicona.HiconaTable.chunks" title="hicona.HiconaTable.chunks"><code class="xref py py-obj docutils literal notranslate"><span class="pre">hicona.HiconaTable.chunks</span></code></a></dt><dd><p>Used to fetch the table in chunks.</p>
+</dd>
+<dt><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.query.html#pandas.DataFrame.query" title="(in pandas v2.2.2)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pandas.DataFrame.query</span></code></a></dt><dd><p>Used to filter the table based on a query string.</p>
+</dd>
+</dl>
+</div>
+<p class="rubric">Examples</p>
+<p>Load a small table in memory at once:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">handle</span> <span class="o">=</span> <span class="n">HiconaCooler</span><span class="p">(</span><span class="s2">&quot;path/to/cool_file.cool&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">table</span> <span class="o">=</span> <span class="n">handle</span><span class="o">.</span><span class="n">fetch_table</span><span class="p">(</span><span class="s2">&quot;hicona&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">table</span><span class="o">.</span><span class="n">dataframe</span><span class="p">()</span>  <span class="c1"># Usually tables are much larger than this</span>
+<span class="go">        alpha_max  alpha_min  bin1_id  bin2_id  count  norm</span>
+<span class="go">0          0.4219     0.4037        1     2720      1   1.0</span>
+<span class="go">1          0.4219     0.3737        1     5476      1   1.0</span>
+<span class="go">2          0.4219     0.3814        1     5802      1   1.0</span>
+<span class="go">3          0.4219     0.3816        1    18419      1   1.0</span>
+<span class="go">4          0.4219     0.4155        3      890      1   1.0</span>
+<span class="go">...           ...        ...      ...      ...    ...   ...</span>
+<span class="go">449637     0.4574     0.4220      520     4700      1   1.0</span>
+<span class="go">449638     0.4574     0.3963      520     4701      1   1.0</span>
+<span class="go">449639     0.4574     0.3909      520     4702      1   1.0</span>
+<span class="go">449640     0.2091     0.1761      520     4704      3   2.0</span>
+<span class="go">449641     0.4574     0.4107      520     4706      1   1.0</span>
+
+<span class="go">[449642 rows x 6 columns]</span>
+</pre></div>
+</div>
+<p>Only fetch the bin ids in the table:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">table</span><span class="o">.</span><span class="n">dataframe</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;bin1_id&quot;</span><span class="p">,</span> <span class="s2">&quot;bin2_id&quot;</span><span class="p">])</span>
+<span class="go">        bin1_id  bin2_id</span>
+<span class="go">0             1     2720</span>
+<span class="go">1             1     5476</span>
+<span class="go">2             1     5802</span>
+<span class="go">3             1    18419</span>
+<span class="go">4             3      890</span>
+<span class="go">...         ...      ...</span>
+<span class="go">449637      520     4700</span>
+<span class="go">449638      520     4701</span>
+<span class="go">449639      520     4702</span>
+<span class="go">449640      520     4704</span>
+<span class="go">449641      520     4706</span>
+
+<span class="go">[449642 rows x 2 columns]</span>
+</pre></div>
+</div>
+<p>Fetch the table with bin annotations:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">table</span><span class="o">.</span><span class="n">dataframe</span><span class="p">(</span><span class="n">annotated</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="go">       chrom1   start1     end1 HMM_annot1  ...  bin1_id bin2_id  count  norm</span>
+<span class="go">0        chr1    10000    20000         Tx  ...        1    2720      1   1.0</span>
+<span class="go">1        chr1    10000    20000         Tx  ...        1    5476      1   1.0</span>
+<span class="go">2        chr1    10000    20000         Tx  ...        1    5802      1   1.0</span>
+<span class="go">3        chr1    10000    20000         Tx  ...        1   18419      1   1.0</span>
+<span class="go">4        chr1    30000    40000       Void  ...        3     890      1   1.0</span>
+<span class="go">...       ...      ...      ...        ...  ...      ...     ...    ...   ...</span>
+<span class="go">449637   chr1  5200000  5210000        Het  ...      520    4700      1   1.0</span>
+<span class="go">449638   chr1  5200000  5210000        Het  ...      520    4701      1   1.0</span>
+<span class="go">449639   chr1  5200000  5210000        Het  ...      520    4702      1   1.0</span>
+<span class="go">449640   chr1  5200000  5210000        Het  ...      520    4704      3   2.0</span>
+<span class="go">449641   chr1  5200000  5210000        Het  ...      520    4706      1   1.0</span>
+
+<span class="go">[449642 rows x 16 columns]</span>
+</pre></div>
+</div>
+<p>Only fetch the rows where the <code class="docutils literal notranslate"><span class="pre">alpha_min</span></code> is smaller than 0.1:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">table</span><span class="o">.</span><span class="n">dataframe</span><span class="p">(</span><span class="n">query</span><span class="o">=</span><span class="s2">&quot;alpha_min &lt; 0.1&quot;</span><span class="p">)</span>
+<span class="go">      alpha_max  alpha_min  bin1_id  bin2_id  count      norm</span>
+<span class="go">0        0.0839     0.0787       94      130     35  2.772590</span>
+<span class="go">1        0.0900     0.0895       94      131     26  2.632268</span>
+<span class="go">2        0.1039     0.0947       95      126     33  2.514573</span>
+<span class="go">3        0.0776     0.0739       98      123     48  2.807355</span>
+<span class="go">4        0.1031     0.0963       98      126     38  2.523562</span>
+<span class="go">...         ...        ...      ...      ...    ...       ...</span>
+<span class="go">1173     0.1313     0.0734      517     1311      8  3.169925</span>
+<span class="go">1174     0.1668     0.0990      517     1339      6  2.807355</span>
+<span class="go">1175     0.1158     0.0844      517     1359      7  3.000000</span>
+<span class="go">1176     0.0990     0.0969      517     1427      6  2.807355</span>
+<span class="go">1177     0.1937     0.0747      519     1323      7  3.000000</span>
+
+<span class="go">[1178 rows x 6 columns]</span>
+</pre></div>
+</div>
 </dd></dl>
 
 </section>

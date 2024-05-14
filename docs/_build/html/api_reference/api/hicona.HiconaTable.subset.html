@@ -294,11 +294,11 @@ document.write(`
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.create_table.html">hicona.HiconaCooler.create_table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.fetch_table.html">hicona.HiconaCooler.fetch_table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.list_tables.html">hicona.HiconaCooler.list_tables</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.annotation_list.html">hicona.HiconaCooler.annotation_list</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.add_bin_annotation.html">hicona.HiconaCooler.add_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.del_bin_annotation.html">hicona.HiconaCooler.del_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.hmm_bin_annotation.html">hicona.HiconaCooler.hmm_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.ohe_bin_annotation.html">hicona.HiconaCooler.ohe_bin_annotation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.annot_list.html">hicona.HiconaCooler.annot_list</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.add_bin_annot.html">hicona.HiconaCooler.add_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.del_bin_annot.html">hicona.HiconaCooler.del_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.hmm_bin_annot.html">hicona.HiconaCooler.hmm_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.ohe_bin_annot.html">hicona.HiconaCooler.ohe_bin_annot</a></li>
 </ul>
 </li>
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="../table.html">HiconaTable</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-2"><i class="fa-solid fa-chevron-down"></i></label><ul class="current">
@@ -322,7 +322,7 @@ document.write(`
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.html">hicona.HiconaGraph</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.table.html">hicona.HiconaGraph.table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.ids_table.html">hicona.HiconaGraph.ids_table</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.add_chromsomal_edges.html">hicona.HiconaGraph.add_chromsomal_edges</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.add_genomic_edges.html">hicona.HiconaGraph.add_genomic_edges</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.compute_clustering.html">hicona.HiconaGraph.compute_clustering</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.permute_annotations.html">hicona.HiconaGraph.permute_annotations</a></li>
 </ul>
@@ -426,15 +426,28 @@ document.write(`
 <dt class="sig sig-object py" id="hicona.HiconaTable.subset">
 <span class="sig-prename descclassname"><span class="pre">HiconaTable.</span></span><span class="sig-name descname"><span class="pre">subset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">region</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">both</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hicona/_table.html#HiconaTable.subset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.HiconaTable.subset" title="Link to this definition">#</a></dt>
 <dd><p>Return a subset of the table based on pixel genomic regions.</p>
+<p>Return a new <code class="docutils literal notranslate"><span class="pre">HiconaTable</span></code> object with only the pixels that have
+both or at least one of their bins in the specified genomic region.
+This is useful to restrict both visualization and analysis.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Currently, subsetting of a subset is not supported. This behavior
+may change in future versions. Currently, multiple subsetting can
+be achieved by using a combination of boolean operations.</p>
+</div>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><dl class="simple">
-<dt><strong>region</strong><span class="classifier">str</span></dt><dd><p>Genomic region to keep. It must be a string in bed-like format,
-such as “chr1 10000 200000” or just “chr1”.</p>
+<dt><strong>region</strong><span class="classifier">str</span></dt><dd><p>Genomic region to keep. Allowed string formats are:</p>
+<ul class="simple">
+<li><p>chromosome: <code class="docutils literal notranslate"><span class="pre">chr1</span></code></p></li>
+<li><p>bed-like interval: <code class="docutils literal notranslate"><span class="pre">chr1</span> <span class="pre">10000</span> <span class="pre">200000</span></code></p></li>
+<li><p>position-like interval: <code class="docutils literal notranslate"><span class="pre">chr1:10000-200000</span></code></p></li>
+</ul>
 </dd>
 <dt><strong>both</strong><span class="classifier">bool, optional</span></dt><dd><p>Whether to keep a pixel only if both of its bins are in the
-specified region. If False, keep a pixel if at least one of its
-bins is in the region. Default is True.</p>
+specified region. If ‘False’, keep a pixel if at least one of its
+bins is in the region. Default is ‘True’.</p>
 </dd>
 </dl>
 </dd>
@@ -445,6 +458,23 @@ bins is in the region. Default is True.</p>
 </dl>
 </dd>
 </dl>
+<p class="rubric">Examples</p>
+<p>Subset a table based on a genomic region (both bins in interval):</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">handle</span> <span class="o">=</span> <span class="n">HiconaCooler</span><span class="p">(</span><span class="s2">&quot;path/to/cool_file.cool&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">table</span> <span class="o">=</span> <span class="n">handle</span><span class="o">.</span><span class="n">fetch_table</span><span class="p">(</span><span class="s2">&quot;hicona&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">table</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
+<span class="go">449642</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">both</span> <span class="o">=</span> <span class="n">table</span><span class="o">.</span><span class="n">subset</span><span class="p">(</span><span class="s2">&quot;chr1 10000 5000000&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">both</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
+<span class="go">27728</span>
+</pre></div>
+</div>
+<p>Subset a table based on a genomic region (at least one bin in interval):</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">either</span> <span class="o">=</span> <span class="n">table</span><span class="o">.</span><span class="n">subset</span><span class="p">(</span><span class="s2">&quot;chr1 10000 5000000&quot;</span><span class="p">,</span> <span class="n">both</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">either</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
+<span class="go">428400</span>
+</pre></div>
+</div>
 </dd></dl>
 
 </section>

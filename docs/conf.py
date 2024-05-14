@@ -32,6 +32,7 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.coverage",
     "sphinx.ext.viewcode",
+    "sphinx.ext.intersphinx",
     "IPython.sphinxext.ipython_console_highlighting",
     "IPython.sphinxext.ipython_directive",
 ]
@@ -46,6 +47,7 @@ autodoc_typehints = "none"
 numpydoc_show_class_members = False
 autoclass_content = "class"
 
+
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
@@ -54,3 +56,13 @@ html_static_path = ["_static"]
 
 # Configuration of sphinx.ext.coverage
 coverage_show_missing_items = True
+
+# Configuration of sphinx.ext.intersphinx
+
+intersphinx_mapping = {
+    "cooler": ("https://cooler.readthedocs.io/en/latest/", None),
+    "h5py": ("https://docs.h5py.org/en/stable/", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
+    "pandas": ("https://pandas.pydata.org/pandas-docs/stable/", None),
+    "graph_tool": ("https://graph-tool.skewed.de/static/doc/", None),
+}

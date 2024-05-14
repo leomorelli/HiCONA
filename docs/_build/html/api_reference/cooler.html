@@ -294,11 +294,11 @@ document.write(`
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaCooler.create_table.html">hicona.HiconaCooler.create_table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaCooler.fetch_table.html">hicona.HiconaCooler.fetch_table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaCooler.list_tables.html">hicona.HiconaCooler.list_tables</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaCooler.annotation_list.html">hicona.HiconaCooler.annotation_list</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaCooler.add_bin_annotation.html">hicona.HiconaCooler.add_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaCooler.del_bin_annotation.html">hicona.HiconaCooler.del_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaCooler.hmm_bin_annotation.html">hicona.HiconaCooler.hmm_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaCooler.ohe_bin_annotation.html">hicona.HiconaCooler.ohe_bin_annotation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaCooler.annot_list.html">hicona.HiconaCooler.annot_list</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaCooler.add_bin_annot.html">hicona.HiconaCooler.add_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaCooler.del_bin_annot.html">hicona.HiconaCooler.del_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaCooler.hmm_bin_annot.html">hicona.HiconaCooler.hmm_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaCooler.ohe_bin_annot.html">hicona.HiconaCooler.ohe_bin_annot</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="table.html">HiconaTable</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-2"><i class="fa-solid fa-chevron-down"></i></label><ul>
@@ -322,7 +322,7 @@ document.write(`
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaGraph.html">hicona.HiconaGraph</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaGraph.table.html">hicona.HiconaGraph.table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaGraph.ids_table.html">hicona.HiconaGraph.ids_table</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaGraph.add_chromsomal_edges.html">hicona.HiconaGraph.add_chromsomal_edges</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaGraph.add_genomic_edges.html">hicona.HiconaGraph.add_genomic_edges</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaGraph.compute_clustering.html">hicona.HiconaGraph.compute_clustering</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.HiconaGraph.permute_annotations.html">hicona.HiconaGraph.permute_annotations</a></li>
 </ul>
@@ -419,12 +419,33 @@ document.write(`
                   
   <section id="hiconacooler">
 <span id="api-cooler"></span><h1>HiconaCooler<a class="headerlink" href="#hiconacooler" title="Link to this heading">#</a></h1>
+<p>The <code class="docutils literal notranslate"><span class="pre">HiconaCooler</span></code> class is responsible for interfacing with cooler-like
+files. This means that it is responsible for I/O operations to and from cooler
+files, managing bin annotations as well as creating and retrieving processed
+pixel tables. Ideally one should use the <code class="docutils literal notranslate"><span class="pre">HiconaCooler</span></code> class to generate
+the pixel tables (instances of the <a class="reference internal" href="table.html"><span class="doc">HiconaTable</span></a> class) of interest, and then
+follow up with their analysis.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">HiconaCooler</span></code> class is a strict subclass of the <a class="reference external" href="https://cooler.readthedocs.io/en/latest/api.html#cooler.Cooler" title="(in cooler v0.9)"><code class="xref py py-class docutils literal notranslate"><span class="pre">cooler.Cooler</span></code></a>
+class, extending all its functionalities without modifying them. For this
+reason, an object of the <code class="docutils literal notranslate"><span class="pre">HiconaCooler</span></code> class can always be used as a
+<code class="docutils literal notranslate"><span class="pre">cooler.Cooler</span></code> object. Since no functionality is overwritten, attributes
+and methods from that class are not documented here (though they are listed in
+the <a class="reference internal" href="api/hicona.HiconaCooler.html#hicona.HiconaCooler" title="hicona.HiconaCooler"><code class="xref py py-class docutils literal notranslate"><span class="pre">HiconaCooler</span></code></a> class constructor page); for those, please
+refer to the <a class="reference external" href="https://cooler.readthedocs.io/en/latest/">cooler documentation</a>.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p><code class="docutils literal notranslate"><span class="pre">HiconaCooler</span></code> should not break any of the functionalities of the
+<code class="docutils literal notranslate"><span class="pre">cooler.Cooler</span></code> class, though this is not guaranteed. This is because
+testing at every update would be extremely time-consuming, and thus
+impractical. If you find any issues, please report them on
+<a class="reference external" href="https://github.com/leomorelli/HiCONA">Github</a>.</p>
+</div>
 <section id="constructor">
 <h2>Constructor<a class="headerlink" href="#constructor" title="Link to this heading">#</a></h2>
 <table class="autosummary longtable table autosummary">
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="api/hicona.HiconaCooler.html#hicona.HiconaCooler" title="hicona.HiconaCooler"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HiconaCooler</span></code></a>(store, **kwargs)</p></td>
-<td><p>Class to handle I/O and annotation of cooler-like files.</p></td>
+<td><p>Class to handle I/O, annotation and processing of cooler-like files.</p></td>
 </tr>
 </tbody>
 </table>
@@ -462,19 +483,19 @@ document.write(`
 <h2>Annotation<a class="headerlink" href="#annotation" title="Link to this heading">#</a></h2>
 <table class="autosummary longtable table autosummary">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="api/hicona.HiconaCooler.annotation_list.html#hicona.HiconaCooler.annotation_list" title="hicona.HiconaCooler.annotation_list"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HiconaCooler.annotation_list</span></code></a>()</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="api/hicona.HiconaCooler.annot_list.html#hicona.HiconaCooler.annot_list" title="hicona.HiconaCooler.annot_list"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HiconaCooler.annot_list</span></code></a>()</p></td>
 <td><p>Return a list of available bin annotation columns.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="api/hicona.HiconaCooler.add_bin_annotation.html#hicona.HiconaCooler.add_bin_annotation" title="hicona.HiconaCooler.add_bin_annotation"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HiconaCooler.add_bin_annotation</span></code></a>(bed_path, *)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="api/hicona.HiconaCooler.add_bin_annot.html#hicona.HiconaCooler.add_bin_annot" title="hicona.HiconaCooler.add_bin_annot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HiconaCooler.add_bin_annot</span></code></a>(bed_path, *[, ...])</p></td>
 <td><p>Add one (or more) bin annotation(s) from a bed-like file.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="api/hicona.HiconaCooler.del_bin_annotation.html#hicona.HiconaCooler.del_bin_annotation" title="hicona.HiconaCooler.del_bin_annotation"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HiconaCooler.del_bin_annotation</span></code></a>(to_del)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="api/hicona.HiconaCooler.del_bin_annot.html#hicona.HiconaCooler.del_bin_annot" title="hicona.HiconaCooler.del_bin_annot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HiconaCooler.del_bin_annot</span></code></a>(to_del)</p></td>
 <td><p>Remove one (or more) bin annotation columns.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="api/hicona.HiconaCooler.hmm_bin_annotation.html#hicona.HiconaCooler.hmm_bin_annotation" title="hicona.HiconaCooler.hmm_bin_annotation"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HiconaCooler.hmm_bin_annotation</span></code></a>(ann_file, *)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="api/hicona.HiconaCooler.hmm_bin_annot.html#hicona.HiconaCooler.hmm_bin_annot" title="hicona.HiconaCooler.hmm_bin_annot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HiconaCooler.hmm_bin_annot</span></code></a>(ann_file, *[, ...])</p></td>
 <td><p>Add a chromHMM style annotation to the bins table.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="api/hicona.HiconaCooler.ohe_bin_annotation.html#hicona.HiconaCooler.ohe_bin_annotation" title="hicona.HiconaCooler.ohe_bin_annotation"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HiconaCooler.ohe_bin_annotation</span></code></a>(to_ohe[, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="api/hicona.HiconaCooler.ohe_bin_annot.html#hicona.HiconaCooler.ohe_bin_annot" title="hicona.HiconaCooler.ohe_bin_annot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HiconaCooler.ohe_bin_annot</span></code></a>(to_ohe, *[, ...])</p></td>
 <td><p>Convert one (or more) bin annotation(s) to one hot encoding form.</p></td>
 </tr>
 </tbody>

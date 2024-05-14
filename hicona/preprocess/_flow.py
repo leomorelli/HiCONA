@@ -19,7 +19,7 @@ __all__ = ["Flow"]
 
 # TODO: move hardcoded paths to settings.
 DEFAULT_FLOWS: str = "flows.json"
-DEFAULT_MODULES: list[str] = [".preprocess.filt", ".preprocess.norm"]
+DEFAULT_MODULES: list[str] = [".preprocess._filt", ".preprocess._norm"]
 
 
 # TODO: Maybe make the Flow immutable when fetching a table,
@@ -77,19 +77,49 @@ class Operation:
 
 
 class Flow:
-    """Class to handle filtering and normalization functions for a table.
+    """Class to organize filtering and normalization functions for a table.
 
-    This class is used to schedule and retrieve the operations applied to a
-    pixel table in order to filter and normalize it. The object can be
-    initialized empty (default class constructor), with a default flow (using
-    the `from_default` method), from a json-like dictionary (using the
-    `from_json` method) or from a file containing a previously saved flow
-    (using the `from_file` method).
+    This class is used to specify a set of filtering and normalization
+    functions (in an order sensitive manner), which can be used to create
+    or fetch a processed pixel table.
+
+    Though the object can be initialized directly using its constructor
+    method (which takes no arguments), it should generally be created
+    using one of its class methods (``from_default``, ``from_json`` or
+    ``from_file``).
 
     Any custom function can be added to the workflow as long as:
-    - It takes a table object as its first argument
-    - All other arguments are JSON data-types
-    - It returns an iterator of processed chunks
+
+    - It takes an instance of ``HiconaTable`` as its first argument.
+    - All other arguments are JSON data-types.
+    - It returns an iterator of processed chunks as ``pandas.DataFrame``
+      instances.
+
+    See Also
+    --------
+    hicona.HiconaTable :
+        The class to handle pixel tables.
+    hicona.preprocess.Flow.from_default :
+        Load a default flow from the ones available from HiCONA.
+    hicona.preprocess.Flow.from_json :
+        Load a flow from a json-like dictionary.
+    hicona.preprocess.Flow.from_file :
+        Load a flow from a previously saved json file.
+
+    Examples
+    --------
+
+    Create an empty flow using its constructor:
+
+    >>> from hicona.preprocess import Flow
+    >>> flow = Flow()
+
+    Load a default flow using the class methods:
+
+    >>> flow = Flow.from_default("default_flow")
+    >>> flow = Flow.from_file("path/to/file.json")
+    >>> flow = Flow.from_json({0: {"name": "fun_name", "kwargs": {}})
+
     """
 
     def __init__(self):
@@ -129,23 +159,40 @@ class Flow:
     ) -> "Flow":
         """Create an instance with the provided functions already added.
 
-        Create an instance of `Flow` with the provided operations
+        Create an instance of ``Flow`` with the provided operations
         already added to the operations flow. The outer json keys should be
         the order of the operations, the intermediate keys the operations,
         and the inner most dictionary the kwargs to pass to the operation.
+
+        .. note::
+            To load a flow from a json file, use the ``from_file`` method instead.
 
         Parameters
         ----------
         json_data: dict[int, dict[str, Any]]
             The operations to add to the flow, in json format.
-        source: list[Callable] or None, optional
+        source: list of Callable or None, optional
             Any non default function required by the workflow. These should
-            take a `PixelTable` as first argument and return an iterator of
-            processed chunks. Default is None.
+            take a ``HiconaTable`` as first argument and return an iterator of
+            processed chunks. Default is 'None'.
 
         Returns
         -------
-        A `Flow` object with the provided operations already added.
+        Flow
+            Workflow with the provided operations already added.
+
+        See Also
+        --------
+        hicona.preprocess.Flow.from_file :
+            Load a flow from a previously saved json file.
+
+        Examples
+        --------
+        Create a flow from a json-like dictionary:
+
+        >>> from hicona.preprocess import Flow
+        >>> flow = Flow.from_json({0: {"name": "fun_name", "kwargs": {}})
+
         """
 
         flow = cls()
@@ -179,18 +226,36 @@ class Flow:
         Load a flow which was previously saved to json. If the flow contains
         any non default functions, these should be provided in the sources.
 
+        .. note::
+            To load a flow from a json-like dictionary, use the ``from_json``
+            method instead.
+
         Parameters
         ----------
         file_path: str
             Path to the json file containing the operations flow.
-        source: list[Callable] or None, optional
+        source: list of Callable or None, optional
             Any non default function required by the workflow. These should
-            take a `PixelTable` as first argument and return an iterator of
-            processed chunks. Default is None.
+            take a `HiconaTable` as first argument and return an iterator of
+            processed chunks. Default is 'None'.
 
         Returns
         -------
-        A `Flow` object with the operations flow from the file.
+        Flow
+            Workflow with the operations flow from the file.
+
+        See Also
+        --------
+        hicona.preprocess.Flow.from_json :
+            Load a flow from a json-like dictionary.
+
+        Examples
+        --------
+        Load a flow from a previously saved json file:
+
+        >>> from hicona.preprocess import Flow
+        >>> flow = Flow.from_file("path/to/file.json")
+
         """
 
         json_data = io.read_resource(file_path)
@@ -200,7 +265,7 @@ class Flow:
     def from_default(cls, default_name: str) -> "Flow":
         """Load a default Flow.
 
-        Load a default Flow from the available ones. The default
+        Load a default ``Flow`` from those available in HiCONA. The default
         name should be one of the available ones, otherwise an error is raised.
 
         Parameters
@@ -210,7 +275,16 @@ class Flow:
 
         Returns
         -------
-        A `Flow` object with the default operations flow.
+        Flow
+            Default workflow from HiCONA.
+
+        Examples
+        --------
+        Load a default flow from HiCONA:
+
+        >>> from hicona.preprocess import Flow
+        >>> flow = Flow.from_default("hicona")
+
         """
 
         default_json = io.read_resource(DEFAULT_FLOWS, is_static=True)

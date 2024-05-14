@@ -294,11 +294,11 @@ document.write(`
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.create_table.html">hicona.HiconaCooler.create_table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.fetch_table.html">hicona.HiconaCooler.fetch_table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.list_tables.html">hicona.HiconaCooler.list_tables</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.annotation_list.html">hicona.HiconaCooler.annotation_list</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.add_bin_annotation.html">hicona.HiconaCooler.add_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.del_bin_annotation.html">hicona.HiconaCooler.del_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.hmm_bin_annotation.html">hicona.HiconaCooler.hmm_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.ohe_bin_annotation.html">hicona.HiconaCooler.ohe_bin_annotation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.annot_list.html">hicona.HiconaCooler.annot_list</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.add_bin_annot.html">hicona.HiconaCooler.add_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.del_bin_annot.html">hicona.HiconaCooler.del_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.hmm_bin_annot.html">hicona.HiconaCooler.hmm_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.ohe_bin_annot.html">hicona.HiconaCooler.ohe_bin_annot</a></li>
 </ul>
 </li>
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="../table.html">HiconaTable</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-2"><i class="fa-solid fa-chevron-down"></i></label><ul class="current">
@@ -322,7 +322,7 @@ document.write(`
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.html">hicona.HiconaGraph</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.table.html">hicona.HiconaGraph.table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.ids_table.html">hicona.HiconaGraph.ids_table</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.add_chromsomal_edges.html">hicona.HiconaGraph.add_chromsomal_edges</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.add_genomic_edges.html">hicona.HiconaGraph.add_genomic_edges</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.compute_clustering.html">hicona.HiconaGraph.compute_clustering</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.permute_annotations.html">hicona.HiconaGraph.permute_annotations</a></li>
 </ul>
@@ -425,21 +425,20 @@ document.write(`
 <dl class="py method">
 <dt class="sig sig-object py" id="hicona.HiconaTable.get_alpha_grid">
 <span class="sig-prename descclassname"><span class="pre">HiconaTable.</span></span><span class="sig-name descname"><span class="pre">get_alpha_grid</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">decimals</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha_mod</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'alpha_min'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hicona/_table.html#HiconaTable.get_alpha_grid"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.HiconaTable.get_alpha_grid" title="Link to this definition">#</a></dt>
-<dd><p>Return a grid for the table filtered at different alpha values.</p>
+<dd><p>Return a grid of statistics for the table filtered at different alpha values.</p>
 <p>Compute the number and fraction of nodes and edges remaining in the
 table when filtered at different alpha values. Return this information
-as an <cite>AlphaGrid</cite> object, which can also be used to plot the results
+as an <code class="docutils literal notranslate"><span class="pre">AlphaGrid</span></code> object, which can also be used to plot the results
 and retrieve the optimal alpha value for filtering the table.</p>
-<p>For the threshold selection procedure see the <cite>AlphaGrid</cite> class.</p>
+<p>For the threshold selection procedure see the <code class="docutils literal notranslate"><span class="pre">AlphaGrid</span></code> class.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><dl class="simple">
-<dt><strong>alpha_mod</strong><span class="classifier">“alpha_min” or “alpha_max”, optional</span></dt><dd><p>The alpha mode to use for filtering. Default is “alpha_min”.</p>
+<dt><strong>alpha_mod</strong><span class="classifier">‘alpha_min’ or ‘alpha_max’, optional</span></dt><dd><p>The alpha mode to use for filtering. Default is ‘alpha_min’.</p>
 </dd>
-<dt><strong>decimals</strong><span class="classifier">int, optional</span></dt><dd><p>The number of decimal positions to consider when computing the
-grid. Default is 3.</p>
+<dt><strong>decimals</strong><span class="classifier">int, optional</span></dt><dd><p>Maximum number of decimal positions for the thresholds. Default is 3.</p>
 </dd>
-<dt><strong>verbose</strong><span class="classifier">bool, optional</span></dt><dd><p>Whether to log the progress of the computation. Default is True.</p>
+<dt><strong>verbose</strong><span class="classifier">bool, optional</span></dt><dd><p>Whether to log the progress of the computation. Default is ‘True’.</p>
 </dd>
 </dl>
 </dd>
@@ -450,6 +449,13 @@ grid. Default is 3.</p>
 </dl>
 </dd>
 </dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><a class="reference internal" href="hicona.analysis.AlphaGrid.html#hicona.analysis.AlphaGrid" title="hicona.analysis.AlphaGrid"><code class="xref py py-obj docutils literal notranslate"><span class="pre">analysis.AlphaGrid</span></code></a></dt><dd><p>Class for the alpha grid computation and selection.</p>
+</dd>
+</dl>
+</div>
 <p class="rubric">Examples</p>
 <p>Compute the alpha grid for a table and fetch the optimal alpha value:</p>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">handle</span> <span class="o">=</span> <span class="n">HiconaCooler</span><span class="p">(</span><span class="s2">&quot;path/to/cool_file.cool&quot;</span><span class="p">)</span>

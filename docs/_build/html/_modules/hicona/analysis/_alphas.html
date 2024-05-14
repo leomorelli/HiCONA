@@ -377,8 +377,6 @@ document.write(`
 <span class="sd">        Whether to log the progress of the computation.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-<div class="viewcode-block" id="AlphaGrid.__init__">
-<a class="viewcode-back" href="../../../api_reference/api/hicona.analysis.AlphaGrid.html#hicona.analysis.AlphaGrid.__init__">[docs]</a>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">table</span><span class="p">:</span> <span class="s2">&quot;HiconaTable&quot;</span><span class="p">,</span>
@@ -389,8 +387,7 @@ document.write(`
         <span class="bp">self</span><span class="o">.</span><span class="n">_table</span> <span class="o">=</span> <span class="n">table</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_alpha_mod</span> <span class="o">=</span> <span class="n">alpha_mod</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_decimals</span> <span class="o">=</span> <span class="n">decimals</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_alpha_grid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_grid</span><span class="p">(</span><span class="n">decimals</span><span class="p">,</span> <span class="n">verbose</span><span class="p">)</span></div>
-
+        <span class="bp">self</span><span class="o">.</span><span class="n">_alpha_grid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_grid</span><span class="p">(</span><span class="n">decimals</span><span class="p">,</span> <span class="n">verbose</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_get_stats</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">thr</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Return number of nodes and edges in a table filtered by alpha.&quot;&quot;&quot;</span>

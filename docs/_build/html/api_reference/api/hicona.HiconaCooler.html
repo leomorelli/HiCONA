@@ -294,11 +294,11 @@ document.write(`
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.create_table.html">hicona.HiconaCooler.create_table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.fetch_table.html">hicona.HiconaCooler.fetch_table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.list_tables.html">hicona.HiconaCooler.list_tables</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.annotation_list.html">hicona.HiconaCooler.annotation_list</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.add_bin_annotation.html">hicona.HiconaCooler.add_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.del_bin_annotation.html">hicona.HiconaCooler.del_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.hmm_bin_annotation.html">hicona.HiconaCooler.hmm_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.ohe_bin_annotation.html">hicona.HiconaCooler.ohe_bin_annotation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.annot_list.html">hicona.HiconaCooler.annot_list</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.add_bin_annot.html">hicona.HiconaCooler.add_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.del_bin_annot.html">hicona.HiconaCooler.del_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.hmm_bin_annot.html">hicona.HiconaCooler.hmm_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.ohe_bin_annot.html">hicona.HiconaCooler.ohe_bin_annot</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../table.html">HiconaTable</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-2"><i class="fa-solid fa-chevron-down"></i></label><ul>
@@ -322,7 +322,7 @@ document.write(`
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.html">hicona.HiconaGraph</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.table.html">hicona.HiconaGraph.table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.ids_table.html">hicona.HiconaGraph.ids_table</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.add_chromsomal_edges.html">hicona.HiconaGraph.add_chromsomal_edges</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.add_genomic_edges.html">hicona.HiconaGraph.add_genomic_edges</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.compute_clustering.html">hicona.HiconaGraph.compute_clustering</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.permute_annotations.html">hicona.HiconaGraph.permute_annotations</a></li>
 </ul>
@@ -425,91 +425,44 @@ document.write(`
 <dl class="py class">
 <dt class="sig sig-object py" id="hicona.HiconaCooler">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">hicona.</span></span><span class="sig-name descname"><span class="pre">HiconaCooler</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">store</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hicona/_cooler.html#HiconaCooler"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.HiconaCooler" title="Link to this definition">#</a></dt>
-<dd><p>Class to handle I/O and annotation of cooler-like files.</p>
-<p>Class extending the <code class="xref py py-class docutils literal notranslate"><span class="pre">cooler.Cooler</span></code> class to allow for the creation
+<dd><p>Class to handle I/O, annotation and processing of cooler-like files.</p>
+<p>Class extending the <code class="docutils literal notranslate"><span class="pre">cooler.Cooler</span></code> class to allow for the creation
 and retrieval of processed pixel tables. Moreover, it allows to easily add
-and remove annotations to/from the “bins” table.</p>
+and remove annotations to/from the <code class="docutils literal notranslate"><span class="pre">bins</span></code> table.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><dl class="simple">
 <dt><strong>store</strong><span class="classifier">str, h5py.File or h5py.Group</span></dt><dd><p>Path to a cooler file, URI string, or open handle to the root HDF5
 group of a cooler data collection.</p>
 </dd>
-<dt><strong>kwargs</strong><span class="classifier">optional</span></dt><dd><p>Options to be passed to h5py.File upon every access via methods from
-the cooler.Cooler class. These keyword arguments are not passed when
-accessing the HDF5 file via functions from hicona.
-See class constructor for cooler.Cooler for more details.</p>
+<dt><strong>kwargs</strong><span class="classifier">optional</span></dt><dd><p>Options to be passed to <code class="docutils literal notranslate"><span class="pre">h5py.File</span></code> upon every access via methods
+from the <code class="docutils literal notranslate"><span class="pre">cooler.Cooler</span></code> class. These keyword arguments are not
+passed when accessing the HDF5 file via functions from <code class="docutils literal notranslate"><span class="pre">hicona</span></code>.
+See <code class="docutils literal notranslate"><span class="pre">cooler.Cooler</span></code> class constructor for more details.</p>
 </dd>
 </dl>
 </dd>
 </dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><a class="reference external" href="https://cooler.readthedocs.io/en/latest/api.html#cooler.Cooler" title="(in cooler v0.9)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cooler.Cooler</span></code></a></dt><dd><p>Parent class extended by HiconaCooler.</p>
+</dd>
+<dt><a class="reference external" href="https://docs.h5py.org/en/stable/high/file.html#h5py.File" title="(in h5py v3.11)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">h5py.File</span></code></a></dt><dd><p>Handle to an HDF5 file object.</p>
+</dd>
+<dt><a class="reference external" href="https://docs.h5py.org/en/stable/high/group.html#h5py.Group" title="(in h5py v3.11)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">h5py.Group</span></code></a></dt><dd><p>Handle to an HDF5 group object.</p>
+</dd>
+</dl>
+</div>
 <p class="rubric">Notes</p>
-<p>The class should not break any functionality of the cooler.Cooler class,
-though it was not tested. Please, report any issue you might find.</p>
+<p>The class should not break any functionality of the <code class="docutils literal notranslate"><span class="pre">cooler.Cooler</span></code>
+class, though it was not thoroughly tested. Please, report any issue you might find.</p>
 <p class="rubric">Examples</p>
-<p>Creating an HiconaCooler object from a cool file path.</p>
+<p>Creating an <code class="docutils literal notranslate"><span class="pre">HiconaCooler</span></code> object from a cool file path.</p>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">handle</span> <span class="o">=</span> <span class="n">HiconaCooler</span><span class="p">(</span><span class="s2">&quot;path/to/file.cool&quot;</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">handle</span> <span class="o">=</span> <span class="n">HiconaCooler</span><span class="p">(</span><span class="s2">&quot;path/to/file.mcool::resolutions/10000&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
-<dl class="py method">
-<dt class="sig sig-object py" id="hicona.HiconaCooler.__init__">
-<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">store</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hicona/_cooler.html#HiconaCooler.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.HiconaCooler.__init__" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<p class="rubric">Methods</p>
-<table class="autosummary longtable table autosummary">
-<tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="#hicona.HiconaCooler.__init__" title="hicona.HiconaCooler.__init__"><code class="xref py py-obj docutils literal notranslate"><span class="pre">__init__</span></code></a>(store, **kwargs)</p></td>
-<td><p></p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="hicona.HiconaCooler.add_bin_annotation.html#hicona.HiconaCooler.add_bin_annotation" title="hicona.HiconaCooler.add_bin_annotation"><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_bin_annotation</span></code></a>(bed_path, *[, in_file, ...])</p></td>
-<td><p>Add one (or more) bin annotation(s) from a bed-like file.</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="hicona.HiconaCooler.annotation_list.html#hicona.HiconaCooler.annotation_list" title="hicona.HiconaCooler.annotation_list"><code class="xref py py-obj docutils literal notranslate"><span class="pre">annotation_list</span></code></a>()</p></td>
-<td><p>Return a list of available bin annotation columns.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">bins</span></code>(**kwargs)</p></td>
-<td><p>Bin table selector</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">chroms</span></code>(**kwargs)</p></td>
-<td><p>Chromosome table selector</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="hicona.HiconaCooler.create_table.html#hicona.HiconaCooler.create_table" title="hicona.HiconaCooler.create_table"><code class="xref py py-obj docutils literal notranslate"><span class="pre">create_table</span></code></a>([ops_flow, chunk_size])</p></td>
-<td><p>Create a normalized and sparsified pixels table.</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="hicona.HiconaCooler.del_bin_annotation.html#hicona.HiconaCooler.del_bin_annotation" title="hicona.HiconaCooler.del_bin_annotation"><code class="xref py py-obj docutils literal notranslate"><span class="pre">del_bin_annotation</span></code></a>(to_del)</p></td>
-<td><p>Remove one (or more) bin annotation columns.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">extent</span></code>(region)</p></td>
-<td><p>Bin IDs containing the left and right ends of a genomic region</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="hicona.HiconaCooler.fetch_table.html#hicona.HiconaCooler.fetch_table" title="hicona.HiconaCooler.fetch_table"><code class="xref py py-obj docutils literal notranslate"><span class="pre">fetch_table</span></code></a>([ops_flow])</p></td>
-<td><p>Retrieve a previously created sparsified pixel table.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="hicona.HiconaCooler.hmm_bin_annotation.html#hicona.HiconaCooler.hmm_bin_annotation" title="hicona.HiconaCooler.hmm_bin_annotation"><code class="xref py py-obj docutils literal notranslate"><span class="pre">hmm_bin_annotation</span></code></a>(ann_file, *[, ann_name, ...])</p></td>
-<td><p>Add a chromHMM style annotation to the bins table.</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="hicona.HiconaCooler.list_tables.html#hicona.HiconaCooler.list_tables" title="hicona.HiconaCooler.list_tables"><code class="xref py py-obj docutils literal notranslate"><span class="pre">list_tables</span></code></a>()</p></td>
-<td><p>Print the available pixel tables.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">matrix</span></code>([field, balance, sparse, as_pixels, ...])</p></td>
-<td><p>Contact matrix selector</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">offset</span></code>(region)</p></td>
-<td><p>Bin ID containing the left end of a genomic region</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="hicona.HiconaCooler.ohe_bin_annotation.html#hicona.HiconaCooler.ohe_bin_annotation" title="hicona.HiconaCooler.ohe_bin_annotation"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ohe_bin_annotation</span></code></a>(to_ohe[, ...])</p></td>
-<td><p>Convert one (or more) bin annotation(s) to one hot encoding form.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">open</span></code>([mode])</p></td>
-<td><p>Open the HDF5 group containing the Cooler with <code class="xref py py-mod docutils literal notranslate"><span class="pre">h5py</span></code></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">pixels</span></code>([join])</p></td>
-<td><p>Pixel table selector</p></td>
-</tr>
-</tbody>
-</table>
 <p class="rubric">Attributes</p>
 <table class="autosummary longtable table autosummary">
 <tbody>
@@ -536,6 +489,56 @@ though it was not tested. Please, report any issue you might find.</p>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="hicona.HiconaCooler.tables_root.html#hicona.HiconaCooler.tables_root" title="hicona.HiconaCooler.tables_root"><code class="xref py py-obj docutils literal notranslate"><span class="pre">tables_root</span></code></a></p></td>
 <td><p>Return URI of the group in which processed pixel tables are rooted.</p></td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Methods</p>
+<table class="autosummary longtable table autosummary">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="hicona.HiconaCooler.add_bin_annot.html#hicona.HiconaCooler.add_bin_annot" title="hicona.HiconaCooler.add_bin_annot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_bin_annot</span></code></a>(bed_path, *[, in_file, to_keep])</p></td>
+<td><p>Add one (or more) bin annotation(s) from a bed-like file.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="hicona.HiconaCooler.annot_list.html#hicona.HiconaCooler.annot_list" title="hicona.HiconaCooler.annot_list"><code class="xref py py-obj docutils literal notranslate"><span class="pre">annot_list</span></code></a>()</p></td>
+<td><p>Return a list of available bin annotation columns.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">bins</span></code>(**kwargs)</p></td>
+<td><p>Bin table selector</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">chroms</span></code>(**kwargs)</p></td>
+<td><p>Chromosome table selector</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="hicona.HiconaCooler.create_table.html#hicona.HiconaCooler.create_table" title="hicona.HiconaCooler.create_table"><code class="xref py py-obj docutils literal notranslate"><span class="pre">create_table</span></code></a>([ops_flow, chunk_size])</p></td>
+<td><p>Create a normalized and sparsified pixels table.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="hicona.HiconaCooler.del_bin_annot.html#hicona.HiconaCooler.del_bin_annot" title="hicona.HiconaCooler.del_bin_annot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">del_bin_annot</span></code></a>(to_del)</p></td>
+<td><p>Remove one (or more) bin annotation columns.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">extent</span></code>(region)</p></td>
+<td><p>Bin IDs containing the left and right ends of a genomic region</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="hicona.HiconaCooler.fetch_table.html#hicona.HiconaCooler.fetch_table" title="hicona.HiconaCooler.fetch_table"><code class="xref py py-obj docutils literal notranslate"><span class="pre">fetch_table</span></code></a>([ops_flow])</p></td>
+<td><p>Retrieve a previously created sparsified pixel table.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="hicona.HiconaCooler.hmm_bin_annot.html#hicona.HiconaCooler.hmm_bin_annot" title="hicona.HiconaCooler.hmm_bin_annot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">hmm_bin_annot</span></code></a>(ann_file, *[, ann_name, nan_annot])</p></td>
+<td><p>Add a chromHMM style annotation to the bins table.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="hicona.HiconaCooler.list_tables.html#hicona.HiconaCooler.list_tables" title="hicona.HiconaCooler.list_tables"><code class="xref py py-obj docutils literal notranslate"><span class="pre">list_tables</span></code></a>()</p></td>
+<td><p>Print the available pixel tables.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">matrix</span></code>([field, balance, sparse, as_pixels, ...])</p></td>
+<td><p>Contact matrix selector</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">offset</span></code>(region)</p></td>
+<td><p>Bin ID containing the left end of a genomic region</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="hicona.HiconaCooler.ohe_bin_annot.html#hicona.HiconaCooler.ohe_bin_annot" title="hicona.HiconaCooler.ohe_bin_annot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ohe_bin_annot</span></code></a>(to_ohe, *[, remove_original, ...])</p></td>
+<td><p>Convert one (or more) bin annotation(s) to one hot encoding form.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">open</span></code>([mode])</p></td>
+<td><p>Open the HDF5 group containing the Cooler with <code class="xref py py-mod docutils literal notranslate"><span class="pre">h5py</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">pixels</span></code>([join])</p></td>
+<td><p>Pixel table selector</p></td>
 </tr>
 </tbody>
 </table>
@@ -589,10 +592,7 @@ though it was not tested. Please, report any issue you might find.</p>
   </div>
   <nav class="bd-toc-nav page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#hicona.HiconaCooler"><code class="docutils literal notranslate"><span class="pre">HiconaCooler</span></code></a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#hicona.HiconaCooler.__init__"><code class="docutils literal notranslate"><span class="pre">HiconaCooler.__init__()</span></code></a></li>
-</ul>
-</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#hicona.HiconaCooler"><code class="docutils literal notranslate"><span class="pre">HiconaCooler</span></code></a></li>
 </ul>
   </nav></div>
 

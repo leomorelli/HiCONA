@@ -350,7 +350,7 @@ document.write(`
 
 <span class="c1"># TODO: move hardcoded paths to settings.</span>
 <span class="n">DEFAULT_FLOWS</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;flows.json&quot;</span>
-<span class="n">DEFAULT_MODULES</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;.preprocess.filt&quot;</span><span class="p">,</span> <span class="s2">&quot;.preprocess.norm&quot;</span><span class="p">]</span>
+<span class="n">DEFAULT_MODULES</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;.preprocess._filt&quot;</span><span class="p">,</span> <span class="s2">&quot;.preprocess._norm&quot;</span><span class="p">]</span>
 
 
 <span class="c1"># TODO: Maybe make the Flow immutable when fetching a table,</span>
@@ -410,23 +410,51 @@ document.write(`
 <div class="viewcode-block" id="Flow">
 <a class="viewcode-back" href="../../../api_reference/api/hicona.preprocess.Flow.html#hicona.preprocess.Flow">[docs]</a>
 <span class="k">class</span> <span class="nc">Flow</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Class to handle filtering and normalization functions for a table.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Class to organize filtering and normalization functions for a table.</span>
 
-<span class="sd">    This class is used to schedule and retrieve the operations applied to a</span>
-<span class="sd">    pixel table in order to filter and normalize it. The object can be</span>
-<span class="sd">    initialized empty (default class constructor), with a default flow (using</span>
-<span class="sd">    the `from_default` method), from a json-like dictionary (using the</span>
-<span class="sd">    `from_json` method) or from a file containing a previously saved flow</span>
-<span class="sd">    (using the `from_file` method).</span>
+<span class="sd">    This class is used to specify a set of filtering and normalization</span>
+<span class="sd">    functions (in an order sensitive manner), which can be used to create</span>
+<span class="sd">    or fetch a processed pixel table.</span>
+
+<span class="sd">    Though the object can be initialized directly using its constructor</span>
+<span class="sd">    method (which takes no arguments), it should generally be created</span>
+<span class="sd">    using one of its class methods (``from_default``, ``from_json`` or</span>
+<span class="sd">    ``from_file``).</span>
 
 <span class="sd">    Any custom function can be added to the workflow as long as:</span>
-<span class="sd">    - It takes a table object as its first argument</span>
-<span class="sd">    - All other arguments are JSON data-types</span>
-<span class="sd">    - It returns an iterator of processed chunks</span>
+
+<span class="sd">    - It takes an instance of ``HiconaTable`` as its first argument.</span>
+<span class="sd">    - All other arguments are JSON data-types.</span>
+<span class="sd">    - It returns an iterator of processed chunks as ``pandas.DataFrame``</span>
+<span class="sd">      instances.</span>
+
+<span class="sd">    See Also</span>
+<span class="sd">    --------</span>
+<span class="sd">    hicona.HiconaTable :</span>
+<span class="sd">        The class to handle pixel tables.</span>
+<span class="sd">    hicona.preprocess.Flow.from_default :</span>
+<span class="sd">        Load a default flow from the ones available from HiCONA.</span>
+<span class="sd">    hicona.preprocess.Flow.from_json :</span>
+<span class="sd">        Load a flow from a json-like dictionary.</span>
+<span class="sd">    hicona.preprocess.Flow.from_file :</span>
+<span class="sd">        Load a flow from a previously saved json file.</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+
+<span class="sd">    Create an empty flow using its constructor:</span>
+
+<span class="sd">    &gt;&gt;&gt; from hicona.preprocess import Flow</span>
+<span class="sd">    &gt;&gt;&gt; flow = Flow()</span>
+
+<span class="sd">    Load a default flow using the class methods:</span>
+
+<span class="sd">    &gt;&gt;&gt; flow = Flow.from_default(&quot;default_flow&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; flow = Flow.from_file(&quot;path/to/file.json&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; flow = Flow.from_json({0: {&quot;name&quot;: &quot;fun_name&quot;, &quot;kwargs&quot;: {}})</span>
+
 <span class="sd">    &quot;&quot;&quot;</span>
 
-<div class="viewcode-block" id="Flow.__init__">
-<a class="viewcode-back" href="../../../api_reference/api/hicona.preprocess.Flow.html#hicona.preprocess.Flow.__init__">[docs]</a>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_ops_flow</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Operation</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_source_default</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
@@ -435,8 +463,7 @@ document.write(`
         <span class="k">for</span> <span class="n">mod</span> <span class="ow">in</span> <span class="n">DEFAULT_MODULES</span><span class="p">:</span>
             <span class="n">mod</span> <span class="o">=</span> <span class="n">import_module</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">package</span><span class="o">=</span><span class="s2">&quot;hicona&quot;</span><span class="p">)</span>
             <span class="n">funs</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">getmembers</span><span class="p">(</span><span class="n">mod</span><span class="p">)</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">mod</span><span class="o">.</span><span class="n">__all__</span><span class="p">}</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_source_default</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">funs</span><span class="p">)</span></div>
-
+            <span class="bp">self</span><span class="o">.</span><span class="n">_source_default</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">funs</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="fm">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="s2">&quot;Flow&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Check equality among ProcessingFlow objects.&quot;&quot;&quot;</span>
@@ -467,23 +494,40 @@ document.write(`
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Flow&quot;</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Create an instance with the provided functions already added.</span>
 
-<span class="sd">        Create an instance of `Flow` with the provided operations</span>
+<span class="sd">        Create an instance of ``Flow`` with the provided operations</span>
 <span class="sd">        already added to the operations flow. The outer json keys should be</span>
 <span class="sd">        the order of the operations, the intermediate keys the operations,</span>
 <span class="sd">        and the inner most dictionary the kwargs to pass to the operation.</span>
+
+<span class="sd">        .. note::</span>
+<span class="sd">            To load a flow from a json file, use the ``from_file`` method instead.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        json_data: dict[int, dict[str, Any]]</span>
 <span class="sd">            The operations to add to the flow, in json format.</span>
-<span class="sd">        source: list[Callable] or None, optional</span>
+<span class="sd">        source: list of Callable or None, optional</span>
 <span class="sd">            Any non default function required by the workflow. These should</span>
-<span class="sd">            take a `PixelTable` as first argument and return an iterator of</span>
-<span class="sd">            processed chunks. Default is None.</span>
+<span class="sd">            take a ``HiconaTable`` as first argument and return an iterator of</span>
+<span class="sd">            processed chunks. Default is &#39;None&#39;.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
-<span class="sd">        A `Flow` object with the provided operations already added.</span>
+<span class="sd">        Flow</span>
+<span class="sd">            Workflow with the provided operations already added.</span>
+
+<span class="sd">        See Also</span>
+<span class="sd">        --------</span>
+<span class="sd">        hicona.preprocess.Flow.from_file :</span>
+<span class="sd">            Load a flow from a previously saved json file.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        Create a flow from a json-like dictionary:</span>
+
+<span class="sd">        &gt;&gt;&gt; from hicona.preprocess import Flow</span>
+<span class="sd">        &gt;&gt;&gt; flow = Flow.from_json({0: {&quot;name&quot;: &quot;fun_name&quot;, &quot;kwargs&quot;: {}})</span>
+
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="n">flow</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">()</span>
@@ -520,18 +564,36 @@ document.write(`
 <span class="sd">        Load a flow which was previously saved to json. If the flow contains</span>
 <span class="sd">        any non default functions, these should be provided in the sources.</span>
 
+<span class="sd">        .. note::</span>
+<span class="sd">            To load a flow from a json-like dictionary, use the ``from_json``</span>
+<span class="sd">            method instead.</span>
+
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        file_path: str</span>
 <span class="sd">            Path to the json file containing the operations flow.</span>
-<span class="sd">        source: list[Callable] or None, optional</span>
+<span class="sd">        source: list of Callable or None, optional</span>
 <span class="sd">            Any non default function required by the workflow. These should</span>
-<span class="sd">            take a `PixelTable` as first argument and return an iterator of</span>
-<span class="sd">            processed chunks. Default is None.</span>
+<span class="sd">            take a `HiconaTable` as first argument and return an iterator of</span>
+<span class="sd">            processed chunks. Default is &#39;None&#39;.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
-<span class="sd">        A `Flow` object with the operations flow from the file.</span>
+<span class="sd">        Flow</span>
+<span class="sd">            Workflow with the operations flow from the file.</span>
+
+<span class="sd">        See Also</span>
+<span class="sd">        --------</span>
+<span class="sd">        hicona.preprocess.Flow.from_json :</span>
+<span class="sd">            Load a flow from a json-like dictionary.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        Load a flow from a previously saved json file:</span>
+
+<span class="sd">        &gt;&gt;&gt; from hicona.preprocess import Flow</span>
+<span class="sd">        &gt;&gt;&gt; flow = Flow.from_file(&quot;path/to/file.json&quot;)</span>
+
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="n">json_data</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">read_resource</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
@@ -544,7 +606,7 @@ document.write(`
     <span class="k">def</span> <span class="nf">from_default</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">default_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Flow&quot;</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Load a default Flow.</span>
 
-<span class="sd">        Load a default Flow from the available ones. The default</span>
+<span class="sd">        Load a default ``Flow`` from those available in HiCONA. The default</span>
 <span class="sd">        name should be one of the available ones, otherwise an error is raised.</span>
 
 <span class="sd">        Parameters</span>
@@ -554,7 +616,16 @@ document.write(`
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
-<span class="sd">        A `Flow` object with the default operations flow.</span>
+<span class="sd">        Flow</span>
+<span class="sd">            Default workflow from HiCONA.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        Load a default flow from HiCONA:</span>
+
+<span class="sd">        &gt;&gt;&gt; from hicona.preprocess import Flow</span>
+<span class="sd">        &gt;&gt;&gt; flow = Flow.from_default(&quot;hicona&quot;)</span>
+
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="n">default_json</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">read_resource</span><span class="p">(</span><span class="n">DEFAULT_FLOWS</span><span class="p">,</span> <span class="n">is_static</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>

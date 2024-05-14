@@ -294,11 +294,11 @@ document.write(`
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.create_table.html">hicona.HiconaCooler.create_table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.fetch_table.html">hicona.HiconaCooler.fetch_table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.list_tables.html">hicona.HiconaCooler.list_tables</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.annotation_list.html">hicona.HiconaCooler.annotation_list</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.add_bin_annotation.html">hicona.HiconaCooler.add_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.del_bin_annotation.html">hicona.HiconaCooler.del_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.hmm_bin_annotation.html">hicona.HiconaCooler.hmm_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.ohe_bin_annotation.html">hicona.HiconaCooler.ohe_bin_annotation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.annot_list.html">hicona.HiconaCooler.annot_list</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.add_bin_annot.html">hicona.HiconaCooler.add_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.del_bin_annot.html">hicona.HiconaCooler.del_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.hmm_bin_annot.html">hicona.HiconaCooler.hmm_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.ohe_bin_annot.html">hicona.HiconaCooler.ohe_bin_annot</a></li>
 </ul>
 </li>
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="../table.html">HiconaTable</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-2"><i class="fa-solid fa-chevron-down"></i></label><ul class="current">
@@ -322,7 +322,7 @@ document.write(`
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.html">hicona.HiconaGraph</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.table.html">hicona.HiconaGraph.table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.ids_table.html">hicona.HiconaGraph.ids_table</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.add_chromsomal_edges.html">hicona.HiconaGraph.add_chromsomal_edges</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.add_genomic_edges.html">hicona.HiconaGraph.add_genomic_edges</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.compute_clustering.html">hicona.HiconaGraph.compute_clustering</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.permute_annotations.html">hicona.HiconaGraph.permute_annotations</a></li>
 </ul>
@@ -433,7 +433,7 @@ filtered using progressively more stringent alpha values.</p>
 individual values for the annotation, the dynamics are computed for
 each unordered pair of modalities of the annotation, rather than for
 each modality individually.</p>
-<p>The function returns an instance of the <cite>AnnotDynamics</cite> class, which
+<p>The function returns an instance of the <code class="docutils literal notranslate"><span class="pre">AnnotDynamics</span></code> class, which
 can be used to compute, return and plot the annotation dynamics. See
 object documentation for more information on parameters and outputs.</p>
 <dl class="field-list simple">
@@ -442,9 +442,9 @@ object documentation for more information on parameters and outputs.</p>
 <dt><strong>annot</strong><span class="classifier">str</span></dt><dd><p>The name of the multimodal annotation column to consider.</p>
 </dd>
 <dt><strong>as_quantiles</strong><span class="classifier">bool, optional</span></dt><dd><p>Whether the intervals are expressed in quantile points, rather than
-in absolute percentage points. Default is True.</p>
+in absolute percentage points. Default is ‘True’.</p>
 </dd>
-<dt><strong>alpha_mod</strong><span class="classifier">“alpha_min” or “alpha_max”, optional</span></dt><dd><p>The alpha mode to use for filtering. Default is “alpha_min”.</p>
+<dt><strong>alpha_mod</strong><span class="classifier">‘alpha_min’ or ‘alpha_max’, optional</span></dt><dd><p>The alpha mode to use for filtering. Default is ‘alpha_min’.</p>
 </dd>
 </dl>
 </dd>
@@ -455,12 +455,27 @@ in absolute percentage points. Default is True.</p>
 </dl>
 </dd>
 </dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><a class="reference internal" href="hicona.analysis.AnnotDynamics.html#hicona.analysis.AnnotDynamics" title="hicona.analysis.AnnotDynamics"><code class="xref py py-obj docutils literal notranslate"><span class="pre">analysis.AnnotDynamics</span></code></a></dt><dd><p>Class for the annotation dynamics computation.</p>
+</dd>
+</dl>
+</div>
 <p class="rubric">Examples</p>
-<p>Compute the annotation dynamics for a table:</p>
+<p>Obtain an <code class="docutils literal notranslate"><span class="pre">AnnotDynamics</span></code> object and compute annotation dynamics for a table:</p>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">handle</span> <span class="o">=</span> <span class="n">HiconaCooler</span><span class="p">(</span><span class="s2">&quot;path/to/cool_file.cool&quot;</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">table</span> <span class="o">=</span> <span class="n">handle</span><span class="o">.</span><span class="n">fetch_table</span><span class="p">(</span><span class="s2">&quot;hicona&quot;</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">dynamics</span> <span class="o">=</span> <span class="n">table</span><span class="o">.</span><span class="n">get_annot_dynamics</span><span class="p">(</span><span class="s2">&quot;multimodal_annot&quot;</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">log_odds</span><span class="p">,</span> <span class="n">pvals</span> <span class="o">=</span> <span class="n">dynamics</span><span class="o">.</span><span class="n">compute_dynamics</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">dynamics</span> <span class="o">=</span> <span class="n">table</span><span class="o">.</span><span class="n">get_dynamics</span><span class="p">(</span><span class="s2">&quot;multimodal_annot&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">log_odds</span><span class="p">,</span> <span class="n">pvals</span> <span class="o">=</span> <span class="n">dynamics</span><span class="o">.</span><span class="n">get_dynamics</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">log_odds</span><span class="o">.</span><span class="n">head</span><span class="p">()</span>
+<span class="go">                         0.1363    0.1605   ...     0.4455    0.5318</span>
+<span class="go">HMM_annot1 HMM_annot2</span>
+<span class="go">Enh        Enh        -0.066962 -0.262823   ...  -2.853268 -2.022946</span>
+<span class="go">           Het        -2.155885 -2.001988   ...   0.890271 -0.463665</span>
+<span class="go">           Prom        0.109445  0.323272   ...  -1.969398 -1.388097</span>
+<span class="go">           Repr_Pc    -0.396773 -0.668461   ...  -1.762391 -1.160337</span>
+<span class="go">           Tx         -0.470425 -0.023662   ...  -3.228512 -1.852930</span>
 </pre></div>
 </div>
 </dd></dl>

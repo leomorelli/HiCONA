@@ -295,11 +295,11 @@ document.write(`
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.create_table.html">hicona.HiconaCooler.create_table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.fetch_table.html">hicona.HiconaCooler.fetch_table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.list_tables.html">hicona.HiconaCooler.list_tables</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.annotation_list.html">hicona.HiconaCooler.annotation_list</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.add_bin_annotation.html">hicona.HiconaCooler.add_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.del_bin_annotation.html">hicona.HiconaCooler.del_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.hmm_bin_annotation.html">hicona.HiconaCooler.hmm_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.ohe_bin_annotation.html">hicona.HiconaCooler.ohe_bin_annotation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.annot_list.html">hicona.HiconaCooler.annot_list</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.add_bin_annot.html">hicona.HiconaCooler.add_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.del_bin_annot.html">hicona.HiconaCooler.del_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.hmm_bin_annot.html">hicona.HiconaCooler.hmm_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.ohe_bin_annot.html">hicona.HiconaCooler.ohe_bin_annot</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../table.html">HiconaTable</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-2"><i class="fa-solid fa-chevron-down"></i></label><ul>
@@ -323,7 +323,7 @@ document.write(`
 <li class="toctree-l2 current active"><a class="current reference internal" href="#">hicona.HiconaGraph</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.table.html">hicona.HiconaGraph.table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.ids_table.html">hicona.HiconaGraph.ids_table</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.add_chromsomal_edges.html">hicona.HiconaGraph.add_chromsomal_edges</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.add_genomic_edges.html">hicona.HiconaGraph.add_genomic_edges</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.compute_clustering.html">hicona.HiconaGraph.compute_clustering</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.permute_annotations.html">hicona.HiconaGraph.permute_annotations</a></li>
 </ul>
@@ -426,255 +426,47 @@ document.write(`
 <dl class="py class">
 <dt class="sig sig-object py" id="hicona.HiconaGraph">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">hicona.</span></span><span class="sig-name descname"><span class="pre">HiconaGraph</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">table</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">query</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hicona/_graph.html#HiconaGraph"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.HiconaGraph" title="Link to this definition">#</a></dt>
-<dd><p>Graph-tool <cite>Graph</cite> specialized for Hi-C data network analysis.</p>
-<p>This class extends the <cite>graph_tool.Graph</cite> class, adding methods to
-facilitate the analysis of Hi-C data networks. All the methods from the
-parent class are still available and are not overwritten.</p>
+<dd><p>Graph-tool Graph class specialized for Hi-C data network analysis.</p>
+<p>This class extends the <code class="docutils literal notranslate"><span class="pre">graph_tool.Graph</span></code> class by adding methods to
+facilitate the analysis of Hi-C data (and Hi-C data-like) derived networks.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Creating an instance of <code class="docutils literal notranslate"><span class="pre">HiconaGraph</span></code> requires loading the full
+pixel table into memory. This can be very expensive for large tables.
+Consider subsetting the table to a smaller region of interest.</p>
+</div>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><dl class="simple">
 <dt><strong>table</strong><span class="classifier">HiconaTable</span></dt><dd><p>Pixel table to create the graph from.</p>
 </dd>
-<dt><strong>query</strong><span class="classifier">str, optional</span></dt><dd><p>Pandas-like query string to filter the pixel table. (Default is None)</p>
+<dt><strong>query</strong><span class="classifier">str, optional</span></dt><dd><p>Pandas-like query string to filter the pixel table. Default is ‘None’.</p>
 </dd>
 </dl>
 </dd>
 </dl>
-<dl class="py method">
-<dt class="sig sig-object py" id="hicona.HiconaGraph.__init__">
-<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">table</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">query</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hicona/_graph.html#HiconaGraph.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.HiconaGraph.__init__" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
-
-<p class="rubric">Methods</p>
-<table class="autosummary longtable table autosummary">
-<tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="#hicona.HiconaGraph.__init__" title="hicona.HiconaGraph.__init__"><code class="xref py py-obj docutils literal notranslate"><span class="pre">__init__</span></code></a>(table[, query])</p></td>
-<td><p></p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="hicona.HiconaGraph.add_chromsomal_edges.html#hicona.HiconaGraph.add_chromsomal_edges" title="hicona.HiconaGraph.add_chromsomal_edges"><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_chromsomal_edges</span></code></a>()</p></td>
-<td><p>Add edges between consecutive genomic regions.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_edge</span></code>(source, target[, add_missing])</p></td>
-<td><p>Add a new edge from <code class="docutils literal notranslate"><span class="pre">source</span></code> to <code class="docutils literal notranslate"><span class="pre">target</span></code> to the graph, and return it.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_edge_list</span></code>(edge_list[, hashed, ...])</p></td>
-<td><p>Add a list of edges to the graph, given by <code class="docutils literal notranslate"><span class="pre">edge_list</span></code>, which can be an iterator of <code class="docutils literal notranslate"><span class="pre">(source,</span> <span class="pre">target)</span></code> pairs where both <code class="docutils literal notranslate"><span class="pre">source</span></code> and <code class="docutils literal notranslate"><span class="pre">target</span></code> are vertex indices (or can be so converted), or a <code class="xref py py-class docutils literal notranslate"><span class="pre">numpy.ndarray</span></code> of shape <code class="docutils literal notranslate"><span class="pre">(E,2)</span></code>, where <code class="docutils literal notranslate"><span class="pre">E</span></code> is the number of edges, and each line specifies a <code class="docutils literal notranslate"><span class="pre">(source,</span> <span class="pre">target)</span></code> pair.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_vertex</span></code>([n])</p></td>
-<td><p>Add a vertex to the graph, and return it.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">clear</span></code>()</p></td>
-<td><p>Remove all vertices and edges from the graph.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">clear_edges</span></code>()</p></td>
-<td><p>Remove all edges from the graph.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">clear_filters</span></code>()</p></td>
-<td><p>Remove vertex and edge filters, and set the graph to the unfiltered state.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">clear_vertex</span></code>(vertex)</p></td>
-<td><p>Remove all in and out-edges from the given vertex.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="hicona.HiconaGraph.compute_clustering.html#hicona.HiconaGraph.compute_clustering" title="hicona.HiconaGraph.compute_clustering"><code class="xref py py-obj docutils literal notranslate"><span class="pre">compute_clustering</span></code></a>([min_steps, ...])</p></td>
-<td><p>Computed nested blockmodel clustering of the graph.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">copy</span></code>()</p></td>
-<td><p>Return a deep copy of self.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">copy_property</span></code>(src[, tgt, value_type, g, full])</p></td>
-<td><p>Copy contents of <code class="docutils literal notranslate"><span class="pre">src</span></code> property to <code class="docutils literal notranslate"><span class="pre">tgt</span></code> property.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">degree_property_map</span></code>(deg[, weight])</p></td>
-<td><p>Create and return a vertex property map containing the degree type given by <code class="docutils literal notranslate"><span class="pre">deg</span></code>, which can be any of <code class="docutils literal notranslate"><span class="pre">&quot;in&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;out&quot;</span></code>, or <code class="docutils literal notranslate"><span class="pre">&quot;total&quot;</span></code>.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">edge</span></code>(s, t[, all_edges, add_missing])</p></td>
-<td><p>Return the edge from vertex <code class="docutils literal notranslate"><span class="pre">s</span></code> to <code class="docutils literal notranslate"><span class="pre">t</span></code>, if it exists.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">edges</span></code>()</p></td>
-<td><p>Return an <code class="xref py py-meth docutils literal notranslate"><span class="pre">iterator</span></code> over the edges.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_all_edges</span></code>(v[, eprops])</p></td>
-<td><p>Return a <code class="xref py py-class docutils literal notranslate"><span class="pre">numpy.ndarray</span></code> containing the in- and out-edges of vertex v, and optional edge properties list <code class="docutils literal notranslate"><span class="pre">eprops</span></code>.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_all_neighbors</span></code>(v[, vprops])</p></td>
-<td><p>Return a <code class="xref py py-class docutils literal notranslate"><span class="pre">numpy.ndarray</span></code> containing the in-neighbors and out-neighbors of vertex <code class="docutils literal notranslate"><span class="pre">v</span></code>, and optional vertex properties list <code class="docutils literal notranslate"><span class="pre">vprops</span></code>.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_all_neighbours</span></code>(v[, vprops])</p></td>
-<td><p>Return a <code class="xref py py-class docutils literal notranslate"><span class="pre">numpy.ndarray</span></code> containing the in-neighbors and out-neighbors of vertex <code class="docutils literal notranslate"><span class="pre">v</span></code>, and optional vertex properties list <code class="docutils literal notranslate"><span class="pre">vprops</span></code>.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_edge_filter</span></code>()</p></td>
-<td><p>Return a tuple with the edge filter property and bool value indicating whether or not it is inverted.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_edges</span></code>([eprops])</p></td>
-<td><p>Return a <code class="xref py py-class docutils literal notranslate"><span class="pre">numpy.ndarray</span></code> containing the edges, and optional edge properties list <code class="docutils literal notranslate"><span class="pre">eprops</span></code>.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_fast_edge_removal</span></code>()</p></td>
-<td><p>Return whether the fast <span class="math notranslate nohighlight">\(O(1)\)</span> removal of edges is currently enabled.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_filter_state</span></code>()</p></td>
-<td><p>Return a copy of the filter state of the graph.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_in_degrees</span></code>(vs[, eweight])</p></td>
-<td><p>Return a <code class="xref py py-class docutils literal notranslate"><span class="pre">numpy.ndarray</span></code> containing the in-degrees of vertex list <code class="docutils literal notranslate"><span class="pre">vs</span></code>.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_in_edges</span></code>(v[, eprops])</p></td>
-<td><p>Return a <code class="xref py py-class docutils literal notranslate"><span class="pre">numpy.ndarray</span></code> containing the in-edges of vertex <code class="docutils literal notranslate"><span class="pre">v</span></code>, and optional edge properties list <code class="docutils literal notranslate"><span class="pre">eprops</span></code>.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_in_neighbors</span></code>(v[, vprops])</p></td>
-<td><p>Return a <code class="xref py py-class docutils literal notranslate"><span class="pre">numpy.ndarray</span></code> containing the in-neighbors of vertex <code class="docutils literal notranslate"><span class="pre">v</span></code>, and optional vertex properties list <code class="docutils literal notranslate"><span class="pre">vprops</span></code>.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_in_neighbours</span></code>(v[, vprops])</p></td>
-<td><p>Return a <code class="xref py py-class docutils literal notranslate"><span class="pre">numpy.ndarray</span></code> containing the in-neighbors of vertex <code class="docutils literal notranslate"><span class="pre">v</span></code>, and optional vertex properties list <code class="docutils literal notranslate"><span class="pre">vprops</span></code>.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_out_degrees</span></code>(vs[, eweight])</p></td>
-<td><p>Return a <code class="xref py py-class docutils literal notranslate"><span class="pre">numpy.ndarray</span></code> containing the out-degrees of vertex list <code class="docutils literal notranslate"><span class="pre">vs</span></code>.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_out_edges</span></code>(v[, eprops])</p></td>
-<td><p>Return a <code class="xref py py-class docutils literal notranslate"><span class="pre">numpy.ndarray</span></code> containing the out-edges of vertex <code class="docutils literal notranslate"><span class="pre">v</span></code>, and optional edge properties list <code class="docutils literal notranslate"><span class="pre">eprops</span></code>.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_out_neighbors</span></code>(v[, vprops])</p></td>
-<td><p>Return a <code class="xref py py-class docutils literal notranslate"><span class="pre">numpy.ndarray</span></code> containing the out-neighbors of vertex <code class="docutils literal notranslate"><span class="pre">v</span></code>, and optional vertex properties list <code class="docutils literal notranslate"><span class="pre">vprops</span></code>.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_out_neighbours</span></code>(v[, vprops])</p></td>
-<td><p>Return a <code class="xref py py-class docutils literal notranslate"><span class="pre">numpy.ndarray</span></code> containing the out-neighbors of vertex <code class="docutils literal notranslate"><span class="pre">v</span></code>, and optional vertex properties list <code class="docutils literal notranslate"><span class="pre">vprops</span></code>.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_total_degrees</span></code>(vs[, eweight])</p></td>
-<td><p>Return a <code class="xref py py-class docutils literal notranslate"><span class="pre">numpy.ndarray</span></code> containing the total degrees (i.e. in- plus out-degree) of vertex list <code class="docutils literal notranslate"><span class="pre">vs</span></code>.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_vertex_filter</span></code>()</p></td>
-<td><p>Return a tuple with the vertex filter property and bool value indicating whether or not it is inverted.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_vertices</span></code>([vprops])</p></td>
-<td><p>Return a <code class="xref py py-class docutils literal notranslate"><span class="pre">numpy.ndarray</span></code> containing the vertex indices, and optional vertex properties list <code class="docutils literal notranslate"><span class="pre">vprops</span></code>.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">is_directed</span></code>()</p></td>
-<td><p>Get the directedness of the graph.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">is_reversed</span></code>()</p></td>
-<td><p>Return <code class="docutils literal notranslate"><span class="pre">True</span></code> if the edges are reversed, and <code class="docutils literal notranslate"><span class="pre">False</span></code> otherwise.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">iter_all_edges</span></code>(v[, eprops])</p></td>
-<td><p>Return an iterator over the in- and out-edge <code class="docutils literal notranslate"><span class="pre">`(source,</span> <span class="pre">target)</span></code> pairs for vertex <code class="docutils literal notranslate"><span class="pre">v</span></code>, and optional edge properties list <code class="docutils literal notranslate"><span class="pre">eprops</span></code>.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">iter_all_neighbors</span></code>(v[, vprops])</p></td>
-<td><p>Return an iterator over the in- and out-neighbors of vertex <code class="docutils literal notranslate"><span class="pre">v</span></code>, and optional vertex properties list <code class="docutils literal notranslate"><span class="pre">vprops</span></code>.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">iter_all_neighbours</span></code>(v[, vprops])</p></td>
-<td><p>Return an iterator over the in- and out-neighbors of vertex <code class="docutils literal notranslate"><span class="pre">v</span></code>, and optional vertex properties list <code class="docutils literal notranslate"><span class="pre">vprops</span></code>.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">iter_edges</span></code>([eprops])</p></td>
-<td><p>Return an iterator over the edge <code class="docutils literal notranslate"><span class="pre">`(source,</span> <span class="pre">target)</span></code> pairs, and optional edge properties list <code class="docutils literal notranslate"><span class="pre">eprops</span></code>.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">iter_in_edges</span></code>(v[, eprops])</p></td>
-<td><p>Return an iterator over the in-edge <code class="docutils literal notranslate"><span class="pre">`(source,</span> <span class="pre">target)</span></code> pairs for vertex <code class="docutils literal notranslate"><span class="pre">v</span></code>, and optional edge properties list <code class="docutils literal notranslate"><span class="pre">eprops</span></code>.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">iter_in_neighbors</span></code>(v[, vprops])</p></td>
-<td><p>Return an iterator over the in-neighbors of vertex <code class="docutils literal notranslate"><span class="pre">v</span></code>, and optional vertex properties list <code class="docutils literal notranslate"><span class="pre">vprops</span></code>.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">iter_in_neighbours</span></code>(v[, vprops])</p></td>
-<td><p>Return an iterator over the in-neighbors of vertex <code class="docutils literal notranslate"><span class="pre">v</span></code>, and optional vertex properties list <code class="docutils literal notranslate"><span class="pre">vprops</span></code>.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">iter_out_edges</span></code>(v[, eprops])</p></td>
-<td><p>Return an iterator over the out-edge <code class="docutils literal notranslate"><span class="pre">`(source,</span> <span class="pre">target)</span></code> pairs for vertex <code class="docutils literal notranslate"><span class="pre">v</span></code>, and optional edge properties list <code class="docutils literal notranslate"><span class="pre">eprops</span></code>.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">iter_out_neighbors</span></code>(v[, vprops])</p></td>
-<td><p>Return an iterator over the out-neighbors of vertex <code class="docutils literal notranslate"><span class="pre">v</span></code>, and optional vertex properties list <code class="docutils literal notranslate"><span class="pre">vprops</span></code>.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">iter_out_neighbours</span></code>(v[, vprops])</p></td>
-<td><p>Return an iterator over the out-neighbors of vertex <code class="docutils literal notranslate"><span class="pre">v</span></code>, and optional vertex properties list <code class="docutils literal notranslate"><span class="pre">vprops</span></code>.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">iter_vertices</span></code>([vprops])</p></td>
-<td><p>Return an iterator over the vertex indices, and optional vertex properties list <code class="docutils literal notranslate"><span class="pre">vprops</span></code>.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">list_properties</span></code>()</p></td>
-<td><p>Print a list of all internal properties.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">load</span></code>(file_name[, fmt, ignore_vp, ignore_ep, ...])</p></td>
-<td><p>Load graph from <code class="docutils literal notranslate"><span class="pre">file_name</span></code> (which can be either a string or a file-like object).</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">new_edge_property</span></code>(value_type[, vals, val])</p></td>
-<td><p>Create a new edge property map of type <code class="docutils literal notranslate"><span class="pre">value_type</span></code>, and return it.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">new_ep</span></code>(value_type[, vals, val])</p></td>
-<td><p>Alias to <code class="xref py py-func docutils literal notranslate"><span class="pre">new_edge_property()</span></code>.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">new_gp</span></code>(value_type[, val])</p></td>
-<td><p>Alias to <code class="xref py py-func docutils literal notranslate"><span class="pre">new_graph_property()</span></code>.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">new_graph_property</span></code>(value_type[, val])</p></td>
-<td><p>Create a new graph property map of type <code class="docutils literal notranslate"><span class="pre">value_type</span></code>, and return it.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">new_property</span></code>(key_type, value_type[, vals])</p></td>
-<td><p>Create a new (uninitialized) vertex property map of key type <code class="docutils literal notranslate"><span class="pre">key_type</span></code> (<code class="docutils literal notranslate"><span class="pre">v</span></code>, <code class="docutils literal notranslate"><span class="pre">e</span></code> or <code class="docutils literal notranslate"><span class="pre">g</span></code>), value type <code class="docutils literal notranslate"><span class="pre">value_type</span></code>, and return it.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">new_vertex_property</span></code>(value_type[, vals, val])</p></td>
-<td><p>Create a new vertex property map of type <code class="docutils literal notranslate"><span class="pre">value_type</span></code>, and return it.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">new_vp</span></code>(value_type[, vals, val])</p></td>
-<td><p>Alias to <code class="xref py py-func docutils literal notranslate"><span class="pre">new_vertex_property()</span></code>.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">num_edges</span></code>([ignore_filter])</p></td>
-<td><p>Get the number of edges.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">num_vertices</span></code>([ignore_filter])</p></td>
-<td><p>Get the number of vertices.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">own_property</span></code>(prop)</p></td>
-<td><p>Return a version of the property map 'prop' (possibly belonging to another graph) which is owned by the current graph.</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="hicona.HiconaGraph.permute_annotations.html#hicona.HiconaGraph.permute_annotations" title="hicona.HiconaGraph.permute_annotations"><code class="xref py py-obj docutils literal notranslate"><span class="pre">permute_annotations</span></code></a>(ann_list, stat[, ...])</p></td>
-<td><p>Compute p-values for node label permutations.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">purge_edges</span></code>()</p></td>
-<td><p>Remove all edges of the graph which are currently being filtered out.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">purge_vertices</span></code>([in_place])</p></td>
-<td><p>Remove all vertices of the graph which are currently being filtered out.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">reindex_edges</span></code>()</p></td>
-<td><p>Reset the edge indices so that they lie in the [0, <code class="xref py py-meth docutils literal notranslate"><span class="pre">num_edges()</span></code> - 1] range.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">remove_edge</span></code>(edge)</p></td>
-<td><p>Remove an edge from the graph.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">remove_vertex</span></code>(vertex[, fast])</p></td>
-<td><p>Remove a vertex from the graph.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">save</span></code>(file_name[, fmt])</p></td>
-<td><p>Save graph to <code class="docutils literal notranslate"><span class="pre">file_name</span></code> (which can be either a string or a file-like object).</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_directed</span></code>(is_directed)</p></td>
-<td><p>Set the directedness of the graph.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_edge_filter</span></code>(prop[, inverted])</p></td>
-<td><p>Set the edge boolean filter property.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_fast_edge_removal</span></code>([fast])</p></td>
-<td><p>If <code class="docutils literal notranslate"><span class="pre">fast</span> <span class="pre">==</span> <span class="pre">True</span></code> the fast <span class="math notranslate nohighlight">\(O(1)\)</span> removal of edges will be enabled.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_filter_state</span></code>(state)</p></td>
-<td><p>Set the filter state of the graph.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_filters</span></code>(eprop, vprop[, inverted_edges, ...])</p></td>
-<td><p>Set the boolean properties for edge and vertex filters, respectively.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_reversed</span></code>(is_reversed)</p></td>
-<td><p>Reverse the direction of the edges, if <code class="docutils literal notranslate"><span class="pre">is_reversed</span></code> is <code class="docutils literal notranslate"><span class="pre">True</span></code>, or maintain the original direction otherwise.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_vertex_filter</span></code>(prop[, inverted])</p></td>
-<td><p>Set the vertex boolean filter property.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">shrink_to_fit</span></code>()</p></td>
-<td><p>Force the physical capacity of the underlying containers to match the graph's actual size, potentially freeing memory back to the system.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">vertex</span></code>(i[, use_index, add_missing])</p></td>
-<td><p>Return the vertex with index <code class="docutils literal notranslate"><span class="pre">i</span></code>.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">vertices</span></code>()</p></td>
-<td><p>Return an <code class="xref py py-meth docutils literal notranslate"><span class="pre">iterator</span></code> over the vertices.</p></td>
-</tr>
-</tbody>
-</table>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><a class="reference external" href="https://graph-tool.skewed.de/static/doc/autosummary/graph_tool.Graph.html#graph_tool.Graph" title="(in graph-tool v2.65)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">graph_tool.Graph</span></code></a></dt><dd><p>Parent class for <code class="docutils literal notranslate"><span class="pre">HiconaGraph</span></code>.</p>
+</dd>
+<dt><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.query.html#pandas.DataFrame.query" title="(in pandas v2.2.2)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pandas.DataFrame.query</span></code></a></dt><dd><p>Used to filter the table based on a query string.</p>
+</dd>
+</dl>
+</div>
+<p class="rubric">Notes</p>
+<p>The class should not break any functionality of the <code class="docutils literal notranslate"><span class="pre">graph_tool.Graph</span></code>
+class, though it was not thoroughly tested. Please, report any issue you might find.</p>
+<p class="rubric">Examples</p>
+<p>Create a graph from a pixel table.</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">hicona</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">handle</span> <span class="o">=</span> <span class="n">hicona</span><span class="o">.</span><span class="n">HiconaCooler</span><span class="p">(</span><span class="s2">&quot;path/to/file.cool&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">table</span> <span class="o">=</span> <span class="n">handle</span><span class="o">.</span><span class="n">fetch_table</span><span class="p">(</span><span class="s2">&quot;hicona&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">graph</span> <span class="o">=</span> <span class="n">hicona</span><span class="o">.</span><span class="n">HiconaGraph</span><span class="p">(</span><span class="n">table</span><span class="p">)</span>
+<span class="go">&lt;HiconaGraph object, undirected, with 17974 vertices and 449642 edges ...&gt;</span>
+<span class="go"># Output cropped for brevity</span>
+</pre></div>
+</div>
 <p class="rubric">Attributes</p>
 <table class="autosummary longtable table autosummary">
 <tbody>
@@ -700,7 +492,7 @@ parent class are still available and are not overwritten.</p>
 <td><p>Dictionary of internal graph properties.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="hicona.HiconaGraph.ids_table.html#hicona.HiconaGraph.ids_table" title="hicona.HiconaGraph.ids_table"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ids_table</span></code></a></p></td>
-<td><p>Return the conversion table from bin_id to node_id.</p></td>
+<td><p>Return the conversion table from bin id to node id.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">properties</span></code></p></td>
 <td><p>Dictionary of internal properties.</p></td>
@@ -716,6 +508,233 @@ parent class are still available and are not overwritten.</p>
 </tr>
 <tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">vp</span></code></p></td>
 <td><p>Alias to <code class="xref py py-attr docutils literal notranslate"><span class="pre">vertex_properties</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Methods</p>
+<table class="autosummary longtable table autosummary">
+<tbody>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_edge</span></code>(source, target[, add_missing])</p></td>
+<td><p>Add a new edge from <code class="docutils literal notranslate"><span class="pre">source</span></code> to <code class="docutils literal notranslate"><span class="pre">target</span></code> to the graph, and return it.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_edge_list</span></code>(edge_list[, hashed, ...])</p></td>
+<td><p>Add a list of edges to the graph, given by <code class="docutils literal notranslate"><span class="pre">edge_list</span></code>, which can be an iterator of <code class="docutils literal notranslate"><span class="pre">(source,</span> <span class="pre">target)</span></code> pairs where both <code class="docutils literal notranslate"><span class="pre">source</span></code> and <code class="docutils literal notranslate"><span class="pre">target</span></code> are vertex indices (or can be so converted), or a <a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.26)"><code class="xref py py-class docutils literal notranslate"><span class="pre">numpy.ndarray</span></code></a> of shape <code class="docutils literal notranslate"><span class="pre">(E,2)</span></code>, where <code class="docutils literal notranslate"><span class="pre">E</span></code> is the number of edges, and each line specifies a <code class="docutils literal notranslate"><span class="pre">(source,</span> <span class="pre">target)</span></code> pair.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="hicona.HiconaGraph.add_genomic_edges.html#hicona.HiconaGraph.add_genomic_edges" title="hicona.HiconaGraph.add_genomic_edges"><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_genomic_edges</span></code></a>()</p></td>
+<td><p>Add edges between consecutive genomic regions.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_vertex</span></code>([n])</p></td>
+<td><p>Add a vertex to the graph, and return it.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">clear</span></code>()</p></td>
+<td><p>Remove all vertices and edges from the graph.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">clear_edges</span></code>()</p></td>
+<td><p>Remove all edges from the graph.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">clear_filters</span></code>()</p></td>
+<td><p>Remove vertex and edge filters, and set the graph to the unfiltered state.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">clear_vertex</span></code>(vertex)</p></td>
+<td><p>Remove all in and out-edges from the given vertex.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="hicona.HiconaGraph.compute_clustering.html#hicona.HiconaGraph.compute_clustering" title="hicona.HiconaGraph.compute_clustering"><code class="xref py py-obj docutils literal notranslate"><span class="pre">compute_clustering</span></code></a>([min_steps, ...])</p></td>
+<td><p>Computed nested blockmodel clustering of the graph.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">copy</span></code>()</p></td>
+<td><p>Return a deep copy of self.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">copy_property</span></code>(src[, tgt, value_type, g, full])</p></td>
+<td><p>Copy contents of <code class="docutils literal notranslate"><span class="pre">src</span></code> property to <code class="docutils literal notranslate"><span class="pre">tgt</span></code> property.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">degree_property_map</span></code>(deg[, weight])</p></td>
+<td><p>Create and return a vertex property map containing the degree type given by <code class="docutils literal notranslate"><span class="pre">deg</span></code>, which can be any of <code class="docutils literal notranslate"><span class="pre">&quot;in&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;out&quot;</span></code>, or <code class="docutils literal notranslate"><span class="pre">&quot;total&quot;</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">edge</span></code>(s, t[, all_edges, add_missing])</p></td>
+<td><p>Return the edge from vertex <code class="docutils literal notranslate"><span class="pre">s</span></code> to <code class="docutils literal notranslate"><span class="pre">t</span></code>, if it exists.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">edges</span></code>()</p></td>
+<td><p>Return an <code class="xref py py-meth docutils literal notranslate"><span class="pre">iterator</span></code> over the edges.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_all_edges</span></code>(v[, eprops])</p></td>
+<td><p>Return a <a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.26)"><code class="xref py py-class docutils literal notranslate"><span class="pre">numpy.ndarray</span></code></a> containing the in- and out-edges of vertex v, and optional edge properties list <code class="docutils literal notranslate"><span class="pre">eprops</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_all_neighbors</span></code>(v[, vprops])</p></td>
+<td><p>Return a <a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.26)"><code class="xref py py-class docutils literal notranslate"><span class="pre">numpy.ndarray</span></code></a> containing the in-neighbors and out-neighbors of vertex <code class="docutils literal notranslate"><span class="pre">v</span></code>, and optional vertex properties list <code class="docutils literal notranslate"><span class="pre">vprops</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_all_neighbours</span></code>(v[, vprops])</p></td>
+<td><p>Return a <a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.26)"><code class="xref py py-class docutils literal notranslate"><span class="pre">numpy.ndarray</span></code></a> containing the in-neighbors and out-neighbors of vertex <code class="docutils literal notranslate"><span class="pre">v</span></code>, and optional vertex properties list <code class="docutils literal notranslate"><span class="pre">vprops</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_edge_filter</span></code>()</p></td>
+<td><p>Return a tuple with the edge filter property and bool value indicating whether or not it is inverted.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_edges</span></code>([eprops])</p></td>
+<td><p>Return a <a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.26)"><code class="xref py py-class docutils literal notranslate"><span class="pre">numpy.ndarray</span></code></a> containing the edges, and optional edge properties list <code class="docutils literal notranslate"><span class="pre">eprops</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_fast_edge_removal</span></code>()</p></td>
+<td><p>Return whether the fast <span class="math notranslate nohighlight">\(O(1)\)</span> removal of edges is currently enabled.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_filter_state</span></code>()</p></td>
+<td><p>Return a copy of the filter state of the graph.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_in_degrees</span></code>(vs[, eweight])</p></td>
+<td><p>Return a <a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.26)"><code class="xref py py-class docutils literal notranslate"><span class="pre">numpy.ndarray</span></code></a> containing the in-degrees of vertex list <code class="docutils literal notranslate"><span class="pre">vs</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_in_edges</span></code>(v[, eprops])</p></td>
+<td><p>Return a <a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.26)"><code class="xref py py-class docutils literal notranslate"><span class="pre">numpy.ndarray</span></code></a> containing the in-edges of vertex <code class="docutils literal notranslate"><span class="pre">v</span></code>, and optional edge properties list <code class="docutils literal notranslate"><span class="pre">eprops</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_in_neighbors</span></code>(v[, vprops])</p></td>
+<td><p>Return a <a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.26)"><code class="xref py py-class docutils literal notranslate"><span class="pre">numpy.ndarray</span></code></a> containing the in-neighbors of vertex <code class="docutils literal notranslate"><span class="pre">v</span></code>, and optional vertex properties list <code class="docutils literal notranslate"><span class="pre">vprops</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_in_neighbours</span></code>(v[, vprops])</p></td>
+<td><p>Return a <a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.26)"><code class="xref py py-class docutils literal notranslate"><span class="pre">numpy.ndarray</span></code></a> containing the in-neighbors of vertex <code class="docutils literal notranslate"><span class="pre">v</span></code>, and optional vertex properties list <code class="docutils literal notranslate"><span class="pre">vprops</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_out_degrees</span></code>(vs[, eweight])</p></td>
+<td><p>Return a <a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.26)"><code class="xref py py-class docutils literal notranslate"><span class="pre">numpy.ndarray</span></code></a> containing the out-degrees of vertex list <code class="docutils literal notranslate"><span class="pre">vs</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_out_edges</span></code>(v[, eprops])</p></td>
+<td><p>Return a <a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.26)"><code class="xref py py-class docutils literal notranslate"><span class="pre">numpy.ndarray</span></code></a> containing the out-edges of vertex <code class="docutils literal notranslate"><span class="pre">v</span></code>, and optional edge properties list <code class="docutils literal notranslate"><span class="pre">eprops</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_out_neighbors</span></code>(v[, vprops])</p></td>
+<td><p>Return a <a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.26)"><code class="xref py py-class docutils literal notranslate"><span class="pre">numpy.ndarray</span></code></a> containing the out-neighbors of vertex <code class="docutils literal notranslate"><span class="pre">v</span></code>, and optional vertex properties list <code class="docutils literal notranslate"><span class="pre">vprops</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_out_neighbours</span></code>(v[, vprops])</p></td>
+<td><p>Return a <a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.26)"><code class="xref py py-class docutils literal notranslate"><span class="pre">numpy.ndarray</span></code></a> containing the out-neighbors of vertex <code class="docutils literal notranslate"><span class="pre">v</span></code>, and optional vertex properties list <code class="docutils literal notranslate"><span class="pre">vprops</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_total_degrees</span></code>(vs[, eweight])</p></td>
+<td><p>Return a <a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.26)"><code class="xref py py-class docutils literal notranslate"><span class="pre">numpy.ndarray</span></code></a> containing the total degrees (i.e. in- plus out-degree) of vertex list <code class="docutils literal notranslate"><span class="pre">vs</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_vertex_filter</span></code>()</p></td>
+<td><p>Return a tuple with the vertex filter property and bool value indicating whether or not it is inverted.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_vertices</span></code>([vprops])</p></td>
+<td><p>Return a <a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.26)"><code class="xref py py-class docutils literal notranslate"><span class="pre">numpy.ndarray</span></code></a> containing the vertex indices, and optional vertex properties list <code class="docutils literal notranslate"><span class="pre">vprops</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">is_directed</span></code>()</p></td>
+<td><p>Get the directedness of the graph.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">is_reversed</span></code>()</p></td>
+<td><p>Return <code class="docutils literal notranslate"><span class="pre">True</span></code> if the edges are reversed, and <code class="docutils literal notranslate"><span class="pre">False</span></code> otherwise.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">iter_all_edges</span></code>(v[, eprops])</p></td>
+<td><p>Return an iterator over the in- and out-edge <code class="docutils literal notranslate"><span class="pre">`(source,</span> <span class="pre">target)</span></code> pairs for vertex <code class="docutils literal notranslate"><span class="pre">v</span></code>, and optional edge properties list <code class="docutils literal notranslate"><span class="pre">eprops</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">iter_all_neighbors</span></code>(v[, vprops])</p></td>
+<td><p>Return an iterator over the in- and out-neighbors of vertex <code class="docutils literal notranslate"><span class="pre">v</span></code>, and optional vertex properties list <code class="docutils literal notranslate"><span class="pre">vprops</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">iter_all_neighbours</span></code>(v[, vprops])</p></td>
+<td><p>Return an iterator over the in- and out-neighbors of vertex <code class="docutils literal notranslate"><span class="pre">v</span></code>, and optional vertex properties list <code class="docutils literal notranslate"><span class="pre">vprops</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">iter_edges</span></code>([eprops])</p></td>
+<td><p>Return an iterator over the edge <code class="docutils literal notranslate"><span class="pre">`(source,</span> <span class="pre">target)</span></code> pairs, and optional edge properties list <code class="docutils literal notranslate"><span class="pre">eprops</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">iter_in_edges</span></code>(v[, eprops])</p></td>
+<td><p>Return an iterator over the in-edge <code class="docutils literal notranslate"><span class="pre">`(source,</span> <span class="pre">target)</span></code> pairs for vertex <code class="docutils literal notranslate"><span class="pre">v</span></code>, and optional edge properties list <code class="docutils literal notranslate"><span class="pre">eprops</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">iter_in_neighbors</span></code>(v[, vprops])</p></td>
+<td><p>Return an iterator over the in-neighbors of vertex <code class="docutils literal notranslate"><span class="pre">v</span></code>, and optional vertex properties list <code class="docutils literal notranslate"><span class="pre">vprops</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">iter_in_neighbours</span></code>(v[, vprops])</p></td>
+<td><p>Return an iterator over the in-neighbors of vertex <code class="docutils literal notranslate"><span class="pre">v</span></code>, and optional vertex properties list <code class="docutils literal notranslate"><span class="pre">vprops</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">iter_out_edges</span></code>(v[, eprops])</p></td>
+<td><p>Return an iterator over the out-edge <code class="docutils literal notranslate"><span class="pre">`(source,</span> <span class="pre">target)</span></code> pairs for vertex <code class="docutils literal notranslate"><span class="pre">v</span></code>, and optional edge properties list <code class="docutils literal notranslate"><span class="pre">eprops</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">iter_out_neighbors</span></code>(v[, vprops])</p></td>
+<td><p>Return an iterator over the out-neighbors of vertex <code class="docutils literal notranslate"><span class="pre">v</span></code>, and optional vertex properties list <code class="docutils literal notranslate"><span class="pre">vprops</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">iter_out_neighbours</span></code>(v[, vprops])</p></td>
+<td><p>Return an iterator over the out-neighbors of vertex <code class="docutils literal notranslate"><span class="pre">v</span></code>, and optional vertex properties list <code class="docutils literal notranslate"><span class="pre">vprops</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">iter_vertices</span></code>([vprops])</p></td>
+<td><p>Return an iterator over the vertex indices, and optional vertex properties list <code class="docutils literal notranslate"><span class="pre">vprops</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">list_properties</span></code>()</p></td>
+<td><p>Print a list of all internal properties.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">load</span></code>(file_name[, fmt, ignore_vp, ignore_ep, ...])</p></td>
+<td><p>Load graph from <code class="docutils literal notranslate"><span class="pre">file_name</span></code> (which can be either a string or a file-like object).</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">new_edge_property</span></code>(value_type[, vals, val])</p></td>
+<td><p>Create a new edge property map of type <code class="docutils literal notranslate"><span class="pre">value_type</span></code>, and return it.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">new_ep</span></code>(value_type[, vals, val])</p></td>
+<td><p>Alias to <code class="xref py py-func docutils literal notranslate"><span class="pre">new_edge_property()</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">new_gp</span></code>(value_type[, val])</p></td>
+<td><p>Alias to <code class="xref py py-func docutils literal notranslate"><span class="pre">new_graph_property()</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">new_graph_property</span></code>(value_type[, val])</p></td>
+<td><p>Create a new graph property map of type <code class="docutils literal notranslate"><span class="pre">value_type</span></code>, and return it.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">new_property</span></code>(key_type, value_type[, vals])</p></td>
+<td><p>Create a new (uninitialized) vertex property map of key type <code class="docutils literal notranslate"><span class="pre">key_type</span></code> (<code class="docutils literal notranslate"><span class="pre">v</span></code>, <code class="docutils literal notranslate"><span class="pre">e</span></code> or <code class="docutils literal notranslate"><span class="pre">g</span></code>), value type <code class="docutils literal notranslate"><span class="pre">value_type</span></code>, and return it.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">new_vertex_property</span></code>(value_type[, vals, val])</p></td>
+<td><p>Create a new vertex property map of type <code class="docutils literal notranslate"><span class="pre">value_type</span></code>, and return it.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">new_vp</span></code>(value_type[, vals, val])</p></td>
+<td><p>Alias to <code class="xref py py-func docutils literal notranslate"><span class="pre">new_vertex_property()</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">num_edges</span></code>([ignore_filter])</p></td>
+<td><p>Get the number of edges.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">num_vertices</span></code>([ignore_filter])</p></td>
+<td><p>Get the number of vertices.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">own_property</span></code>(prop)</p></td>
+<td><p>Return a version of the property map 'prop' (possibly belonging to another graph) which is owned by the current graph.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="hicona.HiconaGraph.permute_annotations.html#hicona.HiconaGraph.permute_annotations" title="hicona.HiconaGraph.permute_annotations"><code class="xref py py-obj docutils literal notranslate"><span class="pre">permute_annotations</span></code></a>(ann_list, stat[, ...])</p></td>
+<td><p>Compute p-values for node label permutations.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">purge_edges</span></code>()</p></td>
+<td><p>Remove all edges of the graph which are currently being filtered out.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">purge_vertices</span></code>([in_place])</p></td>
+<td><p>Remove all vertices of the graph which are currently being filtered out.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">reindex_edges</span></code>()</p></td>
+<td><p>Reset the edge indices so that they lie in the [0, <a class="reference external" href="https://graph-tool.skewed.de/static/doc/autosummary/graph_tool.Graph.html#graph_tool.Graph.num_edges" title="(in graph-tool v2.65)"><code class="xref py py-meth docutils literal notranslate"><span class="pre">num_edges()</span></code></a> - 1] range.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">remove_edge</span></code>(edge)</p></td>
+<td><p>Remove an edge from the graph.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">remove_vertex</span></code>(vertex[, fast])</p></td>
+<td><p>Remove a vertex from the graph.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">save</span></code>(file_name[, fmt])</p></td>
+<td><p>Save graph to <code class="docutils literal notranslate"><span class="pre">file_name</span></code> (which can be either a string or a file-like object).</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_directed</span></code>(is_directed)</p></td>
+<td><p>Set the directedness of the graph.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_edge_filter</span></code>(prop[, inverted])</p></td>
+<td><p>Set the edge boolean filter property.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_fast_edge_removal</span></code>([fast])</p></td>
+<td><p>If <code class="docutils literal notranslate"><span class="pre">fast</span> <span class="pre">==</span> <span class="pre">True</span></code> the fast <span class="math notranslate nohighlight">\(O(1)\)</span> removal of edges will be enabled.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_filter_state</span></code>(state)</p></td>
+<td><p>Set the filter state of the graph.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_filters</span></code>(eprop, vprop[, inverted_edges, ...])</p></td>
+<td><p>Set the boolean properties for edge and vertex filters, respectively.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_reversed</span></code>(is_reversed)</p></td>
+<td><p>Reverse the direction of the edges, if <code class="docutils literal notranslate"><span class="pre">is_reversed</span></code> is <code class="docutils literal notranslate"><span class="pre">True</span></code>, or maintain the original direction otherwise.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_vertex_filter</span></code>(prop[, inverted])</p></td>
+<td><p>Set the vertex boolean filter property.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">shrink_to_fit</span></code>()</p></td>
+<td><p>Force the physical capacity of the underlying containers to match the graph's actual size, potentially freeing memory back to the system.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">vertex</span></code>(i[, use_index, add_missing])</p></td>
+<td><p>Return the vertex with index <code class="docutils literal notranslate"><span class="pre">i</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">vertices</span></code>()</p></td>
+<td><p>Return an <code class="xref py py-meth docutils literal notranslate"><span class="pre">iterator</span></code> over the vertices.</p></td>
 </tr>
 </tbody>
 </table>
@@ -769,10 +788,7 @@ parent class are still available and are not overwritten.</p>
   </div>
   <nav class="bd-toc-nav page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#hicona.HiconaGraph"><code class="docutils literal notranslate"><span class="pre">HiconaGraph</span></code></a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#hicona.HiconaGraph.__init__"><code class="docutils literal notranslate"><span class="pre">HiconaGraph.__init__()</span></code></a></li>
-</ul>
-</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#hicona.HiconaGraph"><code class="docutils literal notranslate"><span class="pre">HiconaGraph</span></code></a></li>
 </ul>
   </nav></div>
 

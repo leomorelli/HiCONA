@@ -368,11 +368,11 @@ document.write(`
 <div class="viewcode-block" id="HiconaCooler">
 <a class="viewcode-back" href="../../api_reference/api/hicona.HiconaCooler.html#hicona.HiconaCooler">[docs]</a>
 <span class="k">class</span> <span class="nc">HiconaCooler</span><span class="p">(</span><span class="n">cooler</span><span class="o">.</span><span class="n">Cooler</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Class to handle I/O and annotation of cooler-like files.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Class to handle I/O, annotation and processing of cooler-like files.</span>
 
-<span class="sd">    Class extending the :class:`cooler.Cooler` class to allow for the creation</span>
+<span class="sd">    Class extending the ``cooler.Cooler`` class to allow for the creation</span>
 <span class="sd">    and retrieval of processed pixel tables. Moreover, it allows to easily add</span>
-<span class="sd">    and remove annotations to/from the &quot;bins&quot; table.</span>
+<span class="sd">    and remove annotations to/from the ``bins`` table.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -380,19 +380,25 @@ document.write(`
 <span class="sd">        Path to a cooler file, URI string, or open handle to the root HDF5</span>
 <span class="sd">        group of a cooler data collection.</span>
 <span class="sd">    kwargs : optional</span>
-<span class="sd">        Options to be passed to h5py.File upon every access via methods from</span>
-<span class="sd">        the cooler.Cooler class. These keyword arguments are not passed when</span>
-<span class="sd">        accessing the HDF5 file via functions from hicona.</span>
-<span class="sd">        See class constructor for cooler.Cooler for more details.</span>
+<span class="sd">        Options to be passed to ``h5py.File`` upon every access via methods</span>
+<span class="sd">        from the ``cooler.Cooler`` class. These keyword arguments are not</span>
+<span class="sd">        passed when accessing the HDF5 file via functions from ``hicona``.</span>
+<span class="sd">        See ``cooler.Cooler`` class constructor for more details.</span>
+
+<span class="sd">    See Also</span>
+<span class="sd">    --------</span>
+<span class="sd">    cooler.Cooler : Parent class extended by HiconaCooler.</span>
+<span class="sd">    h5py.File : Handle to an HDF5 file object.</span>
+<span class="sd">    h5py.Group : Handle to an HDF5 group object.</span>
 
 <span class="sd">    Notes</span>
 <span class="sd">    -----</span>
-<span class="sd">    The class should not break any functionality of the cooler.Cooler class,</span>
-<span class="sd">    though it was not tested. Please, report any issue you might find.</span>
+<span class="sd">    The class should not break any functionality of the ``cooler.Cooler``</span>
+<span class="sd">    class, though it was not thoroughly tested. Please, report any issue you might find.</span>
 
 <span class="sd">    Examples</span>
 <span class="sd">    --------</span>
-<span class="sd">    Creating an HiconaCooler object from a cool file path.</span>
+<span class="sd">    Creating an ``HiconaCooler`` object from a cool file path.</span>
 
 <span class="sd">    &gt;&gt;&gt; handle = HiconaCooler(&quot;path/to/file.cool&quot;)</span>
 <span class="sd">    &gt;&gt;&gt; handle = HiconaCooler(&quot;path/to/file.mcool::resolutions/10000&quot;)</span>
@@ -403,22 +409,24 @@ document.write(`
     <span class="c1"># /////// Class constructor, setter, getters and similar functions ///////</span>
     <span class="c1"># ////////////////////////////////////////////////////////////////////////</span>
 
-<div class="viewcode-block" id="HiconaCooler.__init__">
-<a class="viewcode-back" href="../../api_reference/api/hicona.HiconaCooler.html#hicona.HiconaCooler.__init__">[docs]</a>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">store</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span> <span class="o">|</span> <span class="n">h5py</span><span class="o">.</span><span class="n">Group</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="c1"># Mask deprecated root parameter from super-class</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">store</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_uris</span> <span class="o">=</span> <span class="n">uris</span><span class="o">.</span><span class="n">Uris</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">store</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_tables_root</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">_TABLES_ROOT</span></div>
-
+        <span class="bp">self</span><span class="o">.</span><span class="n">_tables_root</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">_TABLES_ROOT</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">tables_root</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Return URI of the group in which processed pixel tables are rooted.</span>
 
-<span class="sd">        String representing where to store and look for the processed pixel</span>
+<span class="sd">        String representing where to store and look for processed ``pixel``</span>
 <span class="sd">        tables. This is a relative path starting from the position specified</span>
 <span class="sd">        by the ``self.root`` attribute.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        str :</span>
+<span class="sd">            URI of the group where processed pixel tables are stored.</span>
 
 <span class="sd">        Examples</span>
 <span class="sd">        --------</span>
@@ -432,12 +440,13 @@ document.write(`
     <span class="k">def</span> <span class="nf">bare_bins</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Get full bin table without any annotation.</span>
 
-<span class="sd">        Return the bins table as a pandas.DataFrame with only the columns</span>
-<span class="sd">        ``chrom``, ``start``, and ``end``.</span>
+<span class="sd">        Return the ``bins`` table as a ``pandas.DataFrame`` with only</span>
+<span class="sd">        the columns ``chrom``, ``start``, and ``end`` (and no annotation</span>
+<span class="sd">        column).</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
-<span class="sd">        DataFrame :</span>
+<span class="sd">        pandas.DataFrame :</span>
 <span class="sd">            DataFrame with only the columns ``chrom``, ``start``, and ``end``.</span>
 
 <span class="sd">        Examples</span>
@@ -456,8 +465,9 @@ document.write(`
 <span class="sd">        308834  chrY  57200000  57210000</span>
 <span class="sd">        308835  chrY  57210000  57220000</span>
 <span class="sd">        308836  chrY  57220000  57227415</span>
-
+<span class="sd">        &lt;BLANKLINE&gt;</span>
 <span class="sd">        [308837 rows x 3 columns]</span>
+
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">bins</span><span class="p">()[[</span><span class="s2">&quot;chrom&quot;</span><span class="p">,</span> <span class="s2">&quot;start&quot;</span><span class="p">,</span> <span class="s2">&quot;end&quot;</span><span class="p">]][:]</span>  <span class="c1"># type: ignore</span>
 
@@ -513,19 +523,19 @@ document.write(`
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">HiconaTable</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a normalized and sparsified pixels table.</span>
 
-<span class="sd">        Starting from the full pixel table, create a new pixel table by</span>
-<span class="sd">        filtering, normalizing and then sparsifying the table (see [1]_).</span>
-<span class="sd">        The exact steps to be performed are specified via a `Flow` object.</span>
+<span class="sd">        Starting from the full ``pixel`` table, create a new ``pixel`` table</span>
+<span class="sd">        by filtering, normalizing and then sparsifying the table (see [1]_).</span>
+<span class="sd">        The exact steps to be performed are specified via a ``Flow`` object.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        ops_flow : str or Flow, optional</span>
 <span class="sd">            Flow of operations to use to filter and normalize the table. If a</span>
 <span class="sd">            string is provided, the default flow for the corresponding method</span>
-<span class="sd">            is used. Default is `hicona`.</span>
+<span class="sd">            is used. Default is &#39;hicona&#39;.</span>
 <span class="sd">        chunk_size : int, optional</span>
 <span class="sd">            Number of pixels per chunk when processing the raw table.</span>
-<span class="sd">            Default is 10,000,000.</span>
+<span class="sd">            Default is &#39;10,000,000&#39;.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -534,7 +544,7 @@ document.write(`
 
 <span class="sd">        See Also</span>
 <span class="sd">        --------</span>
-<span class="sd">        preprocess.Flow : Used to specify the operations to perform.</span>
+<span class="sd">        preprocess.Flow : Used to define a preprocessing workflow.</span>
 
 <span class="sd">        References</span>
 <span class="sd">        ----------</span>
@@ -543,7 +553,7 @@ document.write(`
 
 <span class="sd">        Examples</span>
 <span class="sd">        --------</span>
-<span class="sd">        Create a new table using the default `hicona` method.</span>
+<span class="sd">        Create a new table using the default &#39;hicona&#39; method.</span>
 
 <span class="sd">        &gt;&gt;&gt; handle = HiconaCooler(&quot;path/to/file.cool&quot;)</span>
 <span class="sd">        &gt;&gt;&gt; table = handle.create_table()</span>
@@ -587,25 +597,31 @@ document.write(`
     <span class="k">def</span> <span class="nf">fetch_table</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ops_flow</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Flow</span> <span class="o">=</span> <span class="s2">&quot;hicona&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">HiconaTable</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Retrieve a previously created sparsified pixel table.</span>
 
-<span class="sd">        Get a previously created sparsified pixel table as a `HiconaTable`</span>
+<span class="sd">        Get a previously sparsified ``pixel`` table as a ``HiconaTable``</span>
 <span class="sd">        object. The list of available tables can be printed using the</span>
-<span class="sd">        `list_tables` method.</span>
+<span class="sd">        ``HiconaCooler.list_tables`` method.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        ops_flow : str or Flow, optional</span>
 <span class="sd">            Flow originally used to create the table, provided as either a</span>
-<span class="sd">            string or a `Flow` object. If a string is provided, the default</span>
-<span class="sd">            flow for the corresponding method is used. Default is `hicona`.</span>
+<span class="sd">            string or a ``Flow`` object. If a string is provided, the default</span>
+<span class="sd">            flow for the corresponding method is used. Default is &#39;hicona&#39;.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
 <span class="sd">        HiconaTable :</span>
-<span class="sd">            The requested table as a HiconaTable object.</span>
+<span class="sd">            The requested table as a ``HiconaTable`` object.</span>
+
+<span class="sd">        See Also</span>
+<span class="sd">        --------</span>
+<span class="sd">        preprocess.Flow : Used to define a preprocessing workflow.</span>
+<span class="sd">        HiconaTable : Object to handle a sparsified pixel table.</span>
+<span class="sd">        HiconaCooler.list_tables : Print the available pixel tables.</span>
 
 <span class="sd">        Examples</span>
 <span class="sd">        --------</span>
-<span class="sd">        Retrieve a previously created table using the default `hicona` method.</span>
+<span class="sd">        Retrieve a previously created table using the default &#39;hicona&#39; method.</span>
 
 <span class="sd">        &gt;&gt;&gt; handle = HiconaCooler(&quot;path/to/file.cool&quot;)</span>
 <span class="sd">        &gt;&gt;&gt; table = handle.fetch_table()</span>
@@ -641,8 +657,8 @@ document.write(`
     <span class="k">def</span> <span class="nf">list_tables</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Print the available pixel tables.</span>
 
-<span class="sd">        Print the available tables and the operations used to create them in</span>
-<span class="sd">        a tabular format.</span>
+<span class="sd">        Print the available sparsified ``pixel`` tables and the operations</span>
+<span class="sd">        used to create them in a tabular format.</span>
 
 <span class="sd">        Notes</span>
 <span class="sd">        -----</span>
@@ -678,22 +694,22 @@ document.write(`
 
         <span class="n">names</span> <span class="o">=</span> <span class="n">names</span> <span class="ow">or</span> <span class="p">[]</span>
         <span class="n">names</span> <span class="o">=</span> <span class="p">[</span><span class="n">names</span><span class="p">]</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">names</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">else</span> <span class="n">names</span>
-        <span class="n">names</span> <span class="o">=</span> <span class="p">[</span><span class="n">n</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">names</span> <span class="k">if</span> <span class="n">n</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">annotation_list</span><span class="p">()]</span>
+        <span class="n">names</span> <span class="o">=</span> <span class="p">[</span><span class="n">n</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">names</span> <span class="k">if</span> <span class="n">n</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">annot_list</span><span class="p">()]</span>
 
         <span class="k">return</span> <span class="n">names</span>
 
-<div class="viewcode-block" id="HiconaCooler.annotation_list">
-<a class="viewcode-back" href="../../api_reference/api/hicona.HiconaCooler.annotation_list.html#hicona.HiconaCooler.annotation_list">[docs]</a>
-    <span class="k">def</span> <span class="nf">annotation_list</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<div class="viewcode-block" id="HiconaCooler.annot_list">
+<a class="viewcode-back" href="../../api_reference/api/hicona.HiconaCooler.annot_list.html#hicona.HiconaCooler.annot_list">[docs]</a>
+    <span class="k">def</span> <span class="nf">annot_list</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a list of available bin annotation columns.</span>
 
 <span class="sd">        Return a list of all available bin annotation columns (that is, all</span>
-<span class="sd">        columns in the bins group besides `chrom`, `start`, and `end`)</span>
-<span class="sd">        sorted alphabetically.</span>
+<span class="sd">        columns in the ``bins`` group besides ``chrom``, ``start``, and</span>
+<span class="sd">        ``end``) sorted alphabetically.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
-<span class="sd">        list[str] :</span>
+<span class="sd">        list of str :</span>
 <span class="sd">            List of bin annotation names in alphabetical order.</span>
 
 <span class="sd">        Examples</span>
@@ -701,7 +717,7 @@ document.write(`
 <span class="sd">        &gt;&gt;&gt; handle = HiconaCooler(&quot;path/to/file.cool&quot;)</span>
 <span class="sd">        &gt;&gt;&gt; handle.bins()[:].columns</span>
 <span class="sd">        Index([&#39;chrom&#39;, &#39;start&#39;, &#39;end&#39;, &#39;HMM_ann&#39;, &#39;weight&#39;], dtype=&#39;object&#39;)</span>
-<span class="sd">        &gt;&gt;&gt; handle.annotation_list()</span>
+<span class="sd">        &gt;&gt;&gt; handle.annot_list()</span>
 <span class="sd">        [&#39;HMM_ann&#39;, &#39;weight&#39;]</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
@@ -712,9 +728,9 @@ document.write(`
         <span class="k">return</span> <span class="n">ann_list</span></div>
 
 
-<div class="viewcode-block" id="HiconaCooler.add_bin_annotation">
-<a class="viewcode-back" href="../../api_reference/api/hicona.HiconaCooler.add_bin_annotation.html#hicona.HiconaCooler.add_bin_annotation">[docs]</a>
-    <span class="k">def</span> <span class="nf">add_bin_annotation</span><span class="p">(</span>
+<div class="viewcode-block" id="HiconaCooler.add_bin_annot">
+<a class="viewcode-back" href="../../api_reference/api/hicona.HiconaCooler.add_bin_annot.html#hicona.HiconaCooler.add_bin_annot">[docs]</a>
+    <span class="k">def</span> <span class="nf">add_bin_annot</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">bed_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
@@ -723,12 +739,13 @@ document.write(`
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Add one (or more) bin annotation(s) from a bed-like file.</span>
 
-<span class="sd">        Add one or more annotation columns to the bins group. One can add:</span>
+<span class="sd">        Add one or more annotation columns to the ``bins`` group. One can add:</span>
+
 <span class="sd">        - 0/1 column representing an overlap of the bin in the bed-like file</span>
 <span class="sd">        - any number of annotation columns from the bed-like file</span>
 
-<span class="sd">        A bed-like file is a tab-separated file with the `chrom`, `start`,</span>
-<span class="sd">        `end` columns followed by any number of other columns.</span>
+<span class="sd">        A bed-like file is a tab-separated file with the ``chrom``, ``start``,</span>
+<span class="sd">        ``end`` columns followed by any number of other columns.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -737,23 +754,25 @@ document.write(`
 <span class="sd">        in_file : str, optional</span>
 <span class="sd">            Name of the 0/1 annotation column, containing 1 if the bin has at</span>
 <span class="sd">            least one overlap with any interval in the bed-file, 0 otherwise.</span>
-<span class="sd">            If `None`, no such column is created. Default is None.</span>
-<span class="sd">        to_keep : str or list[str | None], optional</span>
+<span class="sd">            If set to &#39;None&#39;, no such column is created. Default is &#39;None&#39;.</span>
+<span class="sd">        to_keep : str or list of (str, None), optional</span>
 <span class="sd">            Names for the columns of the bed-like file to add to the bins.</span>
-<span class="sd">            Names are assigned from left to right ignoring `chrom`, `start`,</span>
-<span class="sd">            `end`. Any column that receives a name is kept, while any column</span>
-<span class="sd">            without a name is discarded. To skip a column, place a `None` in</span>
-<span class="sd">            its position. Excess names are ignored. Default is None.</span>
+<span class="sd">            Names are assigned from left to right ignoring ``chrom``, ``start``,</span>
+<span class="sd">            ``end``. Any column that receives a name is kept, while any column</span>
+<span class="sd">            without a name is discarded. To skip a column, place a &#39;None&#39; in</span>
+<span class="sd">            its position. Excess names are ignored. Default is &#39;None&#39;.</span>
 
 <span class="sd">        Notes</span>
 <span class="sd">        -----</span>
-<span class="sd">        Adding annotation can drastically increase file size, especially for</span>
-<span class="sd">        non-numerical annotations; limit string-like non categorical</span>
-<span class="sd">        annotations (names, ids, ...).</span>
+<span class="sd">        .. warning::</span>
+
+<span class="sd">            Adding annotations can drastically increase file size, especially</span>
+<span class="sd">            for non-numerical annotations; limit string-like non categorical</span>
+<span class="sd">            annotations (names, ids, ...).</span>
 
 <span class="sd">        Examples</span>
 <span class="sd">        --------</span>
-<span class="sd">        Printing a snippet of the bed using pybedtools.</span>
+<span class="sd">        Printing a snippet of the bed using ``pybedtools``.</span>
 
 <span class="sd">        &gt;&gt;&gt; import pybedtools</span>
 <span class="sd">        &gt;&gt;&gt; bed = pybedtools.BedTool(&quot;path/file.bed&quot;)</span>
@@ -762,7 +781,7 @@ document.write(`
 <span class="sd">        chr1    2000   4000    A  0.2</span>
 <span class="sd">        chr1   20400  30000    B  0.3</span>
 
-<span class="sd">        Print the head of the bins table.</span>
+<span class="sd">        Print the head of the ``bins`` table.</span>
 
 <span class="sd">        &gt;&gt;&gt; handle = HiconaCooler(&quot;path/to/file.cool&quot;)</span>
 <span class="sd">        &gt;&gt;&gt; handle.bins()[:].head(3)</span>
@@ -773,7 +792,7 @@ document.write(`
 
 <span class="sd">        Add a 0/1 column indicating overlap with the bed file.</span>
 
-<span class="sd">        &gt;&gt;&gt; handle.add_bin_annotation(&quot;path/file.bed&quot;, in_file=&quot;overlap&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; handle.add_bin_annot(&quot;path/file.bed&quot;, in_file=&quot;overlap&quot;)</span>
 <span class="sd">        &gt;&gt;&gt; handle.bins()[:].head(3)</span>
 <span class="sd">            chrom   start    end  overlap</span>
 <span class="sd">        0   chr1       0   10000        1</span>
@@ -782,7 +801,7 @@ document.write(`
 
 <span class="sd">        Add only the second annotation column from the bed file (skip first).</span>
 
-<span class="sd">        &gt;&gt;&gt; handle.add_bin_annotation(&quot;path/file.bed&quot;, to_keep=[None, &quot;pval&quot;])</span>
+<span class="sd">        &gt;&gt;&gt; handle.add_bin_annot(&quot;path/file.bed&quot;, to_keep=[None, &quot;pval&quot;])</span>
 <span class="sd">        &gt;&gt;&gt; handle.bins()[:].head(3)</span>
 <span class="sd">            chrom   start    end  overlap  pval</span>
 <span class="sd">        0   chr1       0   10000        1   0.6</span>
@@ -797,9 +816,9 @@ document.write(`
         <span class="c1"># to_keep = to_keep if any(to_keep) and to_keep else None</span>
 
         <span class="c1"># Check for no overlap in old and new annotations</span>
-        <span class="k">if</span> <span class="n">in_file</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">annotation_list</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">in_file</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">annot_list</span><span class="p">():</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;E: &#39;in file&#39; annotation name already exists.&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">to_keep</span> <span class="ow">and</span> <span class="nb">any</span><span class="p">(</span><span class="n">ann</span> <span class="ow">in</span> <span class="n">to_keep</span> <span class="k">for</span> <span class="n">ann</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">annotation_list</span><span class="p">()):</span>
+        <span class="k">if</span> <span class="n">to_keep</span> <span class="ow">and</span> <span class="nb">any</span><span class="p">(</span><span class="n">ann</span> <span class="ow">in</span> <span class="n">to_keep</span> <span class="k">for</span> <span class="n">ann</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">annot_list</span><span class="p">()):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;E: Overlap with old annotations, stopping.&quot;</span><span class="p">)</span>
 
         <span class="c1"># Create the two bin df and merge on default bed columns</span>
@@ -822,29 +841,32 @@ document.write(`
         <span class="n">hdf5</span><span class="o">.</span><span class="n">save_table</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_uris</span><span class="o">.</span><span class="n">add_path</span><span class="p">(</span><span class="s2">&quot;bins&quot;</span><span class="p">),</span> <span class="n">ann_df</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="HiconaCooler.del_bin_annotation">
-<a class="viewcode-back" href="../../api_reference/api/hicona.HiconaCooler.del_bin_annotation.html#hicona.HiconaCooler.del_bin_annotation">[docs]</a>
-    <span class="k">def</span> <span class="nf">del_bin_annotation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">to_del</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<div class="viewcode-block" id="HiconaCooler.del_bin_annot">
+<a class="viewcode-back" href="../../api_reference/api/hicona.HiconaCooler.del_bin_annot.html#hicona.HiconaCooler.del_bin_annot">[docs]</a>
+    <span class="k">def</span> <span class="nf">del_bin_annot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">to_del</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Remove one (or more) bin annotation columns.</span>
 
 <span class="sd">        Given one or more bin annotation names, remove those columns from the</span>
-<span class="sd">        bins table. Non-existent annotations or default columns (`chrom`,</span>
-<span class="sd">        `start`, `end`) are skipped without raising warning/errors.</span>
+<span class="sd">        ``bins`` table. Non-existent annotations or default columns (``chrom``,</span>
+<span class="sd">        ``start``, ``end``) are skipped without raising warning/errors.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
-<span class="sd">        to_del : str or Iterable[str]</span>
+<span class="sd">        to_del : str or iterable of str</span>
 <span class="sd">            String or iterable of them representing bin annotations to remove.</span>
 
 <span class="sd">        Notes</span>
 <span class="sd">        -----</span>
-<span class="sd">        Removed columns still take space, due to HDF5 specifications. To</span>
-<span class="sd">        actually reduce the file size, you might want to repack the file</span>
-<span class="sd">        (see h5repack tool).</span>
+<span class="sd">        .. warning::</span>
+<span class="sd">            Removed columns still take space, due to HDF5 specifications. To</span>
+<span class="sd">            actually reduce the file size, you might want to repack the file</span>
+<span class="sd">            (see `h5repack`_ tool).</span>
+
+<span class="sd">        .. _h5repack: https://manpages.ubuntu.com/manpages/lunar/man1/h5repack.1.html</span>
 
 <span class="sd">        Examples</span>
 <span class="sd">        --------</span>
-<span class="sd">        Print the head of the bins table.</span>
+<span class="sd">        Print the head of the ``bins`` table.</span>
 
 <span class="sd">        &gt;&gt;&gt; handle = HiconaCooler(&quot;path/to/file.cool&quot;)</span>
 <span class="sd">        &gt;&gt;&gt; handle.bins()[:].head(3)</span>
@@ -853,9 +875,9 @@ document.write(`
 <span class="sd">        1   chr1   10000   20000        0   NaN</span>
 <span class="sd">        2   chr1   20000   30000        1   0.3</span>
 
-<span class="sd">        Remove the `overlap` column.</span>
+<span class="sd">        Remove the ``overlap`` column.</span>
 
-<span class="sd">        &gt;&gt;&gt; handle.del_bin_annotation(&quot;overlap&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; handle.del_bin_annot(&quot;overlap&quot;)</span>
 <span class="sd">        &gt;&gt;&gt; handle.bins()[:].head(3)</span>
 <span class="sd">            chrom   start    end  pval</span>
 <span class="sd">        0   chr1       0   10000   0.6</span>
@@ -871,11 +893,12 @@ document.write(`
         <span class="n">hdf5</span><span class="o">.</span><span class="n">del_keys</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_uris</span><span class="o">.</span><span class="n">add_path</span><span class="p">(</span><span class="s2">&quot;bins&quot;</span><span class="p">),</span> <span class="n">to_del</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="HiconaCooler.ohe_bin_annotation">
-<a class="viewcode-back" href="../../api_reference/api/hicona.HiconaCooler.ohe_bin_annotation.html#hicona.HiconaCooler.ohe_bin_annotation">[docs]</a>
-    <span class="k">def</span> <span class="nf">ohe_bin_annotation</span><span class="p">(</span>
+<div class="viewcode-block" id="HiconaCooler.ohe_bin_annot">
+<a class="viewcode-back" href="../../api_reference/api/hicona.HiconaCooler.ohe_bin_annot.html#hicona.HiconaCooler.ohe_bin_annot">[docs]</a>
+    <span class="k">def</span> <span class="nf">ohe_bin_annot</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">to_ohe</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="o">*</span><span class="p">,</span>
         <span class="n">remove_original</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">remove_nan_mod</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
         <span class="n">max_num_mods</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
@@ -885,36 +908,38 @@ document.write(`
 <span class="sd">        For each specified bin annotation, perform one-hot encoding, that is,</span>
 <span class="sd">        create a new column for each modality of the annotation, where the</span>
 <span class="sd">        column is 1 if the bin has that modality, 0 otherwise.</span>
+<span class="sd">        Non-existent annotations are skipped without raising warning/errors.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
-<span class="sd">        to_ohe : str or Iterable[str]</span>
+<span class="sd">        to_ohe : str or iterable of str</span>
 <span class="sd">            Names of the annotations to perform one-hot encoding on.</span>
 <span class="sd">            Generated columns are named using ``{original name}_{modality}``.</span>
 <span class="sd">        remove_original : bool, optional</span>
 <span class="sd">            Whether to remove the original annotation columns on which ohe is</span>
-<span class="sd">            performed on. Default is False.</span>
+<span class="sd">            performed on. Default is &#39;False&#39;.</span>
 <span class="sd">        remove_nan_mod : bool, optional</span>
 <span class="sd">            Whether to remove columns originated from ohe of the NaN modality,</span>
-<span class="sd">            meaning ``{original name}_NaN``, if any. Default is True.</span>
+<span class="sd">            meaning ``{original name}_NaN``, if any. Default is &#39;True&#39;.</span>
 <span class="sd">        max_num_mods : int, optional</span>
 <span class="sd">            Do not perform ohe if the number of modalities is greater than</span>
-<span class="sd">            ``max_num_mods``. Default is 10.</span>
+<span class="sd">            ``max_num_mods``. Default is &#39;10&#39;.</span>
 
 <span class="sd">        Notes</span>
 <span class="sd">        -----</span>
 <span class="sd">        ``max_num_mods`` is a safety measure to avoid huge file size increase</span>
-<span class="sd">        due to trying to ohe a column with non categorical values.</span>
+<span class="sd">        due to trying to one hot encode a column with non categorical values.</span>
 
-<span class="sd">        Non-existent annotations are skipped without raising warning/errors.</span>
+<span class="sd">        .. warning::</span>
+<span class="sd">            Removed columns still take space, due to HDF5 specifications. To</span>
+<span class="sd">            actually reduce the file size, you might want to repack the file</span>
+<span class="sd">            (see `h5repack`_ tool).</span>
 
-<span class="sd">        Removed columns still take space, due to HDF5 specifications. To</span>
-<span class="sd">        actually reduce the file size, you might want to repack the file</span>
-<span class="sd">        (see h5repack tool).</span>
+<span class="sd">        .. _h5repack: https://manpages.ubuntu.com/manpages/lunar/man1/h5repack.1.html</span>
 
 <span class="sd">        Examples</span>
 <span class="sd">        --------</span>
-<span class="sd">        Print the head of the bins table.</span>
+<span class="sd">        Print the head of the ``bins`` table.</span>
 
 <span class="sd">        &gt;&gt;&gt; handle = HiconaCooler(&quot;path/to/file.cool&quot;)</span>
 <span class="sd">        &gt;&gt;&gt; handle.bins()[:].head(3)</span>
@@ -923,9 +948,9 @@ document.write(`
 <span class="sd">        1   chr1   10000   20000    B</span>
 <span class="sd">        2   chr1   20000   30000    A</span>
 
-<span class="sd">        Perform one-hot encoding on the `mod` column.</span>
+<span class="sd">        Perform one-hot encoding on the ``mod`` column.</span>
 
-<span class="sd">        &gt;&gt;&gt; handle.ohe_bin_annotation(&quot;mod&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; handle.ohe_bin_annot(&quot;mod&quot;)</span>
 <span class="sd">        &gt;&gt;&gt; handle.bins()[:].head(3)</span>
 <span class="sd">            chrom   start    end  mod  mod_A  mod_B</span>
 <span class="sd">        0   chr1       0   10000    A      1      0</span>
@@ -959,12 +984,12 @@ document.write(`
 
         <span class="c1"># Remove original columns if selected</span>
         <span class="k">if</span> <span class="n">remove_original</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">del_bin_annotation</span><span class="p">(</span><span class="n">to_ohe</span><span class="p">)</span></div>
+            <span class="bp">self</span><span class="o">.</span><span class="n">del_bin_annot</span><span class="p">(</span><span class="n">to_ohe</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="HiconaCooler.hmm_bin_annotation">
-<a class="viewcode-back" href="../../api_reference/api/hicona.HiconaCooler.hmm_bin_annotation.html#hicona.HiconaCooler.hmm_bin_annotation">[docs]</a>
-    <span class="k">def</span> <span class="nf">hmm_bin_annotation</span><span class="p">(</span>
+<div class="viewcode-block" id="HiconaCooler.hmm_bin_annot">
+<a class="viewcode-back" href="../../api_reference/api/hicona.HiconaCooler.hmm_bin_annot.html#hicona.HiconaCooler.hmm_bin_annot">[docs]</a>
+    <span class="k">def</span> <span class="nf">hmm_bin_annot</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">ann_file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
@@ -982,16 +1007,17 @@ document.write(`
 <span class="sd">        annotation with the highest fold change between the observed and</span>
 <span class="sd">        expected fraction of bases with that annotation. The expected fraction</span>
 <span class="sd">        is computed as the fraction of bases with that annotation in the whole</span>
-<span class="sd">        genome of the bin.</span>
+<span class="sd">        genome. The observed fraction is the fraction of bases with that</span>
+<span class="sd">        annotation in the bin.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        ann_file : str</span>
 <span class="sd">            Path to the bed file containing the chromHMM-like annotation.</span>
 <span class="sd">        ann_name : str, optional</span>
-<span class="sd">            Name of the new annotation column. Default is &quot;hmm&quot;.</span>
+<span class="sd">            Name of the new annotation column. Default is &#39;hmm&#39;.</span>
 <span class="sd">        nan_annot : str, optional</span>
-<span class="sd">            Name of the modality replacing gaps. Default is &quot;Void&quot;.</span>
+<span class="sd">            Name of the modality replacing gaps. Default is &#39;Void&#39;.</span>
 
 <span class="sd">        Notes</span>
 <span class="sd">        -----</span>
@@ -1027,7 +1053,7 @@ document.write(`
 
 <span class="sd">        Add the chromHMM-like annotation to the bins table.</span>
 
-<span class="sd">        &gt;&gt;&gt; handle.hmm_bin_annotation(&quot;path/file.bed&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; handle.hmm_bin_annot(&quot;path/file.bed&quot;)</span>
 <span class="sd">        &gt;&gt;&gt; handle.bins()[:].head(3)</span>
 <span class="sd">            chrom   start    end   hmm</span>
 <span class="sd">        0   chr1       0   10000  Void</span>

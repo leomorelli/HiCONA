@@ -294,11 +294,11 @@ document.write(`
 <li class="toctree-l2 current active"><a class="current reference internal" href="#">hicona.HiconaCooler.create_table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.fetch_table.html">hicona.HiconaCooler.fetch_table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.list_tables.html">hicona.HiconaCooler.list_tables</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.annotation_list.html">hicona.HiconaCooler.annotation_list</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.add_bin_annotation.html">hicona.HiconaCooler.add_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.del_bin_annotation.html">hicona.HiconaCooler.del_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.hmm_bin_annotation.html">hicona.HiconaCooler.hmm_bin_annotation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.ohe_bin_annotation.html">hicona.HiconaCooler.ohe_bin_annotation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.annot_list.html">hicona.HiconaCooler.annot_list</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.add_bin_annot.html">hicona.HiconaCooler.add_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.del_bin_annot.html">hicona.HiconaCooler.del_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.hmm_bin_annot.html">hicona.HiconaCooler.hmm_bin_annot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaCooler.ohe_bin_annot.html">hicona.HiconaCooler.ohe_bin_annot</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../table.html">HiconaTable</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-2"><i class="fa-solid fa-chevron-down"></i></label><ul>
@@ -322,7 +322,7 @@ document.write(`
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.html">hicona.HiconaGraph</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.table.html">hicona.HiconaGraph.table</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.ids_table.html">hicona.HiconaGraph.ids_table</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.add_chromsomal_edges.html">hicona.HiconaGraph.add_chromsomal_edges</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.add_genomic_edges.html">hicona.HiconaGraph.add_genomic_edges</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.compute_clustering.html">hicona.HiconaGraph.compute_clustering</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaGraph.permute_annotations.html">hicona.HiconaGraph.permute_annotations</a></li>
 </ul>
@@ -426,18 +426,18 @@ document.write(`
 <dt class="sig sig-object py" id="hicona.HiconaCooler.create_table">
 <span class="sig-prename descclassname"><span class="pre">HiconaCooler.</span></span><span class="sig-name descname"><span class="pre">create_table</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ops_flow</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'hicona'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10000000</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hicona/_cooler.html#HiconaCooler.create_table"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.HiconaCooler.create_table" title="Link to this definition">#</a></dt>
 <dd><p>Create a normalized and sparsified pixels table.</p>
-<p>Starting from the full pixel table, create a new pixel table by
-filtering, normalizing and then sparsifying the table (see <a class="reference internal" href="#r6279378c6fde-1" id="id1">[1]</a>).
-The exact steps to be performed are specified via a <cite>Flow</cite> object.</p>
+<p>Starting from the full <code class="docutils literal notranslate"><span class="pre">pixel</span></code> table, create a new <code class="docutils literal notranslate"><span class="pre">pixel</span></code> table
+by filtering, normalizing and then sparsifying the table (see <a class="reference internal" href="#r6279378c6fde-1" id="id1">[1]</a>).
+The exact steps to be performed are specified via a <code class="docutils literal notranslate"><span class="pre">Flow</span></code> object.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><dl class="simple">
 <dt><strong>ops_flow</strong><span class="classifier">str or Flow, optional</span></dt><dd><p>Flow of operations to use to filter and normalize the table. If a
 string is provided, the default flow for the corresponding method
-is used. Default is <cite>hicona</cite>.</p>
+is used. Default is ‘hicona’.</p>
 </dd>
 <dt><strong>chunk_size</strong><span class="classifier">int, optional</span></dt><dd><p>Number of pixels per chunk when processing the raw table.
-Default is 10,000,000.</p>
+Default is ‘10,000,000’.</p>
 </dd>
 </dl>
 </dd>
@@ -451,7 +451,7 @@ Default is 10,000,000.</p>
 <div class="admonition seealso">
 <p class="admonition-title">See also</p>
 <dl class="simple">
-<dt><a class="reference internal" href="hicona.preprocess.Flow.html#hicona.preprocess.Flow" title="hicona.preprocess.Flow"><code class="xref py py-obj docutils literal notranslate"><span class="pre">preprocess.Flow</span></code></a></dt><dd><p>Used to specify the operations to perform.</p>
+<dt><a class="reference internal" href="hicona.preprocess.Flow.html#hicona.preprocess.Flow" title="hicona.preprocess.Flow"><code class="xref py py-obj docutils literal notranslate"><span class="pre">preprocess.Flow</span></code></a></dt><dd><p>Used to define a preprocessing workflow.</p>
 </dd>
 </dl>
 </div>
@@ -464,7 +464,7 @@ weighted networks”, PNAS, 2009.</p>
 </div>
 </div>
 <p class="rubric">Examples</p>
-<p>Create a new table using the default <cite>hicona</cite> method.</p>
+<p>Create a new table using the default ‘hicona’ method.</p>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">handle</span> <span class="o">=</span> <span class="n">HiconaCooler</span><span class="p">(</span><span class="s2">&quot;path/to/file.cool&quot;</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">table</span> <span class="o">=</span> <span class="n">handle</span><span class="o">.</span><span class="n">create_table</span><span class="p">()</span>
 <span class="go"># Logging of the table creation process</span>
