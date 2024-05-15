@@ -62,10 +62,11 @@ class TableProcessor:
     def _apply_functions(self):
         """ "Apply all filtering and normalization functions to the table."""
 
-        for op in self._table.flow.get_partials():
-            logging.info("Starting to apply: %s", op.func.__name__)
+        for op, kwargs in self._table.flow.ops_list():
 
-            tab_size = hdf5.write_table(self._table.uris, op(self._table))
+            logging.info("Starting to apply: %s", op.__name__)
+
+            tab_size = hdf5.write_table(self._table.uris, op(self._table, **kwargs))
             hdf5.resize_table(self._table.uris, tab_size)
             self._table.reset_index()
 

@@ -46,8 +46,8 @@
     <script>DOCUMENTATION_OPTIONS.pagename = 'api_reference/api/hicona.preprocess.Flow.ops_add';</script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
-    <link rel="next" title="hicona.preprocess.Flow.ops_remove" href="hicona.preprocess.Flow.ops_remove.html" />
-    <link rel="prev" title="hicona.preprocess.Flow.save_to_json" href="hicona.preprocess.Flow.save_to_json.html" />
+    <link rel="next" title="hicona.preprocess.Flow.ops_list" href="hicona.preprocess.Flow.ops_list.html" />
+    <link rel="prev" title="hicona.preprocess.Flow.to_json" href="hicona.preprocess.Flow.to_json.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   </head>
@@ -330,16 +330,12 @@ document.write(`
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="../preprocess.html">Preprocessing</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-4"><i class="fa-solid fa-chevron-down"></i></label><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.html">hicona.preprocess.Flow</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.from_default.html">hicona.preprocess.Flow.from_default</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.from_file.html">hicona.preprocess.Flow.from_file</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.from_json.html">hicona.preprocess.Flow.from_json</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.as_json.html">hicona.preprocess.Flow.as_json</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.save_to_json.html">hicona.preprocess.Flow.save_to_json</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.to_json.html">hicona.preprocess.Flow.to_json</a></li>
 <li class="toctree-l2 current active"><a class="current reference internal" href="#">hicona.preprocess.Flow.ops_add</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.ops_list.html">hicona.preprocess.Flow.ops_list</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.ops_remove.html">hicona.preprocess.Flow.ops_remove</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.ops_reset.html">hicona.preprocess.Flow.ops_reset</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.ops_show.html">hicona.preprocess.Flow.ops_show</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.get_partials.html">hicona.preprocess.Flow.get_partials</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.source_add.html">hicona.preprocess.Flow.source_add</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.filt_genomic_dist.html">hicona.preprocess.filt_genomic_dist</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.filt_column_quant.html">hicona.preprocess.filt_column_quant</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.filt_column_value.html">hicona.preprocess.filt_column_value</a></li>
@@ -424,21 +420,43 @@ document.write(`
 <h1>hicona.preprocess.Flow.ops_add<a class="headerlink" href="#hicona-preprocess-flow-ops-add" title="Link to this heading">#</a></h1>
 <dl class="py method">
 <dt class="sig sig-object py" id="hicona.preprocess.Flow.ops_add">
-<span class="sig-prename descclassname"><span class="pre">Flow.</span></span><span class="sig-name descname"><span class="pre">ops_add</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fun_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fun_kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hicona/preprocess/_flow.html#Flow.ops_add"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.preprocess.Flow.ops_add" title="Link to this definition">#</a></dt>
+<span class="sig-prename descclassname"><span class="pre">Flow.</span></span><span class="sig-name descname"><span class="pre">ops_add</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fun_obj</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fun_kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hicona/preprocess/_flow.html#Flow.ops_add"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.preprocess.Flow.ops_add" title="Link to this definition">#</a></dt>
 <dd><p>Add a new operation to the operations flow.</p>
-<p>Add a new operation to the operations flow. The function name should
-be one of the available ones, otherwise an error is raised. The kwargs
-are optional and should be provided as a dictionary.</p>
+<p>Add a new operation to the operations flow. The function can be either
+one of the default ones provided by HiCONA or a custom one, as long as
+it follows the requirements specified in the class docstring.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><dl class="simple">
-<dt><strong>fun_name: str</strong></dt><dd><p>The name of the function to add to the operations flow.</p>
+<dt><strong>fun_obj: Callable</strong></dt><dd><p>The name of the function to add to the operations flow.</p>
 </dd>
-<dt><strong>fun_kwargs: dict or None, optional</strong></dt><dd><p>The kwargs to pass to the function. Default is None.</p>
-</dd>
-</dl>
+<dt><strong>fun_kwargs: dict or None, optional</strong></dt><dd><p>The kwargs to pass to the function. Default is ‘None’.</p>
 </dd>
 </dl>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<p>Add a default operation to the flow:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">hicona.preprocess</span> <span class="kn">import</span> <span class="n">Flow</span><span class="p">,</span> <span class="n">filt_genomic_dist</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">flow</span> <span class="o">=</span> <span class="n">Flow</span><span class="o">.</span><span class="n">from_default</span><span class="p">(</span><span class="s2">&quot;hicona&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">flow</span><span class="p">))</span>
+<span class="go">5</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">flow</span><span class="o">.</span><span class="n">ops_add</span><span class="p">(</span><span class="n">filt_genomic_dist</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;max_dist&quot;</span><span class="p">:</span> <span class="mi">2000000</span><span class="p">})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">flow</span><span class="p">))</span>
+<span class="go">6</span>
+</pre></div>
+</div>
+<p>Add a custom operation to the flow:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="k">def</span> <span class="nf">custom_fun</span><span class="p">(</span><span class="n">table</span><span class="p">,</span> <span class="n">arg1</span><span class="p">,</span> <span class="n">arg2</span><span class="p">):</span>
+<span class="gp">... </span>    <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">table</span><span class="p">:</span>
+<span class="gp">... </span>        <span class="c1"># Some custom code here</span>
+<span class="gp">... </span>        <span class="k">yield</span> <span class="n">chunk</span>
+<span class="gp">...</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">flow</span><span class="o">.</span><span class="n">ops_add</span><span class="p">(</span><span class="n">custom_fun</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;arg1&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;arg2&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">flow</span><span class="p">))</span>
+<span class="go">7</span>
+</pre></div>
+</div>
 </dd></dl>
 
 </section>
@@ -454,20 +472,20 @@ are optional and should be provided as a dictionary.</p>
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="hicona.preprocess.Flow.save_to_json.html"
+       href="hicona.preprocess.Flow.to_json.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">hicona.preprocess.Flow.save_to_json</p>
+        <p class="prev-next-title">hicona.preprocess.Flow.to_json</p>
       </div>
     </a>
     <a class="right-next"
-       href="hicona.preprocess.Flow.ops_remove.html"
+       href="hicona.preprocess.Flow.ops_list.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">hicona.preprocess.Flow.ops_remove</p>
+        <p class="prev-next-title">hicona.preprocess.Flow.ops_list</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>

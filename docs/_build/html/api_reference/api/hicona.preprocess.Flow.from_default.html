@@ -46,7 +46,7 @@
     <script>DOCUMENTATION_OPTIONS.pagename = 'api_reference/api/hicona.preprocess.Flow.from_default';</script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
-    <link rel="next" title="hicona.preprocess.Flow.from_file" href="hicona.preprocess.Flow.from_file.html" />
+    <link rel="next" title="hicona.preprocess.Flow.from_json" href="hicona.preprocess.Flow.from_json.html" />
     <link rel="prev" title="hicona.preprocess.Flow" href="hicona.preprocess.Flow.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
@@ -330,16 +330,12 @@ document.write(`
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="../preprocess.html">Preprocessing</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-4"><i class="fa-solid fa-chevron-down"></i></label><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.html">hicona.preprocess.Flow</a></li>
 <li class="toctree-l2 current active"><a class="current reference internal" href="#">hicona.preprocess.Flow.from_default</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.from_file.html">hicona.preprocess.Flow.from_file</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.from_json.html">hicona.preprocess.Flow.from_json</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.as_json.html">hicona.preprocess.Flow.as_json</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.save_to_json.html">hicona.preprocess.Flow.save_to_json</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.to_json.html">hicona.preprocess.Flow.to_json</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.ops_add.html">hicona.preprocess.Flow.ops_add</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.ops_list.html">hicona.preprocess.Flow.ops_list</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.ops_remove.html">hicona.preprocess.Flow.ops_remove</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.ops_reset.html">hicona.preprocess.Flow.ops_reset</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.ops_show.html">hicona.preprocess.Flow.ops_show</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.get_partials.html">hicona.preprocess.Flow.get_partials</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.source_add.html">hicona.preprocess.Flow.source_add</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.filt_genomic_dist.html">hicona.preprocess.filt_genomic_dist</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.filt_column_quant.html">hicona.preprocess.filt_column_quant</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.filt_column_value.html">hicona.preprocess.filt_column_value</a></li>
@@ -425,7 +421,7 @@ document.write(`
 <dl class="py method">
 <dt class="sig sig-object py" id="hicona.preprocess.Flow.from_default">
 <em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">Flow.</span></span><span class="sig-name descname"><span class="pre">from_default</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">default_name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hicona/preprocess/_flow.html#Flow.from_default"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.preprocess.Flow.from_default" title="Link to this definition">#</a></dt>
-<dd><p>Load a default Flow.</p>
+<dd><p>Load a default workflow provided by HiCONA.</p>
 <p>Load a default <code class="docutils literal notranslate"><span class="pre">Flow</span></code> from those available in HiCONA. The default
 name should be one of the available ones, otherwise an error is raised.</p>
 <dl class="field-list simple">
@@ -446,6 +442,13 @@ name should be one of the available ones, otherwise an error is raised.</p>
 <p>Load a default flow from HiCONA:</p>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">hicona.preprocess</span> <span class="kn">import</span> <span class="n">Flow</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">flow</span> <span class="o">=</span> <span class="n">Flow</span><span class="o">.</span><span class="n">from_default</span><span class="p">(</span><span class="s2">&quot;hicona&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">flow</span><span class="p">)</span>
+<span class="go">Operations flow:</span>
+<span class="go"> - filt_self_looping -&gt; {}</span>
+<span class="go"> - filt_inter_chroms -&gt; {}</span>
+<span class="go"> - filt_genomic_dist -&gt; {&#39;min_dist&#39;: None, &#39;max_dist&#39;: 200000000}</span>
+<span class="go"> - norm_genomic_dist -&gt; {&#39;apply_col&#39;: &#39;count&#39;}</span>
+<span class="go"> - filt_column_quant -&gt; {&#39;lower_quant&#39;: 0.05, &#39;upper_quant&#39;: None ...  # etc</span>
 </pre></div>
 </div>
 </dd></dl>
@@ -472,11 +475,11 @@ name should be one of the available ones, otherwise an error is raised.</p>
       </div>
     </a>
     <a class="right-next"
-       href="hicona.preprocess.Flow.from_file.html"
+       href="hicona.preprocess.Flow.from_json.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">hicona.preprocess.Flow.from_file</p>
+        <p class="prev-next-title">hicona.preprocess.Flow.from_json</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>

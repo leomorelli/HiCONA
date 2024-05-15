@@ -1,6 +1,6 @@
-﻿hicona.preprocess.Flow.ops\_show
+﻿hicona.preprocess.Flow.ops\_list
 ================================
 
 .. currentmodule:: hicona.preprocess
 
-.. automethod:: Flow.ops_show
+.. automethod:: Flow.ops_list

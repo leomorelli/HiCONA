@@ -20,3 +20,6 @@ OptionalAxes = ax.Axes | None
 
 # Type alias for the options dictionary.
 OptionsDict = dict[str, Any]
+
+# Type alias for the JSON dictionary.
+JsonDict = dict[str, dict[str, Any]]

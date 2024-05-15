@@ -330,16 +330,12 @@ document.write(`
 <li class="toctree-l1 current active has-children"><a class="current reference internal" href="#">Preprocessing</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-4"><i class="fa-solid fa-chevron-down"></i></label><ul>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.html">hicona.preprocess.Flow</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.from_default.html">hicona.preprocess.Flow.from_default</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.from_file.html">hicona.preprocess.Flow.from_file</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.from_json.html">hicona.preprocess.Flow.from_json</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.as_json.html">hicona.preprocess.Flow.as_json</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.save_to_json.html">hicona.preprocess.Flow.save_to_json</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.to_json.html">hicona.preprocess.Flow.to_json</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.ops_add.html">hicona.preprocess.Flow.ops_add</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.ops_list.html">hicona.preprocess.Flow.ops_list</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.ops_remove.html">hicona.preprocess.Flow.ops_remove</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.ops_reset.html">hicona.preprocess.Flow.ops_reset</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.ops_show.html">hicona.preprocess.Flow.ops_show</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.get_partials.html">hicona.preprocess.Flow.get_partials</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.source_add.html">hicona.preprocess.Flow.source_add</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.filt_genomic_dist.html">hicona.preprocess.filt_genomic_dist</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.filt_column_quant.html">hicona.preprocess.filt_column_quant</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.filt_column_value.html">hicona.preprocess.filt_column_value</a></li>
@@ -440,7 +436,7 @@ table chunks.</p></li>
 <table class="autosummary longtable table autosummary">
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="api/hicona.preprocess.Flow.html#hicona.preprocess.Flow" title="hicona.preprocess.Flow"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Flow</span></code></a>()</p></td>
-<td><p>Class to handle filtering and normalization functions for a table.</p></td>
+<td><p>Class to organize filtering and normalization functions for a table.</p></td>
 </tr>
 </tbody>
 </table>
@@ -451,17 +447,11 @@ table chunks.</p></li>
 <tr class="row-odd"><td><p><a class="reference internal" href="api/hicona.preprocess.Flow.from_default.html#hicona.preprocess.Flow.from_default" title="hicona.preprocess.Flow.from_default"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Flow.from_default</span></code></a>(default_name)</p></td>
 <td><p>Load a default Flow.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="api/hicona.preprocess.Flow.from_file.html#hicona.preprocess.Flow.from_file" title="hicona.preprocess.Flow.from_file"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Flow.from_file</span></code></a>(file_path[, sources])</p></td>
-<td><p>Create an instance from a previously saved json file.</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="api/hicona.preprocess.Flow.from_json.html#hicona.preprocess.Flow.from_json" title="hicona.preprocess.Flow.from_json"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Flow.from_json</span></code></a>(json)</p></td>
+<td><p>Create an instance from a json file or dictionary.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="api/hicona.preprocess.Flow.from_json.html#hicona.preprocess.Flow.from_json" title="hicona.preprocess.Flow.from_json"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Flow.from_json</span></code></a>(json_data[, sources])</p></td>
-<td><p>Create an instance with the provided functions already added.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="api/hicona.preprocess.Flow.as_json.html#hicona.preprocess.Flow.as_json" title="hicona.preprocess.Flow.as_json"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Flow.as_json</span></code></a>()</p></td>
-<td><p>Return the flow in a json-like dictionary.</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="api/hicona.preprocess.Flow.save_to_json.html#hicona.preprocess.Flow.save_to_json" title="hicona.preprocess.Flow.save_to_json"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Flow.save_to_json</span></code></a>(json_path)</p></td>
-<td><p>Save the operations flow to a json file.</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="api/hicona.preprocess.Flow.to_json.html#hicona.preprocess.Flow.to_json" title="hicona.preprocess.Flow.to_json"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Flow.to_json</span></code></a>([file_path])</p></td>
+<td><p>Return the flow in a json-like dictionary, optionally save it.</p></td>
 </tr>
 </tbody>
 </table>
@@ -470,23 +460,17 @@ table chunks.</p></li>
 <h3>Operations<a class="headerlink" href="#operations" title="Link to this heading">#</a></h3>
 <table class="autosummary longtable table autosummary">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="api/hicona.preprocess.Flow.ops_add.html#hicona.preprocess.Flow.ops_add" title="hicona.preprocess.Flow.ops_add"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Flow.ops_add</span></code></a>(fun_name[, fun_kwargs])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="api/hicona.preprocess.Flow.ops_add.html#hicona.preprocess.Flow.ops_add" title="hicona.preprocess.Flow.ops_add"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Flow.ops_add</span></code></a>(fun_obj[, fun_kwargs])</p></td>
 <td><p>Add a new operation to the operations flow.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="api/hicona.preprocess.Flow.ops_remove.html#hicona.preprocess.Flow.ops_remove" title="hicona.preprocess.Flow.ops_remove"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Flow.ops_remove</span></code></a>(fun_name)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="api/hicona.preprocess.Flow.ops_list.html#hicona.preprocess.Flow.ops_list" title="hicona.preprocess.Flow.ops_list"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Flow.ops_list</span></code></a>()</p></td>
+<td><p>Return the operations flow as a list of operations.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="api/hicona.preprocess.Flow.ops_remove.html#hicona.preprocess.Flow.ops_remove" title="hicona.preprocess.Flow.ops_remove"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Flow.ops_remove</span></code></a>(fun_name)</p></td>
 <td><p>Remove the last occurrence of a function from the flow.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="api/hicona.preprocess.Flow.ops_reset.html#hicona.preprocess.Flow.ops_reset" title="hicona.preprocess.Flow.ops_reset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Flow.ops_reset</span></code></a>()</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="api/hicona.preprocess.Flow.ops_reset.html#hicona.preprocess.Flow.ops_reset" title="hicona.preprocess.Flow.ops_reset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Flow.ops_reset</span></code></a>()</p></td>
 <td><p>Reset the operations flow.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="api/hicona.preprocess.Flow.ops_show.html#hicona.preprocess.Flow.ops_show" title="hicona.preprocess.Flow.ops_show"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Flow.ops_show</span></code></a>()</p></td>
-<td><p>Display the operations flow.</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="api/hicona.preprocess.Flow.get_partials.html#hicona.preprocess.Flow.get_partials" title="hicona.preprocess.Flow.get_partials"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Flow.get_partials</span></code></a>()</p></td>
-<td><p>Return partial functions for all operations in the flow.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="api/hicona.preprocess.Flow.source_add.html#hicona.preprocess.Flow.source_add" title="hicona.preprocess.Flow.source_add"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Flow.source_add</span></code></a>(fun_obj)</p></td>
-<td><p>Add a custom function to the available operations.</p></td>
 </tr>
 </tbody>
 </table>

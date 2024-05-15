@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>hicona.preprocess.Flow.from_file &#8212; HiCONA alpha documentation</title>
+    <title>hicona.preprocess.Flow.to_json &#8212; HiCONA alpha documentation</title>
   
   
   
@@ -43,11 +43,11 @@
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
     <script src="../../_static/copybutton.js?v=f281be69"></script>
     <script src="../../_static/design-tabs.js?v=36754332"></script>
-    <script>DOCUMENTATION_OPTIONS.pagename = 'api_reference/api/hicona.preprocess.Flow.from_file';</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'api_reference/api/hicona.preprocess.Flow.to_json';</script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
-    <link rel="next" title="hicona.preprocess.Flow.from_json" href="hicona.preprocess.Flow.from_json.html" />
-    <link rel="prev" title="hicona.preprocess.Flow.from_default" href="hicona.preprocess.Flow.from_default.html" />
+    <link rel="next" title="hicona.preprocess.Flow.ops_add" href="hicona.preprocess.Flow.ops_add.html" />
+    <link rel="prev" title="hicona.preprocess.Flow.from_json" href="hicona.preprocess.Flow.from_json.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   </head>
@@ -330,16 +330,12 @@ document.write(`
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="../preprocess.html">Preprocessing</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-4"><i class="fa-solid fa-chevron-down"></i></label><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.html">hicona.preprocess.Flow</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.from_default.html">hicona.preprocess.Flow.from_default</a></li>
-<li class="toctree-l2 current active"><a class="current reference internal" href="#">hicona.preprocess.Flow.from_file</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.from_json.html">hicona.preprocess.Flow.from_json</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.as_json.html">hicona.preprocess.Flow.as_json</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.save_to_json.html">hicona.preprocess.Flow.save_to_json</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">hicona.preprocess.Flow.to_json</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.ops_add.html">hicona.preprocess.Flow.ops_add</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.ops_list.html">hicona.preprocess.Flow.ops_list</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.ops_remove.html">hicona.preprocess.Flow.ops_remove</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.ops_reset.html">hicona.preprocess.Flow.ops_reset</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.ops_show.html">hicona.preprocess.Flow.ops_show</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.get_partials.html">hicona.preprocess.Flow.get_partials</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.source_add.html">hicona.preprocess.Flow.source_add</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.filt_genomic_dist.html">hicona.preprocess.filt_genomic_dist</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.filt_column_quant.html">hicona.preprocess.filt_column_quant</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.filt_column_value.html">hicona.preprocess.filt_column_value</a></li>
@@ -420,50 +416,22 @@ document.write(`
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="hicona-preprocess-flow-from-file">
-<h1>hicona.preprocess.Flow.from_file<a class="headerlink" href="#hicona-preprocess-flow-from-file" title="Link to this heading">#</a></h1>
+  <section id="hicona-preprocess-flow-to-json">
+<h1>hicona.preprocess.Flow.to_json<a class="headerlink" href="#hicona-preprocess-flow-to-json" title="Link to this heading">#</a></h1>
 <dl class="py method">
-<dt class="sig sig-object py" id="hicona.preprocess.Flow.from_file">
-<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">Flow.</span></span><span class="sig-name descname"><span class="pre">from_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sources</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hicona/preprocess/_flow.html#Flow.from_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.preprocess.Flow.from_file" title="Link to this definition">#</a></dt>
-<dd><p>Create an instance from a previously saved json file.</p>
-<p>Load a flow which was previously saved to json. If the flow contains
-any non default functions, these should be provided in the sources.</p>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>To load a flow from a json-like dictionary, use the <code class="docutils literal notranslate"><span class="pre">from_json</span></code>
-method instead.</p>
-</div>
+<dt class="sig sig-object py" id="hicona.preprocess.Flow.to_json">
+<span class="sig-prename descclassname"><span class="pre">Flow.</span></span><span class="sig-name descname"><span class="pre">to_json</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span> <span class="pre">|</span> <span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hicona/preprocess/_flow.html#Flow.to_json"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.preprocess.Flow.to_json" title="Link to this definition">#</a></dt>
+<dd><p>Return the flow in a json-like dictionary, optionally save it.</p>
+<p>Convert the flow to a json-like dictionary, where the keys are the
+order of the operations and the values are dictionaries with the
+operation name and its kwargs. This is done to preserve the order.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
 <dd class="field-odd"><dl class="simple">
-<dt><strong>file_path: str</strong></dt><dd><p>Path to the json file containing the operations flow.</p>
-</dd>
-<dt><strong>source: list of Callable or None, optional</strong></dt><dd><p>Any non default function required by the workflow. These should
-take a <cite>HiconaTable</cite> as first argument and return an iterator of
-processed chunks. Default is ‘None’.</p>
-</dd>
-</dl>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><dl class="simple">
-<dt>Flow</dt><dd><p>Workflow with the operations flow from the file.</p>
-</dd>
+<dt>A dictionary with the operations flow in json-like format.</dt><dd></dd>
 </dl>
 </dd>
 </dl>
-<div class="admonition seealso">
-<p class="admonition-title">See also</p>
-<dl class="simple">
-<dt><a class="reference internal" href="hicona.preprocess.Flow.from_json.html#hicona.preprocess.Flow.from_json" title="hicona.preprocess.Flow.from_json"><code class="xref py py-obj docutils literal notranslate"><span class="pre">hicona.preprocess.Flow.from_json</span></code></a></dt><dd><p>Load a flow from a json-like dictionary.</p>
-</dd>
-</dl>
-</div>
-<p class="rubric">Examples</p>
-<p>Load a flow from a previously saved json file:</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">hicona.preprocess</span> <span class="kn">import</span> <span class="n">Flow</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">flow</span> <span class="o">=</span> <span class="n">Flow</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="s2">&quot;path/to/file.json&quot;</span><span class="p">)</span>
-</pre></div>
-</div>
 </dd></dl>
 
 </section>
@@ -479,20 +447,20 @@ processed chunks. Default is ‘None’.</p>
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="hicona.preprocess.Flow.from_default.html"
+       href="hicona.preprocess.Flow.from_json.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">hicona.preprocess.Flow.from_default</p>
+        <p class="prev-next-title">hicona.preprocess.Flow.from_json</p>
       </div>
     </a>
     <a class="right-next"
-       href="hicona.preprocess.Flow.from_json.html"
+       href="hicona.preprocess.Flow.ops_add.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">hicona.preprocess.Flow.from_json</p>
+        <p class="prev-next-title">hicona.preprocess.Flow.ops_add</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -514,14 +482,14 @@ processed chunks. Default is ‘None’.</p>
   </div>
   <nav class="bd-toc-nav page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#hicona.preprocess.Flow.from_file"><code class="docutils literal notranslate"><span class="pre">Flow.from_file()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#hicona.preprocess.Flow.to_json"><code class="docutils literal notranslate"><span class="pre">Flow.to_json()</span></code></a></li>
 </ul>
   </nav></div>
 
   <div class="sidebar-secondary-item">
 
   <div class="tocsection sourcelink">
-    <a href="../../_sources/api_reference/api/hicona.preprocess.Flow.from_file.rst.txt">
+    <a href="../../_sources/api_reference/api/hicona.preprocess.Flow.to_json.rst.txt">
       <i class="fa-solid fa-file-lines"></i> Show Source
     </a>
   </div>

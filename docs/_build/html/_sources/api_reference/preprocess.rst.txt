@@ -40,10 +40,8 @@ I/O methods
     :toctree: api/
 
     Flow.from_default
-    Flow.from_file
     Flow.from_json
-    Flow.as_json
-    Flow.save_to_json
+    Flow.to_json
 
 Operations
 ~~~~~~~~~~
@@ -52,12 +50,9 @@ Operations
     :toctree: api/
 
     Flow.ops_add
+    Flow.ops_list
     Flow.ops_remove
     Flow.ops_reset
-    Flow.ops_show
-    Flow.get_partials
-    Flow.source_add
-
 
 Filtering functions
 -------------------

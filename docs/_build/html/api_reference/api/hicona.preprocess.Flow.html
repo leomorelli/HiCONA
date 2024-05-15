@@ -330,16 +330,12 @@ document.write(`
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="../preprocess.html">Preprocessing</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-4"><i class="fa-solid fa-chevron-down"></i></label><ul class="current">
 <li class="toctree-l2 current active"><a class="current reference internal" href="#">hicona.preprocess.Flow</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.from_default.html">hicona.preprocess.Flow.from_default</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.from_file.html">hicona.preprocess.Flow.from_file</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.from_json.html">hicona.preprocess.Flow.from_json</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.as_json.html">hicona.preprocess.Flow.as_json</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.save_to_json.html">hicona.preprocess.Flow.save_to_json</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.to_json.html">hicona.preprocess.Flow.to_json</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.ops_add.html">hicona.preprocess.Flow.ops_add</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.ops_list.html">hicona.preprocess.Flow.ops_list</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.ops_remove.html">hicona.preprocess.Flow.ops_remove</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.ops_reset.html">hicona.preprocess.Flow.ops_reset</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.ops_show.html">hicona.preprocess.Flow.ops_show</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.get_partials.html">hicona.preprocess.Flow.get_partials</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.source_add.html">hicona.preprocess.Flow.source_add</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.filt_genomic_dist.html">hicona.preprocess.filt_genomic_dist</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.filt_column_quant.html">hicona.preprocess.filt_column_quant</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.filt_column_value.html">hicona.preprocess.filt_column_value</a></li>
@@ -431,15 +427,30 @@ functions (in an order sensitive manner), which can be used to create
 or fetch a processed pixel table.</p>
 <p>Though the object can be initialized directly using its constructor
 method (which takes no arguments), it should generally be created
-using one of its class methods (<code class="docutils literal notranslate"><span class="pre">from_default</span></code>, <code class="docutils literal notranslate"><span class="pre">from_json</span></code> or
-<code class="docutils literal notranslate"><span class="pre">from_file</span></code>).</p>
+using one of its class methods (<code class="docutils literal notranslate"><span class="pre">from_default</span></code> and <code class="docutils literal notranslate"><span class="pre">from_json</span></code>).</p>
 <p>Any custom function can be added to the workflow as long as:</p>
 <ul class="simple">
 <li><p>It takes an instance of <code class="docutils literal notranslate"><span class="pre">HiconaTable</span></code> as its first argument.</p></li>
 <li><p>All other arguments are JSON data-types.</p></li>
 <li><p>It returns an iterator of processed chunks as <code class="docutils literal notranslate"><span class="pre">pandas.DataFrame</span></code>
-instances.</p></li>
+instances with the columns <code class="docutils literal notranslate"><span class="pre">bin1_id</span></code>, <code class="docutils literal notranslate"><span class="pre">bin2_id</span></code>, <code class="docutils literal notranslate"><span class="pre">count</span></code> and <code class="docutils literal notranslate"><span class="pre">norm</span></code>.</p></li>
 </ul>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>No check is performed on the custom functions, since it is complex
+to test for a highly variable function signature. It is up to the
+user to ensure that the functions are correctly implemented; if
+they are not, the program might crash at runtime or, worst case,
+produce incorrect results. A check might me added in the future.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>At the moment, it is manually needed to ensure that at least one
+normalization function is applied, that is, there there is at least
+one function which saves the values to the <code class="docutils literal notranslate"><span class="pre">norm</span></code> column. If no
+normalization is needed, add <code class="docutils literal notranslate"><span class="pre">norm_none</span></code> to the flow. This might
+be performed automatically in the future.</p>
+</div>
 <div class="admonition seealso">
 <p class="admonition-title">See also</p>
 <dl class="simple">
@@ -447,9 +458,9 @@ instances.</p></li>
 </dd>
 <dt><a class="reference internal" href="hicona.preprocess.Flow.from_default.html#hicona.preprocess.Flow.from_default" title="hicona.preprocess.Flow.from_default"><code class="xref py py-obj docutils literal notranslate"><span class="pre">hicona.preprocess.Flow.from_default</span></code></a></dt><dd><p>Load a default flow from the ones available from HiCONA.</p>
 </dd>
-<dt><a class="reference internal" href="hicona.preprocess.Flow.from_json.html#hicona.preprocess.Flow.from_json" title="hicona.preprocess.Flow.from_json"><code class="xref py py-obj docutils literal notranslate"><span class="pre">hicona.preprocess.Flow.from_json</span></code></a></dt><dd><p>Load a flow from a json-like dictionary.</p>
+<dt><a class="reference internal" href="hicona.preprocess.Flow.from_json.html#hicona.preprocess.Flow.from_json" title="hicona.preprocess.Flow.from_json"><code class="xref py py-obj docutils literal notranslate"><span class="pre">hicona.preprocess.Flow.from_json</span></code></a></dt><dd><p>Load a flow from a json-like file or dictionary.</p>
 </dd>
-<dt><a class="reference internal" href="hicona.preprocess.Flow.from_file.html#hicona.preprocess.Flow.from_file" title="hicona.preprocess.Flow.from_file"><code class="xref py py-obj docutils literal notranslate"><span class="pre">hicona.preprocess.Flow.from_file</span></code></a></dt><dd><p>Load a flow from a previously saved json file.</p>
+<dt><a class="reference internal" href="hicona.preprocess.norm_none.html#hicona.preprocess.norm_none" title="hicona.preprocess.norm_none"><code class="xref py py-obj docutils literal notranslate"><span class="pre">hicona.preprocess.norm_none</span></code></a></dt><dd><p>A normalization function that only copies the values to the <code class="docutils literal notranslate"><span class="pre">norm</span></code> column.</p>
 </dd>
 </dl>
 </div>
@@ -461,8 +472,7 @@ instances.</p></li>
 </div>
 <p>Load a default flow using the class methods:</p>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">flow</span> <span class="o">=</span> <span class="n">Flow</span><span class="o">.</span><span class="n">from_default</span><span class="p">(</span><span class="s2">&quot;default_flow&quot;</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">flow</span> <span class="o">=</span> <span class="n">Flow</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="s2">&quot;path/to/file.json&quot;</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">flow</span> <span class="o">=</span> <span class="n">Flow</span><span class="o">.</span><span class="n">from_json</span><span class="p">({</span><span class="mi">0</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;fun_name&quot;</span><span class="p">,</span> <span class="s2">&quot;kwargs&quot;</span><span class="p">:</span> <span class="p">{}})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">flow</span> <span class="o">=</span> <span class="n">Flow</span><span class="o">.</span><span class="n">from_json</span><span class="p">(</span><span class="s2">&quot;path/to/file.json&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
 <p class="rubric">Attributes</p>
@@ -473,23 +483,17 @@ instances.</p></li>
 <p class="rubric">Methods</p>
 <table class="autosummary longtable table autosummary">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="hicona.preprocess.Flow.as_json.html#hicona.preprocess.Flow.as_json" title="hicona.preprocess.Flow.as_json"><code class="xref py py-obj docutils literal notranslate"><span class="pre">as_json</span></code></a>()</p></td>
-<td><p>Return the flow in a json-like dictionary.</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="hicona.preprocess.Flow.from_default.html#hicona.preprocess.Flow.from_default" title="hicona.preprocess.Flow.from_default"><code class="xref py py-obj docutils literal notranslate"><span class="pre">from_default</span></code></a>(default_name)</p></td>
+<td><p>Load a default workflow provided by HiCONA.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="hicona.preprocess.Flow.from_default.html#hicona.preprocess.Flow.from_default" title="hicona.preprocess.Flow.from_default"><code class="xref py py-obj docutils literal notranslate"><span class="pre">from_default</span></code></a>(default_name)</p></td>
-<td><p>Load a default Flow.</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="hicona.preprocess.Flow.from_json.html#hicona.preprocess.Flow.from_json" title="hicona.preprocess.Flow.from_json"><code class="xref py py-obj docutils literal notranslate"><span class="pre">from_json</span></code></a>(json)</p></td>
+<td><p>Create an instance from a json file or dictionary.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="hicona.preprocess.Flow.from_file.html#hicona.preprocess.Flow.from_file" title="hicona.preprocess.Flow.from_file"><code class="xref py py-obj docutils literal notranslate"><span class="pre">from_file</span></code></a>(file_path[, sources])</p></td>
-<td><p>Create an instance from a previously saved json file.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="hicona.preprocess.Flow.from_json.html#hicona.preprocess.Flow.from_json" title="hicona.preprocess.Flow.from_json"><code class="xref py py-obj docutils literal notranslate"><span class="pre">from_json</span></code></a>(json_data[, sources])</p></td>
-<td><p>Create an instance with the provided functions already added.</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="hicona.preprocess.Flow.get_partials.html#hicona.preprocess.Flow.get_partials" title="hicona.preprocess.Flow.get_partials"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_partials</span></code></a>()</p></td>
-<td><p>Return partial functions for all operations in the flow.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="hicona.preprocess.Flow.ops_add.html#hicona.preprocess.Flow.ops_add" title="hicona.preprocess.Flow.ops_add"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ops_add</span></code></a>(fun_name[, fun_kwargs])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="hicona.preprocess.Flow.ops_add.html#hicona.preprocess.Flow.ops_add" title="hicona.preprocess.Flow.ops_add"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ops_add</span></code></a>(fun_obj[, fun_kwargs])</p></td>
 <td><p>Add a new operation to the operations flow.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="hicona.preprocess.Flow.ops_list.html#hicona.preprocess.Flow.ops_list" title="hicona.preprocess.Flow.ops_list"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ops_list</span></code></a>()</p></td>
+<td><p>Return the operations flow as a list of operations.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="hicona.preprocess.Flow.ops_remove.html#hicona.preprocess.Flow.ops_remove" title="hicona.preprocess.Flow.ops_remove"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ops_remove</span></code></a>(fun_name)</p></td>
 <td><p>Remove the last occurrence of a function from the flow.</p></td>
@@ -497,14 +501,8 @@ instances.</p></li>
 <tr class="row-even"><td><p><a class="reference internal" href="hicona.preprocess.Flow.ops_reset.html#hicona.preprocess.Flow.ops_reset" title="hicona.preprocess.Flow.ops_reset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ops_reset</span></code></a>()</p></td>
 <td><p>Reset the operations flow.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="hicona.preprocess.Flow.ops_show.html#hicona.preprocess.Flow.ops_show" title="hicona.preprocess.Flow.ops_show"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ops_show</span></code></a>()</p></td>
-<td><p>Display the operations flow.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="hicona.preprocess.Flow.save_to_json.html#hicona.preprocess.Flow.save_to_json" title="hicona.preprocess.Flow.save_to_json"><code class="xref py py-obj docutils literal notranslate"><span class="pre">save_to_json</span></code></a>(json_path)</p></td>
-<td><p>Save the operations flow to a json file.</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="hicona.preprocess.Flow.source_add.html#hicona.preprocess.Flow.source_add" title="hicona.preprocess.Flow.source_add"><code class="xref py py-obj docutils literal notranslate"><span class="pre">source_add</span></code></a>(fun_obj)</p></td>
-<td><p>Add a custom function to the available operations.</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="hicona.preprocess.Flow.to_json.html#hicona.preprocess.Flow.to_json" title="hicona.preprocess.Flow.to_json"><code class="xref py py-obj docutils literal notranslate"><span class="pre">to_json</span></code></a>([file_path])</p></td>
+<td><p>Return the flow in a json-like dictionary, optionally save it.</p></td>
 </tr>
 </tbody>
 </table>
