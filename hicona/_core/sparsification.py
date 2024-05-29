@@ -70,7 +70,7 @@ class TableProcessor:
             hdf5.resize_table(self._table.uris, tab_size)
             self._table.reset_index()
 
-            logging.info("Finished applying: %s", op.func.__name__)
+            logging.info("Finished applying: %s", op.__name__)
             logging.info("Table size: %s", tab_size)
 
     def _spar_table(self):
