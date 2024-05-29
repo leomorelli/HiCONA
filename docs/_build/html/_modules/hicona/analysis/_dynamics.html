@@ -351,26 +351,57 @@ document.write(`
 <div class="viewcode-block" id="AnnotDynamics">
 <a class="viewcode-back" href="../../../api_reference/api/hicona.analysis.AnnotDynamics.html#hicona.analysis.AnnotDynamics">[docs]</a>
 <span class="k">class</span> <span class="nc">AnnotDynamics</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Class for the handling of pixel table annotation dynamics.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Class for the compute and analyze pixel table annotation dynamics.</span>
 
-<span class="sd">    Class used to compute, return and plot table annotation dynamics, that</span>
-<span class="sd">    is, the changes in frequency of pixel annotation pairs as a function of</span>
-<span class="sd">    the alpha value.</span>
+<span class="sd">    Class used to compute, return and plot pixel table annotation dynamics,</span>
+<span class="sd">    that is, the changes in frequency of pixel annotation pairs as a function</span>
+<span class="sd">    of the alpha value used for filtering the table.</span>
 
-<span class="sd">    At initialization, the object creates a 1 point spaced grid of alpha</span>
-<span class="sd">    thresholds (every 1 quantile or every 1 percentage point).</span>
+<span class="sd">    The annotation dynamics algorithm works as follows:</span>
+
+<span class="sd">    - compute the background fractions, that is, the fraction of pixels for</span>
+<span class="sd">      each annotation pair in the entire unfiltered table.</span>
+<span class="sd">    - for each interval, compute the interval fractions, which are computed</span>
+<span class="sd">      analogously to the background ones but only considering pixels with an</span>
+<span class="sd">      alpha value falling in the interval.</span>
+<span class="sd">    - for each interval, compute the log odds ratios of the interval fractions</span>
+<span class="sd">      with respect to the background fractions. Also compute p-values for the</span>
+<span class="sd">      log odds ratios using Fisher&#39;s exact test and correct them for multiple</span>
+<span class="sd">      testing using the Benjamini-Hochberg method.</span>
+
+<span class="sd">    Objects of this class can also be initialized through the</span>
+<span class="sd">    ``HiconaTable.get_annot_dynamics()`` method.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
 <span class="sd">    table : HiconaTable</span>
 <span class="sd">        The table for which the annotation dynamics are computed.</span>
 <span class="sd">    annot_name : str</span>
-<span class="sd">        The name of the annotation column to consider.</span>
+<span class="sd">        The name of the bin annotation column to consider.</span>
 <span class="sd">    as_quantiles : bool, optional</span>
 <span class="sd">        Whether the intervals are expressed in quantile points, rather than</span>
-<span class="sd">        in absolute percentage points. Default is True.</span>
-<span class="sd">    alpha_mod : &quot;alpha_min&quot; or &quot;alpha_max&quot;, optional</span>
-<span class="sd">        The alpha mode to use for filtering. Default is &quot;alpha_min&quot;.</span>
+<span class="sd">        in absolute percentage points. Default is &#39;True&#39;.</span>
+<span class="sd">    alpha_mod : &#39;alpha_min&#39; or &#39;alpha_max&#39;, optional</span>
+<span class="sd">        The alpha mode to use for filtering. Default is &#39;alpha_min&#39;.</span>
+
+<span class="sd">    See Also</span>
+<span class="sd">    --------</span>
+<span class="sd">    hicona.HiconaTable.get_annot_dynamics:</span>
+<span class="sd">        Method to create an instance of the class starting from a table object.</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    Create an instance of the class starting from a table object:</span>
+
+<span class="sd">    &gt;&gt;&gt; import hicona</span>
+<span class="sd">    &gt;&gt;&gt; handle = hicona.HiconaCooler(&quot;path/to/cool_file.cool&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; table = handle.fetch_table(&quot;hicona&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; dynamics = table.get_annot_dynamics(&quot;chromatin_state&quot;)</span>
+
+<span class="sd">    Create an instance of the class using the constructor:</span>
+
+<span class="sd">    &gt;&gt;&gt; dynamics = hicona.AnnotDynamics(table, &quot;chromatin_state&quot;)</span>
+
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
@@ -387,6 +418,7 @@ document.write(`
         <span class="bp">self</span><span class="o">.</span><span class="n">_as_quants</span> <span class="o">=</span> <span class="n">as_quantiles</span>
 
         <span class="c1"># Automatically generate a grid with 0.01 wide intervals</span>
+        <span class="c1"># Which can be aggregated to the desired intervals when queried</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_alpha_distr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_hic_table</span><span class="o">.</span><span class="n">get_alpha_distr</span><span class="p">(</span><span class="n">alpha_mod</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_break_pts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_breakpoints</span><span class="p">(</span><span class="mf">0.01</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_as_quants</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_abs_dynam</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_dynamics</span><span class="p">()</span>
@@ -459,43 +491,97 @@ document.write(`
         <span class="n">cumulative</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">intervals</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return annotation dynamics as a pd.DataFrame.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return annotation dynamics and relative p-values as dataframes.</span>
 
-<span class="sd">        For each annotation, compute the log odds ratio and p-value for each</span>
-<span class="sd">        alpha interval. P-values are computed using Fisher&#39;s exact test and</span>
-<span class="sd">        corrected for multiple testing using the Benjamini-Hochberg method.</span>
+<span class="sd">        Log odds ratios and p-values are computed as indicated in the class</span>
+<span class="sd">        documentation. The results are returned as two dataframes, one for the</span>
+<span class="sd">        log odds ratios and one for the p-values.</span>
 
-<span class="sd">        If set to cumulative, the column considers all alpha values up to</span>
-<span class="sd">        the upper bound (included), otherwise it considers only alphas between</span>
-<span class="sd">        the column upper bound (included) and the previous column upper bound</span>
-<span class="sd">        (excluded).</span>
-
-<span class="sd">        If intervals are provided, the dynamics are computed on those</span>
-<span class="sd">        intervals rather than on the 1 unit spaced grid by default.</span>
-<span class="sd">        Interval boundaries should be in the range 0 &lt; i &lt;= 100, since they</span>
-<span class="sd">        are unit points of the underlying coarse grain grid. As an example,</span>
-<span class="sd">        the interval [5, 10] would indicate alpha values between 0.05 and 0.1</span>
-<span class="sd">        if working with percentiles, or between the 5th and 10th quantiles if</span>
-<span class="sd">        working with quantiles.</span>
-
-<span class="sd">        NOTE: currently pixels with alpha value equal to zero are lost since</span>
-<span class="sd">        the lower bound is excluded. This should be changed in the future</span>
-<span class="sd">        even though the number of pixels with alpha equal to zero is usually</span>
-<span class="sd">        very low.</span>
+<span class="sd">        .. warning::</span>
+<span class="sd">            Currently, pixels with alpha value equal to zero are lost since the</span>
+<span class="sd">            lower bound is excluded. This will likely be changed in the future</span>
+<span class="sd">            even though the number of pixels with alpha equal to zero is usually</span>
+<span class="sd">            very low.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        cumulative : bool, optional</span>
-<span class="sd">            Whether to compute the cumulative dynamics. Default is False.</span>
-<span class="sd">        intervals : list[int] or None, optional</span>
-<span class="sd">            If provided, the upper bounds of the intervals to consider.</span>
-<span class="sd">            Default is None.</span>
+<span class="sd">            Whether to compute the dynamics cumulatively. If set to &#39;True&#39;,</span>
+<span class="sd">            each interval includes all pixels with alpha values up to the</span>
+<span class="sd">            interval upper bound (included), otherwise it considers only</span>
+<span class="sd">            pixels whose alphas are between the previous interval upper bound</span>
+<span class="sd">            (excluded) and the current one (included). Default is &#39;False&#39;.</span>
+<span class="sd">        intervals : list of int or None, optional</span>
+<span class="sd">            If provided, the upper bounds of the intervals to consider, else</span>
+<span class="sd">            a 1 unit spaced grid is used. Interval boundaries should be in the</span>
+<span class="sd">            range 0 &lt; i &lt;= 100. Default is &#39;None&#39;.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
-<span class="sd">        tuple[pd.DataFrame, pd.DataFrame]</span>
-<span class="sd">            A tuple with the log odds ratios and p-values matrices.</span>
+<span class="sd">        log_odds : pandas.DataFrame</span>
+<span class="sd">            The log odds ratios of the annotation dynamics.</span>
+<span class="sd">        p_values : pandas.DataFrame</span>
+<span class="sd">            The p-values of the annotation dynamics.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+
+<span class="sd">        Create a dynamics object with the quantile option set to &#39;True&#39;:</span>
+
+<span class="sd">        &gt;&gt;&gt; import hicona</span>
+<span class="sd">        &gt;&gt;&gt; handle = hicona.HiconaCooler(&quot;path/to/cool_file.cool&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; table = handle.fetch_table(&quot;hicona&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; dynamics = table.get_annot_dynamics(&quot;HMM_annot&quot;, as_quantiles=True)</span>
+
+<span class="sd">        Compute the cumulative dynamics for that dynamics object:</span>
+
+<span class="sd">        &gt;&gt;&gt; log_odds, p_values = dynamics.get_dynamics(cumulative=True)</span>
+<span class="sd">        &gt;&gt;&gt; log_odds</span>
+<span class="sd">                                 0.1275    0.1597  ...    0.5090  0.6092</span>
+<span class="sd">        HMM_annot1 HMM_annot2</span>
+<span class="sd">        Enh        Enh         0.822894  0.701970  ...  0.794474     NaN</span>
+<span class="sd">                   Het        -0.864572 -0.844857  ...  0.157273     NaN</span>
+<span class="sd">                   Prom        0.560924  0.435358  ...  0.741693     NaN</span>
+<span class="sd">        ...        ...              ...       ...  ...       ...     ...</span>
+<span class="sd">        Tx         Tx          0.112815  0.167098  ...  0.524686     NaN</span>
+<span class="sd">                   Void       -0.500922 -0.504499  ...  0.147691     NaN</span>
+<span class="sd">        Void       Void        0.484172  0.508217  ... -0.680444     NaN</span>
+<span class="sd">        &lt;BLANKLINE&gt;</span>
+<span class="sd">        [21 rows x 100 columns]</span>
+
+<span class="sd">        In this case, no intervals are provided, so the default grid of 1 unit</span>
+<span class="sd">        (in this case 1 percentile since the quantile option is set to &#39;True&#39;)</span>
+<span class="sd">        is used. Since the cumulative option is set to &#39;True&#39;, all pixels with</span>
+<span class="sd">        alpha values up to the interval upper bound are included, meaning that</span>
+<span class="sd">        the first column considers pixels with alpha values in the range</span>
+<span class="sd">        ``(0, 0.1275]``, the second column in the range ``(0, 0.1597]``, and so on.</span>
+
+<span class="sd">        Compute the non-cumulative dynamics for that dynamics object:</span>
+
+<span class="sd">        &gt;&gt;&gt; bounds = [10 * i for i in range(1, 11)]</span>
+<span class="sd">        &gt;&gt;&gt; log_odds, _ = dynamics.get_dynamics(cumulative=False, intervals=bounds)</span>
+<span class="sd">        &gt;&gt;&gt; log_odds</span>
+<span class="sd">                                     10        20  ...         90       100</span>
+<span class="sd">        HMM_annot1 HMM_annot2</span>
+<span class="sd">        Enh        Enh         0.450639  0.119999  ...   0.033375 -0.376168</span>
+<span class="sd">                   Het        -0.687511 -0.280919  ...   0.496997  0.516708</span>
+<span class="sd">                   Prom        0.294477  0.069265  ...  -0.014289 -0.350122</span>
+<span class="sd">        ...        ...              ...       ...  ...        ...       ...</span>
+<span class="sd">        Tx         Tx          0.337442 -0.093102  ...  -0.956154 -0.805076</span>
+<span class="sd">                   Void       -0.364742 -0.404569  ...  -0.172750 -0.174324</span>
+<span class="sd">        Void       Void        0.270512  0.375850  ...   0.019111  0.400275</span>
+<span class="sd">        &lt;BLANKLINE&gt;</span>
+<span class="sd">        [21 rows x 10 columns]</span>
+
+<span class="sd">        Since intervals are provided, the dynamics are computed every ten</span>
+<span class="sd">        percentile points. Moreover, since the cumulative option is set to</span>
+<span class="sd">        &#39;False&#39;, the first column considers pixels with alpha values in the</span>
+<span class="sd">        range ``(0, 10]``, the second column in the range ``(10, 20]``, and so on.</span>
+
 <span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># TODO: Maybe change colnames when using quantile? Or at least making</span>
+        <span class="c1"># the use consistent between giving and not giving intervals</span>
 
         <span class="n">dynam</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_abs_dynam</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
 
@@ -546,36 +632,40 @@ document.write(`
         <span class="n">img_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">show</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">OptionalAxes</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Plot the full annotation dynamics.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Plot the full annotation dynamics for a pixel table.</span>
 
-<span class="sd">        Plot the full annotation dynamics table (or a subset if specified)</span>
-<span class="sd">        as a heatmap with all the possible annotation pairs as rows and the</span>
-<span class="sd">        thresholds as columns. On top of the heatmap, represent the alpha</span>
-<span class="sd">        distribution and the thresholds of the heatmap cells (dashed lines).</span>
+<span class="sd">        Plot the full annotation dynamics table as a heatmap with all the</span>
+<span class="sd">        annotation pairs as rows and the thresholds as columns. On top of</span>
+<span class="sd">        the heatmap, represent the alpha distribution and the thresholds</span>
+<span class="sd">        of the heatmap cells (dashed lines).</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        cumulative : bool, optional</span>
-<span class="sd">            Whether to compute the cumulative dynamics. Default is True.</span>
-<span class="sd">        intervals : list[int] or None, optional</span>
-<span class="sd">            If provided, the upper bounds of the intervals to consider.</span>
-<span class="sd">            See `get_dynamics` for more information.</span>
-<span class="sd">            Default is None.</span>
+<span class="sd">            Whether to compute the cumulative dynamics. Default is &#39;True&#39;.</span>
+<span class="sd">        intervals : list of int or None, optional</span>
+<span class="sd">            If provided, the upper bounds of the intervals to consider, else</span>
+<span class="sd">            a 1 unit spaced grid is used. Interval boundaries should be in the</span>
+<span class="sd">            range 0 &lt; i &lt;= 100. Default is &#39;None&#39;.</span>
 <span class="sd">        sort_rows : bool, optional</span>
-<span class="sd">            Whether to sort the rows of the heatmap by linkage. This is to try</span>
-<span class="sd">            to group similar annotations together, though it might hamper the</span>
-<span class="sd">            comparison of multiple tables. Default is True.</span>
+<span class="sd">            Whether to sort the rows of the heatmap by linkage. This groups</span>
+<span class="sd">            similar annotations together, though it might hamper the</span>
+<span class="sd">            comparison of multiple tables. Default is &#39;True&#39;.</span>
 <span class="sd">        img_path : str or None, optional</span>
-<span class="sd">            If provided, save the plot to the specified path. Default is None.</span>
+<span class="sd">            If provided, save the plot to the specified path. Default is &#39;None&#39;.</span>
 <span class="sd">        show : bool, optional</span>
-<span class="sd">            If True, display the plot in a :py:mod:`matplotlib` window.</span>
-<span class="sd">            Default is False.</span>
+<span class="sd">            If &#39;True&#39;, display the plot in a matplotlib window. Default is &#39;False&#39;.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
 <span class="sd">        matplotlib.axes.Axes or None</span>
-<span class="sd">            If ``show`` if `False` and ``img_path`` is `None`, return plot</span>
-<span class="sd">            axes. Otherwise, return None.</span>
+<span class="sd">            If ``show`` if `False` and ``img_path`` is &#39;None&#39;, return plot</span>
+<span class="sd">            axes. Otherwise, return &#39;None&#39;.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+
+<span class="sd">        .. image:: ../../_static/dynamics_cumulative.png</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="n">odds</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_dynamics</span><span class="p">(</span><span class="n">cumulative</span><span class="p">,</span> <span class="n">intervals</span><span class="p">)</span>

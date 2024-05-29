@@ -91,6 +91,8 @@ def plot_alpha_grid(
         rf"$\alpha$ = {optim['alpha']:.3f}",
     )
 
+    plt.tight_layout()
+
     return _plot_output(axes, img_path, show)
 
 

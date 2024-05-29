@@ -421,25 +421,31 @@ document.write(`
 <dl class="py class">
 <dt class="sig sig-object py" id="hicona.analysis.AlphaGrid">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">hicona.analysis.</span></span><span class="sig-name descname"><span class="pre">AlphaGrid</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">table</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha_mod</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">decimals</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hicona/analysis/_alphas.html#AlphaGrid"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.analysis.AlphaGrid" title="Link to this definition">#</a></dt>
-<dd><p>Class for the computation of the optimal alpha value for filtering.</p>
-<p>During class initialization, the optimal alpha value is computed using
-the following steps:</p>
+<dd><p>Class to analyze table filtering at different alpha values.</p>
+<p>During initialization, a grid of alpha thresholds is tested in order
+to compute the optimal alpha value for table filtering. The optimal
+alpha value is the one minimizing retained edge fraction while
+maximizing retained node fraction.</p>
+<p>The computation of the grid is performed as follows:</p>
 <ul class="simple">
-<li><p>define a grid of alpha values centered around the current optimal
-and spaced in order to cover 1 unit of previous decimal position.</p></li>
-<li><p>for each alpha value, filter the table and compute the remaining
-fraction of edges and nodes.</p></li>
-<li><p>for each alpha compute the Euclidean distance from point <code class="docutils literal notranslate"><span class="pre">(1,</span> <span class="pre">0)</span></code>
-in the space <code class="docutils literal notranslate"><span class="pre">x:</span> <span class="pre">fraction</span> <span class="pre">of</span> <span class="pre">nodes</span></code>, <code class="docutils literal notranslate"><span class="pre">y:</span> <span class="pre">fraction</span> <span class="pre">of</span> <span class="pre">edges</span></code>.</p></li>
+<li><p>define a grid of alpha values centered around the current optimal value
+and spaced in order to cover 1 unit of the previous decimal position.</p></li>
+<li><p>for each alpha value, filter the table and compute the retained
+fraction of edges and nodes. An edge is retained if both nodes are
+still present in the table, while a node is retained if it is present
+in at least one edge.</p></li>
+<li><p>for each alpha threshold compute the Euclidean distance from the point
+<code class="docutils literal notranslate"><span class="pre">(1,</span> <span class="pre">0)</span></code> in the space with <code class="docutils literal notranslate"><span class="pre">x:</span> <span class="pre">fraction</span> <span class="pre">of</span> <span class="pre">nodes</span></code>, <code class="docutils literal notranslate"><span class="pre">y:</span> <span class="pre">fraction</span> <span class="pre">of</span> <span class="pre">edges</span></code>.</p></li>
 <li><p>set as new optimal alpha the one minimizing the Euclidean distance.</p></li>
 <li><p>move to the next decimal position and repeat the procedure.</p></li>
 </ul>
+<p>Objects of this class can also be initialized through <code class="docutils literal notranslate"><span class="pre">HiconaTable.get_alpha_grid()</span></code>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><dl class="simple">
-<dt><strong>table</strong><span class="classifier">HiconaTable</span></dt><dd><p>The table for which the optimal alpha value is computed.</p>
+<dt><strong>table</strong><span class="classifier">HiconaTable</span></dt><dd><p>The table for which the alpha grid is computed.</p>
 </dd>
-<dt><strong>alpha_mod</strong><span class="classifier">“alpha_min” or “alpha_max”</span></dt><dd><p>The alpha mode to use for filtering.</p>
+<dt><strong>alpha_mod</strong><span class="classifier">‘alpha_min’ or ‘alpha_max’</span></dt><dd><p>The alpha mode to use for filtering.</p>
 </dd>
 <dt><strong>decimals</strong><span class="classifier">int</span></dt><dd><p>The number of decimal positions to consider when computing the grid.</p>
 </dd>
@@ -448,19 +454,48 @@ in the space <code class="docutils literal notranslate"><span class="pre">x:</sp
 </dl>
 </dd>
 </dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><a class="reference internal" href="hicona.HiconaTable.get_alpha_grid.html#hicona.HiconaTable.get_alpha_grid" title="hicona.HiconaTable.get_alpha_grid"><code class="xref py py-obj docutils literal notranslate"><span class="pre">hicona.HiconaTable.get_alpha_grid</span></code></a></dt><dd><p>Method to create an instance of the class starting from a table object.</p>
+</dd>
+</dl>
+</div>
+<p class="rubric">Examples</p>
+<p>Create an instance of the class starting from a table object:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">hicona</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">handle</span> <span class="o">=</span> <span class="n">hicona</span><span class="o">.</span><span class="n">HiconaCooler</span><span class="p">(</span><span class="s2">&quot;path/to/cool_file.cool&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">table</span> <span class="o">=</span> <span class="n">handle</span><span class="o">.</span><span class="n">fetch_table</span><span class="p">(</span><span class="s2">&quot;hicona&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">grid</span> <span class="o">=</span> <span class="n">table</span><span class="o">.</span><span class="n">get_alpha_grid</span><span class="p">()</span>
+<span class="go">Optimal alpha: computing decimal 1</span>
+<span class="go">Optimal alpha: computing decimal 2</span>
+<span class="go">Optimal alpha: computing decimal 3</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">grid</span><span class="o">.</span><span class="n">optimal_alpha</span>
+<span class="go">0.154</span>
+</pre></div>
+</div>
+<p>Create an instance of the class directly:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">grid</span> <span class="o">=</span> <span class="n">hicona</span><span class="o">.</span><span class="n">analysis</span><span class="o">.</span><span class="n">AlphaGrid</span><span class="p">(</span><span class="n">table</span><span class="p">,</span> <span class="s2">&quot;alpha_min&quot;</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="go">Optimal alpha: computing decimal 1</span>
+<span class="go">Optimal alpha: computing decimal 2</span>
+<span class="go">Optimal alpha: computing decimal 3</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">grid</span><span class="o">.</span><span class="n">optimal_alpha</span>
+<span class="go">0.154</span>
+</pre></div>
+</div>
 <p class="rubric">Attributes</p>
 <table class="autosummary longtable table autosummary">
 <tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="hicona.analysis.AlphaGrid.optimal_alpha.html#hicona.analysis.AlphaGrid.optimal_alpha" title="hicona.analysis.AlphaGrid.optimal_alpha"><code class="xref py py-obj docutils literal notranslate"><span class="pre">optimal_alpha</span></code></a></p></td>
+<td><p>Return the optimal alpha value for filtering the pixel table.</p></td>
+</tr>
 </tbody>
 </table>
 <p class="rubric">Methods</p>
 <table class="autosummary longtable table autosummary">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="hicona.analysis.AlphaGrid.optimal_alpha.html#hicona.analysis.AlphaGrid.optimal_alpha" title="hicona.analysis.AlphaGrid.optimal_alpha"><code class="xref py py-obj docutils literal notranslate"><span class="pre">optimal_alpha</span></code></a>()</p></td>
-<td><p>Return the optimal alpha value for filtering the pixel table.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="hicona.analysis.AlphaGrid.plot.html#hicona.analysis.AlphaGrid.plot" title="hicona.analysis.AlphaGrid.plot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">plot</span></code></a>([img_path, show])</p></td>
-<td><p>Plot the grid object.</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="hicona.analysis.AlphaGrid.plot.html#hicona.analysis.AlphaGrid.plot" title="hicona.analysis.AlphaGrid.plot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">plot</span></code></a>([img_path, show])</p></td>
+<td><p>Plot the alpha grid.</p></td>
 </tr>
 </tbody>
 </table>

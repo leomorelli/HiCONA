@@ -415,6 +415,14 @@ document.write(`
                   
   <section id="analysis">
 <span id="api-analysis"></span><h1>Analysis<a class="headerlink" href="#analysis" title="Link to this heading">#</a></h1>
+<p>The analysis subpackage provides tools to perform, inspect and plot all sorts
+of analyses on the data.
+Though these objects can be initialized directly, in general they will be
+returned by some method of the analyzed object (e.i.
+<a class="reference internal" href="api/hicona.analysis.AlphaGrid.html#hicona.analysis.AlphaGrid" title="hicona.analysis.AlphaGrid"><code class="xref py py-class docutils literal notranslate"><span class="pre">AlphaGrid</span></code></a> is returned by the
+<a class="reference internal" href="api/hicona.HiconaTable.get_alpha_grid.html#hicona.HiconaTable.get_alpha_grid" title="hicona.HiconaTable.get_alpha_grid"><code class="xref py py-meth docutils literal notranslate"><span class="pre">get_alpha_grid()</span></code></a> method of the <code class="docutils literal notranslate"><span class="pre">HiconaTable</span></code> class)
+or by a factory function which takes as input more than one object (&lt;this will
+be the method for comparison functions which will be implemented&gt;).</p>
 <section id="alpha-filtering">
 <h2>Alpha filtering<a class="headerlink" href="#alpha-filtering" title="Link to this heading">#</a></h2>
 <table class="autosummary longtable table autosummary">

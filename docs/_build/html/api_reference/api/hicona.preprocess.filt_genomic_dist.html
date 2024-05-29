@@ -422,24 +422,27 @@ document.write(`
 <dt class="sig sig-object py" id="hicona.preprocess.filt_genomic_dist">
 <span class="sig-prename descclassname"><span class="pre">hicona.preprocess.</span></span><span class="sig-name descname"><span class="pre">filt_genomic_dist</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">table</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_dist</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_dist</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hicona/preprocess/_filt.html#filt_genomic_dist"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.preprocess.filt_genomic_dist" title="Link to this definition">#</a></dt>
 <dd><p>Remove pixels whose genomic distance is outside of an interval.</p>
-<p>Genomic distance is calculated as the difference between bin1_id and
-bin2_id multiplied by the bin size (in bp). The pixels are removed if the
-distance is outside of the interval (extrema are kept).
+<p>Genomic distance is calculated as the difference between <code class="docutils literal notranslate"><span class="pre">bin1_id</span></code> and
+<code class="docutils literal notranslate"><span class="pre">bin2_id</span></code> multiplied by the bin size (in bp). The pixels are removed if
+the distance is outside of the interval (extrema are kept).
 Genomic distance is computed only within the same chromosome.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><dl class="simple">
 <dt><strong>table</strong><span class="classifier">Table</span></dt><dd><p>The table to be filtered.</p>
 </dd>
-<dt><strong>min_dist</strong><span class="classifier">int or None, optional</span></dt><dd><p>Remove pixels whose genomic distance greater than this value.</p>
+<dt><strong>min_dist</strong><span class="classifier">int or None, optional</span></dt><dd><p>Remove pixels whose genomic distance is greater than this value.
+Default is ‘None’.</p>
 </dd>
-<dt><strong>max_dist</strong><span class="classifier">int or None, optional</span></dt><dd><p>Remove pixels whose genomic distance smaller than this value.</p>
+<dt><strong>max_dist</strong><span class="classifier">int or None, optional</span></dt><dd><p>Remove pixels whose genomic distance is smaller than this value.
+Default is ‘None’.</p>
 </dd>
 </dl>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><dl class="simple">
-<dt>A generator of filtered pixel chunks.</dt><dd></dd>
+<dt>Generator of pandas.DataFrame</dt><dd><p>A generator of filtered pixel chunks.</p>
+</dd>
 </dl>
 </dd>
 </dl>

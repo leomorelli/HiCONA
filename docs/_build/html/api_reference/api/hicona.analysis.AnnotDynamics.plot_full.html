@@ -420,39 +420,40 @@ document.write(`
 <dl class="py method">
 <dt class="sig sig-object py" id="hicona.analysis.AnnotDynamics.plot_full">
 <span class="sig-prename descclassname"><span class="pre">AnnotDynamics.</span></span><span class="sig-name descname"><span class="pre">plot_full</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cumulative</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">intervals</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sort_rows</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">img_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hicona/analysis/_dynamics.html#AnnotDynamics.plot_full"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.analysis.AnnotDynamics.plot_full" title="Link to this definition">#</a></dt>
-<dd><p>Plot the full annotation dynamics.</p>
-<p>Plot the full annotation dynamics table (or a subset if specified)
-as a heatmap with all the possible annotation pairs as rows and the
-thresholds as columns. On top of the heatmap, represent the alpha
-distribution and the thresholds of the heatmap cells (dashed lines).</p>
+<dd><p>Plot the full annotation dynamics for a pixel table.</p>
+<p>Plot the full annotation dynamics table as a heatmap with all the
+annotation pairs as rows and the thresholds as columns. On top of
+the heatmap, represent the alpha distribution and the thresholds
+of the heatmap cells (dashed lines).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><dl class="simple">
-<dt><strong>cumulative</strong><span class="classifier">bool, optional</span></dt><dd><p>Whether to compute the cumulative dynamics. Default is True.</p>
+<dt><strong>cumulative</strong><span class="classifier">bool, optional</span></dt><dd><p>Whether to compute the cumulative dynamics. Default is ‘True’.</p>
 </dd>
-<dt><strong>intervals</strong><span class="classifier">list[int] or None, optional</span></dt><dd><p>If provided, the upper bounds of the intervals to consider.
-See <cite>get_dynamics</cite> for more information.
-Default is None.</p>
+<dt><strong>intervals</strong><span class="classifier">list of int or None, optional</span></dt><dd><p>If provided, the upper bounds of the intervals to consider, else
+a 1 unit spaced grid is used. Interval boundaries should be in the
+range 0 &lt; i &lt;= 100. Default is ‘None’.</p>
 </dd>
-<dt><strong>sort_rows</strong><span class="classifier">bool, optional</span></dt><dd><p>Whether to sort the rows of the heatmap by linkage. This is to try
-to group similar annotations together, though it might hamper the
-comparison of multiple tables. Default is True.</p>
+<dt><strong>sort_rows</strong><span class="classifier">bool, optional</span></dt><dd><p>Whether to sort the rows of the heatmap by linkage. This groups
+similar annotations together, though it might hamper the
+comparison of multiple tables. Default is ‘True’.</p>
 </dd>
-<dt><strong>img_path</strong><span class="classifier">str or None, optional</span></dt><dd><p>If provided, save the plot to the specified path. Default is None.</p>
+<dt><strong>img_path</strong><span class="classifier">str or None, optional</span></dt><dd><p>If provided, save the plot to the specified path. Default is ‘None’.</p>
 </dd>
-<dt><strong>show</strong><span class="classifier">bool, optional</span></dt><dd><p>If True, display the plot in a <code class="xref py py-mod docutils literal notranslate"><span class="pre">matplotlib</span></code> window.
-Default is False.</p>
+<dt><strong>show</strong><span class="classifier">bool, optional</span></dt><dd><p>If ‘True’, display the plot in a matplotlib window. Default is ‘False’.</p>
 </dd>
 </dl>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><dl class="simple">
-<dt>matplotlib.axes.Axes or None</dt><dd><p>If <code class="docutils literal notranslate"><span class="pre">show</span></code> if <cite>False</cite> and <code class="docutils literal notranslate"><span class="pre">img_path</span></code> is <cite>None</cite>, return plot
-axes. Otherwise, return None.</p>
+<dt>matplotlib.axes.Axes or None</dt><dd><p>If <code class="docutils literal notranslate"><span class="pre">show</span></code> if <cite>False</cite> and <code class="docutils literal notranslate"><span class="pre">img_path</span></code> is ‘None’, return plot
+axes. Otherwise, return ‘None’.</p>
 </dd>
 </dl>
 </dd>
 </dl>
+<p class="rubric">Examples</p>
+<img alt="../../_images/dynamics_cumulative.png" src="../../_images/dynamics_cumulative.png" />
 </dd></dl>
 
 </section>

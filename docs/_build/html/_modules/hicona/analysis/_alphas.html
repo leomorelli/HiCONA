@@ -351,30 +351,67 @@ document.write(`
 <div class="viewcode-block" id="AlphaGrid">
 <a class="viewcode-back" href="../../../api_reference/api/hicona.analysis.AlphaGrid.html#hicona.analysis.AlphaGrid">[docs]</a>
 <span class="k">class</span> <span class="nc">AlphaGrid</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Class for the computation of the optimal alpha value for filtering.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Class to analyze table filtering at different alpha values.</span>
 
-<span class="sd">    During class initialization, the optimal alpha value is computed using</span>
-<span class="sd">    the following steps:</span>
+<span class="sd">    During initialization, a grid of alpha thresholds is tested in order</span>
+<span class="sd">    to compute the optimal alpha value for table filtering. The optimal</span>
+<span class="sd">    alpha value is the one minimizing retained edge fraction while</span>
+<span class="sd">    maximizing retained node fraction.</span>
 
-<span class="sd">    - define a grid of alpha values centered around the current optimal</span>
-<span class="sd">      and spaced in order to cover 1 unit of previous decimal position.</span>
-<span class="sd">    - for each alpha value, filter the table and compute the remaining</span>
-<span class="sd">      fraction of edges and nodes.</span>
-<span class="sd">    - for each alpha compute the Euclidean distance from point ``(1, 0)``</span>
-<span class="sd">      in the space ``x: fraction of nodes``, ``y: fraction of edges``.</span>
+<span class="sd">    The computation of the grid is performed as follows:</span>
+
+<span class="sd">    - define a grid of alpha values centered around the current optimal value</span>
+<span class="sd">      and spaced in order to cover 1 unit of the previous decimal position.</span>
+<span class="sd">    - for each alpha value, filter the table and compute the retained</span>
+<span class="sd">      fraction of edges and nodes. An edge is retained if both nodes are</span>
+<span class="sd">      still present in the table, while a node is retained if it is present</span>
+<span class="sd">      in at least one edge.</span>
+<span class="sd">    - for each alpha threshold compute the Euclidean distance from the point</span>
+<span class="sd">      ``(1, 0)`` in the space with ``x: fraction of nodes``, ``y: fraction of edges``.</span>
 <span class="sd">    - set as new optimal alpha the one minimizing the Euclidean distance.</span>
 <span class="sd">    - move to the next decimal position and repeat the procedure.</span>
+
+<span class="sd">    Objects of this class can also be initialized through ``HiconaTable.get_alpha_grid()``.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
 <span class="sd">    table : HiconaTable</span>
-<span class="sd">        The table for which the optimal alpha value is computed.</span>
-<span class="sd">    alpha_mod : &quot;alpha_min&quot; or &quot;alpha_max&quot;</span>
+<span class="sd">        The table for which the alpha grid is computed.</span>
+<span class="sd">    alpha_mod : &#39;alpha_min&#39; or &#39;alpha_max&#39;</span>
 <span class="sd">        The alpha mode to use for filtering.</span>
 <span class="sd">    decimals : int</span>
 <span class="sd">        The number of decimal positions to consider when computing the grid.</span>
 <span class="sd">    verbose : bool</span>
 <span class="sd">        Whether to log the progress of the computation.</span>
+
+<span class="sd">    See Also</span>
+<span class="sd">    --------</span>
+<span class="sd">    hicona.HiconaTable.get_alpha_grid:</span>
+<span class="sd">        Method to create an instance of the class starting from a table object.</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    Create an instance of the class starting from a table object:</span>
+
+<span class="sd">    &gt;&gt;&gt; import hicona</span>
+<span class="sd">    &gt;&gt;&gt; handle = hicona.HiconaCooler(&quot;path/to/cool_file.cool&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; table = handle.fetch_table(&quot;hicona&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; grid = table.get_alpha_grid()</span>
+<span class="sd">    Optimal alpha: computing decimal 1</span>
+<span class="sd">    Optimal alpha: computing decimal 2</span>
+<span class="sd">    Optimal alpha: computing decimal 3</span>
+<span class="sd">    &gt;&gt;&gt; grid.optimal_alpha</span>
+<span class="sd">    0.154</span>
+
+<span class="sd">    Create an instance of the class directly:</span>
+
+<span class="sd">    &gt;&gt;&gt; grid = hicona.analysis.AlphaGrid(table, &quot;alpha_min&quot;, 3, verbose=True)</span>
+<span class="sd">    Optimal alpha: computing decimal 1</span>
+<span class="sd">    Optimal alpha: computing decimal 2</span>
+<span class="sd">    Optimal alpha: computing decimal 3</span>
+<span class="sd">    &gt;&gt;&gt; grid.optimal_alpha</span>
+<span class="sd">    0.154</span>
+
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
@@ -388,15 +425,16 @@ document.write(`
         <span class="bp">self</span><span class="o">.</span><span class="n">_alpha_mod</span> <span class="o">=</span> <span class="n">alpha_mod</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_decimals</span> <span class="o">=</span> <span class="n">decimals</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_alpha_grid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_grid</span><span class="p">(</span><span class="n">decimals</span><span class="p">,</span> <span class="n">verbose</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_optimal_alpha</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_minimal_dist</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_alpha_grid</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">_get_stats</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">thr</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
+    <span class="k">def</span> <span class="nf">_get_stats</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">threshold</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Return number of nodes and edges in a table filtered by alpha.&quot;&quot;&quot;</span>
 
         <span class="n">nodes</span><span class="p">:</span> <span class="nb">set</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
         <span class="n">edges</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
 
         <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_table</span><span class="o">.</span><span class="n">chunks</span><span class="p">():</span>
-            <span class="n">chunk</span> <span class="o">=</span> <span class="n">chunk</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_alpha_mod</span><span class="si">}</span><span class="s2"> &lt;= </span><span class="si">{</span><span class="n">thr</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">chunk</span> <span class="o">=</span> <span class="n">chunk</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_alpha_mod</span><span class="si">}</span><span class="s2"> &lt;= </span><span class="si">{</span><span class="n">threshold</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
             <span class="n">nodes</span> <span class="o">|=</span> <span class="nb">set</span><span class="p">(</span><span class="n">chunk</span><span class="p">[</span><span class="s2">&quot;bin1_id&quot;</span><span class="p">])</span> <span class="o">|</span> <span class="nb">set</span><span class="p">(</span><span class="n">chunk</span><span class="p">[</span><span class="s2">&quot;bin2_id&quot;</span><span class="p">])</span>
             <span class="n">edges</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
@@ -452,23 +490,45 @@ document.write(`
 
         <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">alpha_vals</span><span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
 
-    <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">_get_minimal_dist</span><span class="p">(</span><span class="n">table</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">_get_minimal_dist</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">table</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the alpha value minimizing the Euclidean distance.&quot;&quot;&quot;</span>
 
         <span class="n">position</span> <span class="o">=</span> <span class="n">table</span><span class="p">[</span><span class="s2">&quot;eu_dist&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">idxmin</span><span class="p">()</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">position</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Non numeric index. This should not happen.&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">table</span><span class="p">[</span><span class="s2">&quot;alpha&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">position</span><span class="p">]</span>
+        <span class="n">alpha_value</span> <span class="o">=</span> <span class="n">table</span><span class="p">[</span><span class="s2">&quot;alpha&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">position</span><span class="p">]</span>
 
-<div class="viewcode-block" id="AlphaGrid.optimal_alpha">
-<a class="viewcode-back" href="../../../api_reference/api/hicona.analysis.AlphaGrid.optimal_alpha.html#hicona.analysis.AlphaGrid.optimal_alpha">[docs]</a>
+        <span class="k">return</span> <span class="n">rounding</span><span class="o">.</span><span class="n">round_half_up</span><span class="p">(</span><span class="n">alpha_value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_decimals</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">optimal_alpha</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the optimal alpha value for filtering the pixel table.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the optimal alpha value for filtering the pixel table.</span>
 
-        <span class="n">optimal_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_minimal_dist</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_alpha_grid</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">rounding</span><span class="o">.</span><span class="n">round_half_up</span><span class="p">(</span><span class="n">optimal_value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_decimals</span><span class="p">)</span></div>
+<span class="sd">        The optimal alpha value is the filtering threshold that minimizes the</span>
+<span class="sd">        fraction of retained edges while maximizing the fraction of retained</span>
+<span class="sd">        nodes. For process details, see class documentation.</span>
 
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        float :</span>
+<span class="sd">            The optimal alpha value.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        Create a grid and return the optimal alpha value:</span>
+
+<span class="sd">        &gt;&gt;&gt; import hicona</span>
+<span class="sd">        &gt;&gt;&gt; handle = hicona.HiconaCooler(&quot;path/to/cool_file.cool&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; table = handle.fetch_table(&quot;hicona&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; grid = table.get_alpha_grid()</span>
+<span class="sd">        Optimal alpha: computing decimal 1</span>
+<span class="sd">        Optimal alpha: computing decimal 2</span>
+<span class="sd">        Optimal alpha: computing decimal 3</span>
+<span class="sd">        &gt;&gt;&gt; grid.optimal_alpha</span>
+<span class="sd">        0.154</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_optimal_alpha</span>
 
 <div class="viewcode-block" id="AlphaGrid.plot">
 <a class="viewcode-back" href="../../../api_reference/api/hicona.analysis.AlphaGrid.plot.html#hicona.analysis.AlphaGrid.plot">[docs]</a>
@@ -477,26 +537,53 @@ document.write(`
         <span class="n">img_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">show</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">OptionalAxes</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Plot the grid object.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Plot the alpha grid.</span>
 
 <span class="sd">        Plot and/or show the grid of alpha values tested when computing the</span>
 <span class="sd">        optimal alpha value for pixel filtering. The plot has the fraction</span>
 <span class="sd">        of retained nodes on the ``x`` axis and the fraction of retained</span>
-<span class="sd">        edges on the ``y`` axis.</span>
+<span class="sd">        edges on the ``y`` axis. The optimal alpha value is highlighted.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        img_path : str or None, optional</span>
-<span class="sd">            If provided, path to save the plot to. (default is None)</span>
+<span class="sd">            If provided, path to save the plot to. Default is &#39;None&#39;.</span>
 <span class="sd">        show : bool, optional</span>
-<span class="sd">            If True, display the plot in a :py:mod:`matplotlib` window.</span>
-<span class="sd">            (default is False)</span>
+<span class="sd">            If True, display the plot in a ``matplotlib`` window.</span>
+<span class="sd">            Default is &#39;False&#39;.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
 <span class="sd">        matplotlib.axes.Axes or None :</span>
-<span class="sd">            If ``show`` if `False` and ``img_path`` is `None`, return plot</span>
-<span class="sd">            axes. Otherwise, return None.</span>
+<span class="sd">            If ``show`` if &#39;False&#39; and ``img_path`` is &#39;None&#39;, return plot</span>
+<span class="sd">            axes. Otherwise, return &#39;None&#39;.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+
+<span class="sd">        Generate a grid:</span>
+
+<span class="sd">        &gt;&gt;&gt; import hicona</span>
+<span class="sd">        &gt;&gt;&gt; handle = hicona.HiconaCooler(&quot;path/to/cool_file.cool&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; table = handle.fetch_table(&quot;hicona&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; grid = table.get_alpha_grid()</span>
+
+<span class="sd">        Save the grid to a file:</span>
+
+<span class="sd">        &gt;&gt;&gt; grid.plot(&quot;alpha_grid.png&quot;)</span>
+
+<span class="sd">        Get plot axes (to further customize or insert in a multi-panel plot):</span>
+
+<span class="sd">        &gt;&gt;&gt; ax = grid.plot()</span>
+
+<span class="sd">        Display the grid in a window:</span>
+
+<span class="sd">        &gt;&gt;&gt; grid.plot(show=True)</span>
+
+<span class="sd">        Which will display the following plot:</span>
+
+<span class="sd">        .. image:: ../../_static/alpha_grid.png</span>
+
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="n">_plotting</span><span class="o">.</span><span class="n">plot_alpha_grid</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_alpha_grid</span><span class="p">,</span> <span class="n">img_path</span><span class="p">,</span> <span class="n">show</span><span class="p">)</span></div>

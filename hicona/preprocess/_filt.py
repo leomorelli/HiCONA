@@ -64,9 +64,9 @@ def filt_genomic_dist(
 ) -> _PdChunks:
     """Remove pixels whose genomic distance is outside of an interval.
 
-    Genomic distance is calculated as the difference between bin1_id and
-    bin2_id multiplied by the bin size (in bp). The pixels are removed if the
-    distance is outside of the interval (extrema are kept).
+    Genomic distance is calculated as the difference between ``bin1_id`` and
+    ``bin2_id`` multiplied by the bin size (in bp). The pixels are removed if
+    the distance is outside of the interval (extrema are kept).
     Genomic distance is computed only within the same chromosome.
 
     Parameters
@@ -74,13 +74,17 @@ def filt_genomic_dist(
     table : Table
         The table to be filtered.
     min_dist : int or None, optional
-        Remove pixels whose genomic distance greater than this value.
+        Remove pixels whose genomic distance is greater than this value.
+        Default is 'None'.
     max_dist : int or None, optional
-        Remove pixels whose genomic distance smaller than this value.
+        Remove pixels whose genomic distance is smaller than this value.
+        Default is 'None'.
 
     Returns
     -------
-    A generator of filtered pixel chunks.
+    Generator of pandas.DataFrame
+        A generator of filtered pixel chunks.
+
     """
 
     if not any([min_dist, max_dist]):

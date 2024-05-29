@@ -418,10 +418,34 @@ document.write(`
                   
   <section id="hicona-analysis-alphagrid-optimal-alpha">
 <h1>hicona.analysis.AlphaGrid.optimal_alpha<a class="headerlink" href="#hicona-analysis-alphagrid-optimal-alpha" title="Link to this heading">#</a></h1>
-<dl class="py method">
+<dl class="py property">
 <dt class="sig sig-object py" id="hicona.analysis.AlphaGrid.optimal_alpha">
-<span class="sig-prename descclassname"><span class="pre">AlphaGrid.</span></span><span class="sig-name descname"><span class="pre">optimal_alpha</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hicona/analysis/_alphas.html#AlphaGrid.optimal_alpha"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.analysis.AlphaGrid.optimal_alpha" title="Link to this definition">#</a></dt>
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">AlphaGrid.</span></span><span class="sig-name descname"><span class="pre">optimal_alpha</span></span><a class="headerlink" href="#hicona.analysis.AlphaGrid.optimal_alpha" title="Link to this definition">#</a></dt>
 <dd><p>Return the optimal alpha value for filtering the pixel table.</p>
+<p>The optimal alpha value is the filtering threshold that minimizes the
+fraction of retained edges while maximizing the fraction of retained
+nodes. For process details, see class documentation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><dl class="simple">
+<dt>float</dt><dd><p>The optimal alpha value.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<p>Create a grid and return the optimal alpha value:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">hicona</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">handle</span> <span class="o">=</span> <span class="n">hicona</span><span class="o">.</span><span class="n">HiconaCooler</span><span class="p">(</span><span class="s2">&quot;path/to/cool_file.cool&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">table</span> <span class="o">=</span> <span class="n">handle</span><span class="o">.</span><span class="n">fetch_table</span><span class="p">(</span><span class="s2">&quot;hicona&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">grid</span> <span class="o">=</span> <span class="n">table</span><span class="o">.</span><span class="n">get_alpha_grid</span><span class="p">()</span>
+<span class="go">Optimal alpha: computing decimal 1</span>
+<span class="go">Optimal alpha: computing decimal 2</span>
+<span class="go">Optimal alpha: computing decimal 3</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">grid</span><span class="o">.</span><span class="n">optimal_alpha</span>
+<span class="go">0.154</span>
+</pre></div>
+</div>
 </dd></dl>
 
 </section>
@@ -472,7 +496,7 @@ document.write(`
   </div>
   <nav class="bd-toc-nav page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#hicona.analysis.AlphaGrid.optimal_alpha"><code class="docutils literal notranslate"><span class="pre">AlphaGrid.optimal_alpha()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#hicona.analysis.AlphaGrid.optimal_alpha"><code class="docutils literal notranslate"><span class="pre">AlphaGrid.optimal_alpha</span></code></a></li>
 </ul>
   </nav></div>
 

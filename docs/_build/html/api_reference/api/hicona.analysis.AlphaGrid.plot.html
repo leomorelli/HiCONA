@@ -421,29 +421,51 @@ document.write(`
 <dl class="py method">
 <dt class="sig sig-object py" id="hicona.analysis.AlphaGrid.plot">
 <span class="sig-prename descclassname"><span class="pre">AlphaGrid.</span></span><span class="sig-name descname"><span class="pre">plot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">img_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hicona/analysis/_alphas.html#AlphaGrid.plot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.analysis.AlphaGrid.plot" title="Link to this definition">#</a></dt>
-<dd><p>Plot the grid object.</p>
+<dd><p>Plot the alpha grid.</p>
 <p>Plot and/or show the grid of alpha values tested when computing the
 optimal alpha value for pixel filtering. The plot has the fraction
 of retained nodes on the <code class="docutils literal notranslate"><span class="pre">x</span></code> axis and the fraction of retained
-edges on the <code class="docutils literal notranslate"><span class="pre">y</span></code> axis.</p>
+edges on the <code class="docutils literal notranslate"><span class="pre">y</span></code> axis. The optimal alpha value is highlighted.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><dl class="simple">
-<dt><strong>img_path</strong><span class="classifier">str or None, optional</span></dt><dd><p>If provided, path to save the plot to. (default is None)</p>
+<dt><strong>img_path</strong><span class="classifier">str or None, optional</span></dt><dd><p>If provided, path to save the plot to. Default is ‘None’.</p>
 </dd>
-<dt><strong>show</strong><span class="classifier">bool, optional</span></dt><dd><p>If True, display the plot in a <code class="xref py py-mod docutils literal notranslate"><span class="pre">matplotlib</span></code> window.
-(default is False)</p>
+<dt><strong>show</strong><span class="classifier">bool, optional</span></dt><dd><p>If True, display the plot in a <code class="docutils literal notranslate"><span class="pre">matplotlib</span></code> window.
+Default is ‘False’.</p>
 </dd>
 </dl>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><dl class="simple">
-<dt>matplotlib.axes.Axes or None</dt><dd><p>If <code class="docutils literal notranslate"><span class="pre">show</span></code> if <cite>False</cite> and <code class="docutils literal notranslate"><span class="pre">img_path</span></code> is <cite>None</cite>, return plot
-axes. Otherwise, return None.</p>
+<dt>matplotlib.axes.Axes or None</dt><dd><p>If <code class="docutils literal notranslate"><span class="pre">show</span></code> if ‘False’ and <code class="docutils literal notranslate"><span class="pre">img_path</span></code> is ‘None’, return plot
+axes. Otherwise, return ‘None’.</p>
 </dd>
 </dl>
 </dd>
 </dl>
+<p class="rubric">Examples</p>
+<p>Generate a grid:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">hicona</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">handle</span> <span class="o">=</span> <span class="n">hicona</span><span class="o">.</span><span class="n">HiconaCooler</span><span class="p">(</span><span class="s2">&quot;path/to/cool_file.cool&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">table</span> <span class="o">=</span> <span class="n">handle</span><span class="o">.</span><span class="n">fetch_table</span><span class="p">(</span><span class="s2">&quot;hicona&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">grid</span> <span class="o">=</span> <span class="n">table</span><span class="o">.</span><span class="n">get_alpha_grid</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Save the grid to a file:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">grid</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="s2">&quot;alpha_grid.png&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Get plot axes (to further customize or insert in a multi-panel plot):</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">ax</span> <span class="o">=</span> <span class="n">grid</span><span class="o">.</span><span class="n">plot</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Display the grid in a window:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">grid</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">show</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Which will display the following plot:</p>
+<img alt="../../_images/alpha_grid.png" src="../../_images/alpha_grid.png" />
 </dd></dl>
 
 </section>

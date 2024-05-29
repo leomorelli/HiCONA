@@ -10,6 +10,8 @@
 
    .. autosummary::
    
+      ~AlphaGrid.optimal_alpha
+   
    
    
    
@@ -17,10 +19,6 @@
 
    .. autosummary::
    
-      
-   
-      
-      ~AlphaGrid.optimal_alpha
       
    
       

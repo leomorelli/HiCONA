@@ -18,30 +18,67 @@ __all__ = ["AlphaGrid"]
 
 
 class AlphaGrid:
-    """Class for the computation of the optimal alpha value for filtering.
+    """Class to analyze table filtering at different alpha values.
 
-    During class initialization, the optimal alpha value is computed using
-    the following steps:
+    During initialization, a grid of alpha thresholds is tested in order
+    to compute the optimal alpha value for table filtering. The optimal
+    alpha value is the one minimizing retained edge fraction while
+    maximizing retained node fraction.
 
-    - define a grid of alpha values centered around the current optimal
-      and spaced in order to cover 1 unit of previous decimal position.
-    - for each alpha value, filter the table and compute the remaining
-      fraction of edges and nodes.
-    - for each alpha compute the Euclidean distance from point ``(1, 0)``
-      in the space ``x: fraction of nodes``, ``y: fraction of edges``.
+    The computation of the grid is performed as follows:
+
+    - define a grid of alpha values centered around the current optimal value
+      and spaced in order to cover 1 unit of the previous decimal position.
+    - for each alpha value, filter the table and compute the retained
+      fraction of edges and nodes. An edge is retained if both nodes are
+      still present in the table, while a node is retained if it is present
+      in at least one edge.
+    - for each alpha threshold compute the Euclidean distance from the point
+      ``(1, 0)`` in the space with ``x: fraction of nodes``, ``y: fraction of edges``.
     - set as new optimal alpha the one minimizing the Euclidean distance.
     - move to the next decimal position and repeat the procedure.
+
+    Objects of this class can also be initialized through ``HiconaTable.get_alpha_grid()``.
 
     Parameters
     ----------
     table : HiconaTable
-        The table for which the optimal alpha value is computed.
-    alpha_mod : "alpha_min" or "alpha_max"
+        The table for which the alpha grid is computed.
+    alpha_mod : 'alpha_min' or 'alpha_max'
         The alpha mode to use for filtering.
     decimals : int
         The number of decimal positions to consider when computing the grid.
     verbose : bool
         Whether to log the progress of the computation.
+
+    See Also
+    --------
+    hicona.HiconaTable.get_alpha_grid:
+        Method to create an instance of the class starting from a table object.
+
+    Examples
+    --------
+    Create an instance of the class starting from a table object:
+
+    >>> import hicona
+    >>> handle = hicona.HiconaCooler("path/to/cool_file.cool")
+    >>> table = handle.fetch_table("hicona")
+    >>> grid = table.get_alpha_grid()
+    Optimal alpha: computing decimal 1
+    Optimal alpha: computing decimal 2
+    Optimal alpha: computing decimal 3
+    >>> grid.optimal_alpha
+    0.154
+
+    Create an instance of the class directly:
+
+    >>> grid = hicona.analysis.AlphaGrid(table, "alpha_min", 3, verbose=True)
+    Optimal alpha: computing decimal 1
+    Optimal alpha: computing decimal 2
+    Optimal alpha: computing decimal 3
+    >>> grid.optimal_alpha
+    0.154
+
     """
 
     def __init__(
@@ -55,15 +92,16 @@ class AlphaGrid:
         self._alpha_mod = alpha_mod
         self._decimals = decimals
         self._alpha_grid = self._compute_grid(decimals, verbose)
+        self._optimal_alpha = self._get_minimal_dist(self._alpha_grid)
 
-    def _get_stats(self, thr: float) -> tuple[int, int]:
+    def _get_stats(self, threshold: float) -> tuple[int, int]:
         """Return number of nodes and edges in a table filtered by alpha."""
 
         nodes: set = set()
         edges: int = 0
 
         for chunk in self._table.chunks():
-            chunk = chunk.query(f"{self._alpha_mod} <= {thr}")
+            chunk = chunk.query(f"{self._alpha_mod} <= {threshold}")
 
             nodes |= set(chunk["bin1_id"]) | set(chunk["bin2_id"])
             edges += len(chunk)
@@ -119,46 +157,98 @@ class AlphaGrid:
 
         return pd.concat(alpha_vals).reset_index()
 
-    @staticmethod
-    def _get_minimal_dist(table: pd.DataFrame) -> float:
+    def _get_minimal_dist(self, table: pd.DataFrame) -> float:
         """Return the alpha value minimizing the Euclidean distance."""
 
         position = table["eu_dist"].idxmin()
         if not isinstance(position, int):
             raise ValueError("Non numeric index. This should not happen.")
-        return table["alpha"].iloc[position]
+        alpha_value = table["alpha"].iloc[position]
 
+        return rounding.round_half_up(alpha_value, self._decimals)
+
+    @property
     def optimal_alpha(self) -> float:
-        """Return the optimal alpha value for filtering the pixel table."""
+        """Return the optimal alpha value for filtering the pixel table.
 
-        optimal_value = self._get_minimal_dist(self._alpha_grid)
-        return rounding.round_half_up(optimal_value, self._decimals)
+        The optimal alpha value is the filtering threshold that minimizes the
+        fraction of retained edges while maximizing the fraction of retained
+        nodes. For process details, see class documentation.
+
+        Returns
+        -------
+        float :
+            The optimal alpha value.
+
+        Examples
+        --------
+        Create a grid and return the optimal alpha value:
+
+        >>> import hicona
+        >>> handle = hicona.HiconaCooler("path/to/cool_file.cool")
+        >>> table = handle.fetch_table("hicona")
+        >>> grid = table.get_alpha_grid()
+        Optimal alpha: computing decimal 1
+        Optimal alpha: computing decimal 2
+        Optimal alpha: computing decimal 3
+        >>> grid.optimal_alpha
+        0.154
+        """
+
+        return self._optimal_alpha
 
     def plot(
         self,
         img_path: str | None = None,
         show: bool = False,
     ) -> OptionalAxes:
-        """Plot the grid object.
+        """Plot the alpha grid.
 
         Plot and/or show the grid of alpha values tested when computing the
         optimal alpha value for pixel filtering. The plot has the fraction
         of retained nodes on the ``x`` axis and the fraction of retained
-        edges on the ``y`` axis.
+        edges on the ``y`` axis. The optimal alpha value is highlighted.
 
         Parameters
         ----------
         img_path : str or None, optional
-            If provided, path to save the plot to. (default is None)
+            If provided, path to save the plot to. Default is 'None'.
         show : bool, optional
-            If True, display the plot in a :py:mod:`matplotlib` window.
-            (default is False)
+            If True, display the plot in a ``matplotlib`` window.
+            Default is 'False'.
 
         Returns
         -------
         matplotlib.axes.Axes or None :
-            If ``show`` if `False` and ``img_path`` is `None`, return plot
-            axes. Otherwise, return None.
+            If ``show`` if 'False' and ``img_path`` is 'None', return plot
+            axes. Otherwise, return 'None'.
+
+        Examples
+        --------
+
+        Generate a grid:
+
+        >>> import hicona
+        >>> handle = hicona.HiconaCooler("path/to/cool_file.cool")
+        >>> table = handle.fetch_table("hicona")
+        >>> grid = table.get_alpha_grid()
+
+        Save the grid to a file:
+
+        >>> grid.plot("alpha_grid.png")
+
+        Get plot axes (to further customize or insert in a multi-panel plot):
+
+        >>> ax = grid.plot()
+
+        Display the grid in a window:
+
+        >>> grid.plot(show=True)
+
+        Which will display the following plot:
+
+        .. image:: ../../_static/alpha_grid.png
+
         """
 
         _plotting.plot_alpha_grid(self._alpha_grid, img_path, show)

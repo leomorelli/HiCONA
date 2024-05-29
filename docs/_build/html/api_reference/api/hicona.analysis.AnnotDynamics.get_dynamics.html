@@ -421,42 +421,92 @@ document.write(`
 <dl class="py method">
 <dt class="sig sig-object py" id="hicona.analysis.AnnotDynamics.get_dynamics">
 <span class="sig-prename descclassname"><span class="pre">AnnotDynamics.</span></span><span class="sig-name descname"><span class="pre">get_dynamics</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cumulative</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">intervals</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hicona/analysis/_dynamics.html#AnnotDynamics.get_dynamics"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.analysis.AnnotDynamics.get_dynamics" title="Link to this definition">#</a></dt>
-<dd><p>Return annotation dynamics as a pd.DataFrame.</p>
-<p>For each annotation, compute the log odds ratio and p-value for each
-alpha interval. P-values are computed using Fisher’s exact test and
-corrected for multiple testing using the Benjamini-Hochberg method.</p>
-<p>If set to cumulative, the column considers all alpha values up to
-the upper bound (included), otherwise it considers only alphas between
-the column upper bound (included) and the previous column upper bound
-(excluded).</p>
-<p>If intervals are provided, the dynamics are computed on those
-intervals rather than on the 1 unit spaced grid by default.
-Interval boundaries should be in the range 0 &lt; i &lt;= 100, since they
-are unit points of the underlying coarse grain grid. As an example,
-the interval [5, 10] would indicate alpha values between 0.05 and 0.1
-if working with percentiles, or between the 5th and 10th quantiles if
-working with quantiles.</p>
-<p>NOTE: currently pixels with alpha value equal to zero are lost since
-the lower bound is excluded. This should be changed in the future
+<dd><p>Return annotation dynamics and relative p-values as dataframes.</p>
+<p>Log odds ratios and p-values are computed as indicated in the class
+documentation. The results are returned as two dataframes, one for the
+log odds ratios and one for the p-values.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Currently, pixels with alpha value equal to zero are lost since the
+lower bound is excluded. This will likely be changed in the future
 even though the number of pixels with alpha equal to zero is usually
 very low.</p>
+</div>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><dl class="simple">
-<dt><strong>cumulative</strong><span class="classifier">bool, optional</span></dt><dd><p>Whether to compute the cumulative dynamics. Default is False.</p>
+<dt><strong>cumulative</strong><span class="classifier">bool, optional</span></dt><dd><p>Whether to compute the dynamics cumulatively. If set to ‘True’,
+each interval includes all pixels with alpha values up to the
+interval upper bound (included), otherwise it considers only
+pixels whose alphas are between the previous interval upper bound
+(excluded) and the current one (included). Default is ‘False’.</p>
 </dd>
-<dt><strong>intervals</strong><span class="classifier">list[int] or None, optional</span></dt><dd><p>If provided, the upper bounds of the intervals to consider.
-Default is None.</p>
+<dt><strong>intervals</strong><span class="classifier">list of int or None, optional</span></dt><dd><p>If provided, the upper bounds of the intervals to consider, else
+a 1 unit spaced grid is used. Interval boundaries should be in the
+range 0 &lt; i &lt;= 100. Default is ‘None’.</p>
 </dd>
 </dl>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><dl class="simple">
-<dt>tuple[pd.DataFrame, pd.DataFrame]</dt><dd><p>A tuple with the log odds ratios and p-values matrices.</p>
+<dt><strong>log_odds</strong><span class="classifier">pandas.DataFrame</span></dt><dd><p>The log odds ratios of the annotation dynamics.</p>
+</dd>
+<dt><strong>p_values</strong><span class="classifier">pandas.DataFrame</span></dt><dd><p>The p-values of the annotation dynamics.</p>
 </dd>
 </dl>
 </dd>
 </dl>
+<p class="rubric">Examples</p>
+<p>Create a dynamics object with the quantile option set to ‘True’:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">hicona</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">handle</span> <span class="o">=</span> <span class="n">hicona</span><span class="o">.</span><span class="n">HiconaCooler</span><span class="p">(</span><span class="s2">&quot;path/to/cool_file.cool&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">table</span> <span class="o">=</span> <span class="n">handle</span><span class="o">.</span><span class="n">fetch_table</span><span class="p">(</span><span class="s2">&quot;hicona&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">dynamics</span> <span class="o">=</span> <span class="n">table</span><span class="o">.</span><span class="n">get_annot_dynamics</span><span class="p">(</span><span class="s2">&quot;HMM_annot&quot;</span><span class="p">,</span> <span class="n">as_quantiles</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Compute the cumulative dynamics for that dynamics object:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">log_odds</span><span class="p">,</span> <span class="n">p_values</span> <span class="o">=</span> <span class="n">dynamics</span><span class="o">.</span><span class="n">get_dynamics</span><span class="p">(</span><span class="n">cumulative</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">log_odds</span>
+<span class="go">                         0.1275    0.1597  ...    0.5090  0.6092</span>
+<span class="go">HMM_annot1 HMM_annot2</span>
+<span class="go">Enh        Enh         0.822894  0.701970  ...  0.794474     NaN</span>
+<span class="go">           Het        -0.864572 -0.844857  ...  0.157273     NaN</span>
+<span class="go">           Prom        0.560924  0.435358  ...  0.741693     NaN</span>
+<span class="go">...        ...              ...       ...  ...       ...     ...</span>
+<span class="go">Tx         Tx          0.112815  0.167098  ...  0.524686     NaN</span>
+<span class="go">           Void       -0.500922 -0.504499  ...  0.147691     NaN</span>
+<span class="go">Void       Void        0.484172  0.508217  ... -0.680444     NaN</span>
+
+<span class="go">[21 rows x 100 columns]</span>
+</pre></div>
+</div>
+<p>In this case, no intervals are provided, so the default grid of 1 unit
+(in this case 1 percentile since the quantile option is set to ‘True’)
+is used. Since the cumulative option is set to ‘True’, all pixels with
+alpha values up to the interval upper bound are included, meaning that
+the first column considers pixels with alpha values in the range
+<code class="docutils literal notranslate"><span class="pre">(0,</span> <span class="pre">0.1275]</span></code>, the second column in the range <code class="docutils literal notranslate"><span class="pre">(0,</span> <span class="pre">0.1597]</span></code>, and so on.</p>
+<p>Compute the non-cumulative dynamics for that dynamics object:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">bounds</span> <span class="o">=</span> <span class="p">[</span><span class="mi">10</span> <span class="o">*</span> <span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">11</span><span class="p">)]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">log_odds</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">dynamics</span><span class="o">.</span><span class="n">get_dynamics</span><span class="p">(</span><span class="n">cumulative</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">intervals</span><span class="o">=</span><span class="n">bounds</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">log_odds</span>
+<span class="go">                             10        20  ...         90       100</span>
+<span class="go">HMM_annot1 HMM_annot2</span>
+<span class="go">Enh        Enh         0.450639  0.119999  ...   0.033375 -0.376168</span>
+<span class="go">           Het        -0.687511 -0.280919  ...   0.496997  0.516708</span>
+<span class="go">           Prom        0.294477  0.069265  ...  -0.014289 -0.350122</span>
+<span class="go">...        ...              ...       ...  ...        ...       ...</span>
+<span class="go">Tx         Tx          0.337442 -0.093102  ...  -0.956154 -0.805076</span>
+<span class="go">           Void       -0.364742 -0.404569  ...  -0.172750 -0.174324</span>
+<span class="go">Void       Void        0.270512  0.375850  ...   0.019111  0.400275</span>
+
+<span class="go">[21 rows x 10 columns]</span>
+</pre></div>
+</div>
+<p>Since intervals are provided, the dynamics are computed every ten
+percentile points. Moreover, since the cumulative option is set to
+‘False’, the first column considers pixels with alpha values in the
+range <code class="docutils literal notranslate"><span class="pre">(0,</span> <span class="pre">10]</span></code>, the second column in the range <code class="docutils literal notranslate"><span class="pre">(10,</span> <span class="pre">20]</span></code>, and so on.</p>
 </dd></dl>
 
 </section>

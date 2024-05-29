@@ -175,7 +175,7 @@ class HiconaCooler(cooler.Cooler):
             hdf5.write_chunk(table_uris, chunk, lower, chunk.columns)
 
         # Set table attributes
-        table_attrs = {"process_info": json.dumps(method.as_json())}
+        table_attrs = {"process_info": json.dumps(method.to_json())}
         hdf5.set_attrs(table_uris, table_attrs)
 
         return table_uris
@@ -333,7 +333,7 @@ class HiconaCooler(cooler.Cooler):
 
         for table in self._iterate_tables():
             out += separator
-            for k, v in table.flow.as_json().items():
+            for k, v in table.flow.to_json().items():
                 out += f"- {k}: {v}\n"
 
         if not out:

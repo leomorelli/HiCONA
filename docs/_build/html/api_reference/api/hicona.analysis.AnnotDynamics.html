@@ -421,27 +421,58 @@ document.write(`
 <dl class="py class">
 <dt class="sig sig-object py" id="hicona.analysis.AnnotDynamics">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">hicona.analysis.</span></span><span class="sig-name descname"><span class="pre">AnnotDynamics</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">table</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">annot_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">as_quantiles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha_mod</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'alpha_min'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hicona/analysis/_dynamics.html#AnnotDynamics"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.analysis.AnnotDynamics" title="Link to this definition">#</a></dt>
-<dd><p>Class for the handling of pixel table annotation dynamics.</p>
-<p>Class used to compute, return and plot table annotation dynamics, that
-is, the changes in frequency of pixel annotation pairs as a function of
-the alpha value.</p>
-<p>At initialization, the object creates a 1 point spaced grid of alpha
-thresholds (every 1 quantile or every 1 percentage point).</p>
+<dd><p>Class for the compute and analyze pixel table annotation dynamics.</p>
+<p>Class used to compute, return and plot pixel table annotation dynamics,
+that is, the changes in frequency of pixel annotation pairs as a function
+of the alpha value used for filtering the table.</p>
+<p>The annotation dynamics algorithm works as follows:</p>
+<ul class="simple">
+<li><p>compute the background fractions, that is, the fraction of pixels for
+each annotation pair in the entire unfiltered table.</p></li>
+<li><p>for each interval, compute the interval fractions, which are computed
+analogously to the background ones but only considering pixels with an
+alpha value falling in the interval.</p></li>
+<li><p>for each interval, compute the log odds ratios of the interval fractions
+with respect to the background fractions. Also compute p-values for the
+log odds ratios using Fisher’s exact test and correct them for multiple
+testing using the Benjamini-Hochberg method.</p></li>
+</ul>
+<p>Objects of this class can also be initialized through the
+<code class="docutils literal notranslate"><span class="pre">HiconaTable.get_annot_dynamics()</span></code> method.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><dl class="simple">
 <dt><strong>table</strong><span class="classifier">HiconaTable</span></dt><dd><p>The table for which the annotation dynamics are computed.</p>
 </dd>
-<dt><strong>annot_name</strong><span class="classifier">str</span></dt><dd><p>The name of the annotation column to consider.</p>
+<dt><strong>annot_name</strong><span class="classifier">str</span></dt><dd><p>The name of the bin annotation column to consider.</p>
 </dd>
 <dt><strong>as_quantiles</strong><span class="classifier">bool, optional</span></dt><dd><p>Whether the intervals are expressed in quantile points, rather than
-in absolute percentage points. Default is True.</p>
+in absolute percentage points. Default is ‘True’.</p>
 </dd>
-<dt><strong>alpha_mod</strong><span class="classifier">“alpha_min” or “alpha_max”, optional</span></dt><dd><p>The alpha mode to use for filtering. Default is “alpha_min”.</p>
-</dd>
-</dl>
+<dt><strong>alpha_mod</strong><span class="classifier">‘alpha_min’ or ‘alpha_max’, optional</span></dt><dd><p>The alpha mode to use for filtering. Default is ‘alpha_min’.</p>
 </dd>
 </dl>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><a class="reference internal" href="hicona.HiconaTable.get_annot_dynamics.html#hicona.HiconaTable.get_annot_dynamics" title="hicona.HiconaTable.get_annot_dynamics"><code class="xref py py-obj docutils literal notranslate"><span class="pre">hicona.HiconaTable.get_annot_dynamics</span></code></a></dt><dd><p>Method to create an instance of the class starting from a table object.</p>
+</dd>
+</dl>
+</div>
+<p class="rubric">Examples</p>
+<p>Create an instance of the class starting from a table object:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">hicona</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">handle</span> <span class="o">=</span> <span class="n">hicona</span><span class="o">.</span><span class="n">HiconaCooler</span><span class="p">(</span><span class="s2">&quot;path/to/cool_file.cool&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">table</span> <span class="o">=</span> <span class="n">handle</span><span class="o">.</span><span class="n">fetch_table</span><span class="p">(</span><span class="s2">&quot;hicona&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">dynamics</span> <span class="o">=</span> <span class="n">table</span><span class="o">.</span><span class="n">get_annot_dynamics</span><span class="p">(</span><span class="s2">&quot;chromatin_state&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Create an instance of the class using the constructor:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">dynamics</span> <span class="o">=</span> <span class="n">hicona</span><span class="o">.</span><span class="n">AnnotDynamics</span><span class="p">(</span><span class="n">table</span><span class="p">,</span> <span class="s2">&quot;chromatin_state&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
 <p class="rubric">Attributes</p>
 <table class="autosummary longtable table autosummary">
 <tbody>
@@ -451,10 +482,10 @@ in absolute percentage points. Default is True.</p>
 <table class="autosummary longtable table autosummary">
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="hicona.analysis.AnnotDynamics.get_dynamics.html#hicona.analysis.AnnotDynamics.get_dynamics" title="hicona.analysis.AnnotDynamics.get_dynamics"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_dynamics</span></code></a>([cumulative, intervals])</p></td>
-<td><p>Return annotation dynamics as a pd.DataFrame.</p></td>
+<td><p>Return annotation dynamics and relative p-values as dataframes.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="hicona.analysis.AnnotDynamics.plot_full.html#hicona.analysis.AnnotDynamics.plot_full" title="hicona.analysis.AnnotDynamics.plot_full"><code class="xref py py-obj docutils literal notranslate"><span class="pre">plot_full</span></code></a>([cumulative, intervals, ...])</p></td>
-<td><p>Plot the full annotation dynamics.</p></td>
+<td><p>Plot the full annotation dynamics for a pixel table.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="hicona.analysis.AnnotDynamics.plot_interval.html#hicona.analysis.AnnotDynamics.plot_interval" title="hicona.analysis.AnnotDynamics.plot_interval"><code class="xref py py-obj docutils literal notranslate"><span class="pre">plot_interval</span></code></a>(lower_bound, upper_bound[, ...])</p></td>
 <td><p>Plot the annotation dynamics for a restricted p-value interval.</p></td>

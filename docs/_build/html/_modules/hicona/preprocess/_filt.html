@@ -397,9 +397,9 @@ document.write(`
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_PdChunks</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Remove pixels whose genomic distance is outside of an interval.</span>
 
-<span class="sd">    Genomic distance is calculated as the difference between bin1_id and</span>
-<span class="sd">    bin2_id multiplied by the bin size (in bp). The pixels are removed if the</span>
-<span class="sd">    distance is outside of the interval (extrema are kept).</span>
+<span class="sd">    Genomic distance is calculated as the difference between ``bin1_id`` and</span>
+<span class="sd">    ``bin2_id`` multiplied by the bin size (in bp). The pixels are removed if</span>
+<span class="sd">    the distance is outside of the interval (extrema are kept).</span>
 <span class="sd">    Genomic distance is computed only within the same chromosome.</span>
 
 <span class="sd">    Parameters</span>
@@ -407,13 +407,17 @@ document.write(`
 <span class="sd">    table : Table</span>
 <span class="sd">        The table to be filtered.</span>
 <span class="sd">    min_dist : int or None, optional</span>
-<span class="sd">        Remove pixels whose genomic distance greater than this value.</span>
+<span class="sd">        Remove pixels whose genomic distance is greater than this value.</span>
+<span class="sd">        Default is &#39;None&#39;.</span>
 <span class="sd">    max_dist : int or None, optional</span>
-<span class="sd">        Remove pixels whose genomic distance smaller than this value.</span>
+<span class="sd">        Remove pixels whose genomic distance is smaller than this value.</span>
+<span class="sd">        Default is &#39;None&#39;.</span>
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
-<span class="sd">    A generator of filtered pixel chunks.</span>
+<span class="sd">    Generator of pandas.DataFrame</span>
+<span class="sd">        A generator of filtered pixel chunks.</span>
+
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">if</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">([</span><span class="n">min_dist</span><span class="p">,</span> <span class="n">max_dist</span><span class="p">]):</span>

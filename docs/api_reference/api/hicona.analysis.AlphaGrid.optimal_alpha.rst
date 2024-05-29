@@ -3,4 +3,4 @@
 
 .. currentmodule:: hicona.analysis
 
-.. automethod:: AlphaGrid.optimal_alpha
+.. autoproperty:: AlphaGrid.optimal_alpha
