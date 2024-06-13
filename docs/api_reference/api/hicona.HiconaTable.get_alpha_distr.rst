@@ -3,4 +3,4 @@
 
 .. currentmodule:: hicona
 
-.. automethod:: HiconaTable.get_alpha_distr
+.. automethod:: HiconaTable.get_distribution

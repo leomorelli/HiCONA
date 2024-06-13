@@ -275,22 +275,23 @@ class HiconaTable(base_table.Table):
 
         return AnnotDynamics(self, annot, as_quantiles, alpha_mod)
 
-    def get_alpha_distr(self, alpha_mod: AlphaModType = "alpha_min") -> pd.DataFrame:
-        """Return alpha distribution in the table as a pandas DataFrame.
+    def get_distribution(self, colname: str) -> pd.DataFrame:
+        """Return the distribution for the column as a pandas DataFrame.
 
-        Obtain the distribution of the alpha values for a table and return it.
+        Obtain the value distribution for the specified column in the table.
         The distribution is provided as a ``pandas.DataFrame`` with the columns
-        ``value`` and ``count`` representing the alpha values and their counts.
+        ``value`` and ``count`` representing the unique values and their number
+        of occurrences, respectively.
 
         Parameters
         ----------
-        alpha_mod : 'alpha_min' or 'alpha_max', optional
-            The alpha mode column to use. Default is 'alpha_min'.
+        colname : str
+            The column for which to obtain the value distribution.
 
         Returns
         -------
         pandas.DataFrame
-            A dataframe with the alpha distribution.
+            A dataframe with the distribution.
 
         Examples
         --------
@@ -298,7 +299,7 @@ class HiconaTable(base_table.Table):
 
         >>> handle = HiconaCooler("path/to/cool_file.cool")
         >>> table = handle.fetch_table("hicona")
-        >>> alpha_distr = table.get_alpha_distr()
+        >>> alpha_distr = table.get_distribution("alpha_min")
         >>> alpha_distr.head(3)
             value  count
         0   0.000    675
@@ -310,9 +311,11 @@ class HiconaTable(base_table.Table):
         >>> alpha_distr.plot(x="value", y="count")
         """
 
+        # TODO: Maybe add check that it is a numeric column (e.i. no bin_id)
+
         counter = collections.Counter()
         for chunk in self.chunks():
-            counter.update(chunk[alpha_mod].tolist())
+            counter.update(chunk[colname].tolist())
 
         distr = pd.DataFrame(counter.items(), columns=["value", "count"])
         return distr.sort_values("value")

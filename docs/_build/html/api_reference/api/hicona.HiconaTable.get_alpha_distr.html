@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>hicona.HiconaTable.get_alpha_distr &#8212; HiCONA alpha documentation</title>
+    <title>hicona.HiconaTable.get_distribution &#8212; HiCONA alpha documentation</title>
   
   
   
@@ -43,7 +43,7 @@
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
     <script src="../../_static/copybutton.js?v=f281be69"></script>
     <script src="../../_static/design-tabs.js?v=36754332"></script>
-    <script>DOCUMENTATION_OPTIONS.pagename = 'api_reference/api/hicona.HiconaTable.get_alpha_distr';</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'api_reference/api/hicona.HiconaTable.get_distribution';</script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
     <link rel="next" title="hicona.HiconaTable.get_alpha_grid" href="hicona.HiconaTable.get_alpha_grid.html" />
@@ -313,7 +313,7 @@ document.write(`
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaTable.dataframe.html">hicona.HiconaTable.dataframe</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaTable.subset.html">hicona.HiconaTable.subset</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaTable.reset_index.html">hicona.HiconaTable.reset_index</a></li>
-<li class="toctree-l2 current active"><a class="current reference internal" href="#">hicona.HiconaTable.get_alpha_distr</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">hicona.HiconaTable.get_distribution</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaTable.get_alpha_grid.html">hicona.HiconaTable.get_alpha_grid</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.HiconaTable.get_annot_dynamics.html">hicona.HiconaTable.get_annot_dynamics</a></li>
 </ul>
@@ -417,10 +417,10 @@ document.write(`
                 <article class="bd-article">
                   
   <section id="hicona-hiconatable-get-alpha-distr">
-<h1>hicona.HiconaTable.get_alpha_distr<a class="headerlink" href="#hicona-hiconatable-get-alpha-distr" title="Link to this heading">#</a></h1>
+<h1>hicona.HiconaTable.get_distribution<a class="headerlink" href="#hicona-hiconatable-get-alpha-distr" title="Link to this heading">#</a></h1>
 <dl class="py method">
-<dt class="sig sig-object py" id="hicona.HiconaTable.get_alpha_distr">
-<span class="sig-prename descclassname"><span class="pre">HiconaTable.</span></span><span class="sig-name descname"><span class="pre">get_alpha_distr</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">alpha_mod</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'alpha_min'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hicona/_table.html#HiconaTable.get_alpha_distr"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.HiconaTable.get_alpha_distr" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object py" id="hicona.HiconaTable.get_distribution">
+<span class="sig-prename descclassname"><span class="pre">HiconaTable.</span></span><span class="sig-name descname"><span class="pre">get_distribution</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">alpha_mod</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'alpha_min'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hicona/_table.html#HiconaTable.get_distribution"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.HiconaTable.get_distribution" title="Link to this definition">#</a></dt>
 <dd><p>Return alpha distribution in the table as a pandas DataFrame.</p>
 <p>Obtain the distribution of the alpha values for a table and return it.
 The distribution is provided as a <code class="docutils literal notranslate"><span class="pre">pandas.DataFrame</span></code> with the columns
@@ -443,7 +443,7 @@ The distribution is provided as a <code class="docutils literal notranslate"><sp
 <p>Compute the alpha distribution for a table:</p>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">handle</span> <span class="o">=</span> <span class="n">HiconaCooler</span><span class="p">(</span><span class="s2">&quot;path/to/cool_file.cool&quot;</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">table</span> <span class="o">=</span> <span class="n">handle</span><span class="o">.</span><span class="n">fetch_table</span><span class="p">(</span><span class="s2">&quot;hicona&quot;</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">alpha_distr</span> <span class="o">=</span> <span class="n">table</span><span class="o">.</span><span class="n">get_alpha_distr</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">alpha_distr</span> <span class="o">=</span> <span class="n">table</span><span class="o">.</span><span class="n">get_distribution</span><span class="p">()</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">alpha_distr</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
 <span class="go">    value  count</span>
 <span class="go">0   0.000    675</span>
@@ -505,14 +505,14 @@ The distribution is provided as a <code class="docutils literal notranslate"><sp
   </div>
   <nav class="bd-toc-nav page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#hicona.HiconaTable.get_alpha_distr"><code class="docutils literal notranslate"><span class="pre">HiconaTable.get_alpha_distr()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#hicona.HiconaTable.get_distribution"><code class="docutils literal notranslate"><span class="pre">HiconaTable.get_distribution()</span></code></a></li>
 </ul>
   </nav></div>
 
   <div class="sidebar-secondary-item">
 
   <div class="tocsection sourcelink">
-    <a href="../../_sources/api_reference/api/hicona.HiconaTable.get_alpha_distr.rst.txt">
+    <a href="../../_sources/api_reference/api/hicona.HiconaTable.get_distribution.rst.txt">
       <i class="fa-solid fa-file-lines"></i> Show Source
     </a>
   </div>

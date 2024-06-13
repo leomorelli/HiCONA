@@ -86,7 +86,7 @@ class AnnotDynamics:
 
         # Automatically generate a grid with 0.01 wide intervals
         # Which can be aggregated to the desired intervals when queried
-        self._alpha_distr = self._hic_table.get_alpha_distr(alpha_mod)
+        self._alpha_distr = self._hic_table.get_distribution(alpha_mod)
         self._break_pts = self._compute_breakpoints(0.01, self._as_quants)
         self._abs_dynam = self._compute_dynamics()
 
@@ -95,7 +95,8 @@ class AnnotDynamics:
 
         # Define the discrete alpha break points
         num_pt: int = int(1 / size)
-        points: list[float] = [size * i for i in range(1, num_pt + 1)]
+        decimals: int = len(str(size).split(".")[1])
+        points: list[float] = [round(size * i, decimals) for i in range(1, num_pt + 1)]
 
         # Convert break points to quantiles if needed
         if as_quants:
@@ -270,10 +271,10 @@ class AnnotDynamics:
         # Compute log odds ratios and p-values matrices
         ref_col = self._abs_dynam[self._abs_dynam.columns[-1]]
 
-        results = [dataf.serial_odds_ratios(dynam[c], ref_col) for c in dynam.columns]
+        res = [dataf.odds_ratios(dynam[c], ref_col) for c in dynam.columns]
         axes = {"columns": dynam.columns, "index": dynam.index}
-        log_odds = pd.DataFrame(np.array([r[0] for r in results]).T, **axes)
-        p_values = pd.DataFrame(np.array([r[1] for r in results]).T, **axes)
+        log_odds = pd.DataFrame(np.array([r[0] for r in res]).T, **axes)
+        p_values = pd.DataFrame(np.array([r[1] for r in res]).T, **axes)
 
         # Apply FDR correction to p-values
         for _, row in p_values.iterrows():

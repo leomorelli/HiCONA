@@ -87,7 +87,7 @@ def swap_columns(dataf: pd.DataFrame, col1: str, col2: str):
     )
 
 
-def serial_odds_ratios(
+def odds_ratios(
     kept: pd.Series,
     full: pd.Series,
     haldane: bool = False,

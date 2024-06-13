@@ -57,7 +57,7 @@ Analysis
 .. autosummary::
     :toctree: api/
 
-    HiconaTable.get_alpha_distr
+    HiconaTable.get_distribution
     HiconaTable.get_alpha_grid
     HiconaTable.get_annot_dynamics
    

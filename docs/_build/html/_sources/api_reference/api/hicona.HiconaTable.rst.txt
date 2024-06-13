@@ -40,7 +40,7 @@
       
    
       
-      ~HiconaTable.get_alpha_distr
+      ~HiconaTable.get_distribution
       
    
       

@@ -617,9 +617,9 @@ document.write(`
         <span class="k">return</span> <span class="n">AnnotDynamics</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">annot</span><span class="p">,</span> <span class="n">as_quantiles</span><span class="p">,</span> <span class="n">alpha_mod</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="HiconaTable.get_alpha_distr">
-<a class="viewcode-back" href="../../api_reference/api/hicona.HiconaTable.get_alpha_distr.html#hicona.HiconaTable.get_alpha_distr">[docs]</a>
-    <span class="k">def</span> <span class="nf">get_alpha_distr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">alpha_mod</span><span class="p">:</span> <span class="n">AlphaModType</span> <span class="o">=</span> <span class="s2">&quot;alpha_min&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<div class="viewcode-block" id="HiconaTable.get_distribution">
+<a class="viewcode-back" href="../../api_reference/api/hicona.HiconaTable.get_distribution.html#hicona.HiconaTable.get_distribution">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_distribution</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">alpha_mod</span><span class="p">:</span> <span class="n">AlphaModType</span> <span class="o">=</span> <span class="s2">&quot;alpha_min&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Return alpha distribution in the table as a pandas DataFrame.</span>
 
 <span class="sd">        Obtain the distribution of the alpha values for a table and return it.</span>
@@ -642,7 +642,7 @@ document.write(`
 
 <span class="sd">        &gt;&gt;&gt; handle = HiconaCooler(&quot;path/to/cool_file.cool&quot;)</span>
 <span class="sd">        &gt;&gt;&gt; table = handle.fetch_table(&quot;hicona&quot;)</span>
-<span class="sd">        &gt;&gt;&gt; alpha_distr = table.get_alpha_distr()</span>
+<span class="sd">        &gt;&gt;&gt; alpha_distr = table.get_distribution()</span>
 <span class="sd">        &gt;&gt;&gt; alpha_distr.head(3)</span>
 <span class="sd">            value  count</span>
 <span class="sd">        0   0.000    675</span>
