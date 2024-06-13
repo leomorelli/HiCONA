@@ -11,16 +11,29 @@ from scipy.cluster.hierarchy import dendrogram, linkage
 __all__ = ["plot_alpha_grid"]
 
 
+NAN_COLOR = "lightgrey"  # Color for NaN values in heatmaps
+CM = 1 / 2.54  # cm to inches
+
+
+def fine_grain_df(dataf):
+
+    grain = max([str(c).split(".")[1] if "." in str(c) else 0 for c in dataf.columns])
+    fine_df = np.ndarray((len(dataf), 10 * grain), dtype=float)
+    print(fine_df.shape)
+
+    return fine_df
+
+
 def _empty_subplot(axes):
     """Create whitespace in specified plot axes."""
 
     axes.axis("off")
 
 
-def _plot_output(plot, img_path, show):
+def _plot_output(plot, img_path, show, padding=0):
     """Plotting function output behaviour. Return plot only if not shown."""
 
-    plt.tight_layout()
+    plt.tight_layout(pad=padding)
 
     if img_path:
         plt.savefig(img_path)
@@ -91,8 +104,6 @@ def plot_alpha_grid(
         rf"$\alpha$ = {optim['alpha']:.3f}",
     )
 
-    plt.tight_layout()
-
     return _plot_output(axes, img_path, show)
 
 
@@ -160,7 +171,11 @@ def plot_dynamics_full(
     def get_row_order(dataf: pd.DataFrame):
         """Sort rows by linkage clustering for ease of visualization."""
 
-        link = linkage(dataf.fillna(0), optimal_ordering=True)
+        data = dataf.fillna(0)
+        data = data.replace(np.inf, np.nanmax(data[data != np.inf]))
+        data = data.replace(-np.inf, np.nanmin(data[data != -np.inf]))
+
+        link = linkage(data, optimal_ordering=True)
         dendro = dendrogram(link, no_plot=True)
         return dendro["leaves"]
 
@@ -172,13 +187,11 @@ def plot_dynamics_full(
         2,
         height_ratios=[1, 3],
         width_ratios=[20, 1],
-        figsize=(12, 9),
+        figsize=(24 * CM, 18 * CM),
     )
 
     # TOP LEFT: Alpha distribution ------------------------------------------
 
-    # Remove unwanted white space on the right of the plot
-    tab.dropna(axis=1, how="all", inplace=True)
     thresholds = [float(t) for t in tab.columns]
     alpha_distr = alpha_distr[alpha_distr["value"] <= max(thresholds)]
 
@@ -186,7 +199,7 @@ def plot_dynamics_full(
     axes[0][0].set(
         xlabel="Alpha",
         ylabel="Number of Pixels",
-        xlim=(0, max(thresholds)),
+        xlim=(-0.05, 1),
         ylim=(-alpha_distr["count"].max() * 0.1, max(alpha_distr["count"]) * 1.1),
     )
     axes[0][0].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
@@ -212,7 +225,7 @@ def plot_dynamics_full(
         tab.replace(np.inf, np.nanmax(tab[tab != np.inf]), inplace=True)
         tab.replace(-np.inf, np.nanmin(tab[tab != -np.inf]), inplace=True)
 
-    tab.fillna(0, inplace=True)
+    mask = np.isnan(tab)
 
     sns.heatmap(
         tab,
@@ -220,13 +233,15 @@ def plot_dynamics_full(
         cmap=_get_color_map(),
         center=0,
         cbar_ax=axes[1][1],
+        mask=mask,
+        vmax=2,  # TODO: change or implement
+        vmin=-2,  # TODO: change or implement
     )
 
     axes[1][0].set(xlabel=None, ylabel=None, xticklabels=[])
     axes[1][0].xaxis.set_tick_params(labelbottom=False)
     axes[1][0].tick_params(bottom=False)
-
-    fig.tight_layout(pad=0)  # TODO: Check if this is necessary
+    axes[1][0].patch.set_color(NAN_COLOR)
 
     return _plot_output([fig, axes], img_path, show)
 
@@ -270,5 +285,111 @@ def plot_dynamics_interval(
 
     axes = sns.heatmap(odds_mat, annot=anno_mat, cmap=cmap, center=0)
     axes.set(xlabel=None, ylabel=None)
+
+    return _plot_output(axes, img_path, show)
+
+
+def plot_comparison(
+    distr_a: pd.DataFrame,
+    distr_b: pd.DataFrame,
+    points: pd.DataFrame,
+    highlight: pd.DataFrame,
+    names: tuple[str, str],
+    img_path: str | None = None,
+    show: bool = False,
+):
+    """Placeholder"""
+
+    # CAP_VAL = max(10_000, max(norm_alpha_distr["count"]))
+
+    main_ratio = 5  # Ratio of the main plot to the side plots
+    sides_size = 8  # Size of the image side in inches
+    distr_lims = (-0.01, 1.01)  # Limits for the distribution, assumed alpha
+    label_size = 16  # Font size for the labels
+
+    # Need to define it on the distribution somehow
+    # cap_val = max(distr_a["count"].max(), distr_b["count"].max())
+    cap_val = 100000
+
+    # Set up the plot structure
+    fig, axes = plt.subplots(
+        2,
+        2,
+        height_ratios=[main_ratio, 1],
+        width_ratios=[1, main_ratio],
+        figsize=(sides_size, sides_size),
+    )
+
+    # Normalized alpha distr subplot
+    sns.lineplot(
+        data=distr_b,
+        x="count",
+        y="value",
+        errorbar=None,
+        orient="y",
+        ax=axes[0][0],
+    )
+
+    axes[0, 0].set(
+        xlim=(cap_val * 1.05, -cap_val * 0.05),
+        ylim=distr_lims,
+        xlabel=None,
+        xticklabels=[],
+        xticks=[],
+        # xscale="log",
+    )
+    # axes[0, 0].set_xscale("log")
+    axes[0, 0].set_ylabel(names[1], fontsize=label_size)
+    size_a = int(distr_a["count"].sum())
+    axes[0, 0].text(cap_val, 0.95, f"N = {size_a}", fontsize=11)
+
+    # Alpha vs Alpha matrix
+    sns.histplot(
+        data=points,
+        x="x",
+        y="y",
+        # aspect=1,
+        # cbar=True,
+        pmax=0.5,
+        bins=200,
+        ax=axes[0][1],
+    )
+
+    axes[0, 1].set(
+        xlim=distr_lims,
+        ylim=distr_lims,
+        xlabel=None,
+        ylabel=None,
+        xticklabels=[],
+        yticklabels=[],
+        xticks=[],
+        yticks=[],
+    )
+    axes[0, 1].text(0.80, 0.95, f"N = {len(points)}", fontsize=11)
+    # axes[0, 1].spines[["right", "bottom", "left", "top"]].set_visible(False)
+    # axes[0, 1].plot(highlight["x"], highlight["y"], "ro", markersize=0.1)
+
+    # Empty lower left subplot
+    axes[1, 0].axis("off")
+
+    # Non normalized alpha distr subplot
+    sns.lineplot(
+        data=distr_a,
+        x="value",
+        y="count",
+        errorbar=None,
+        orient="x",
+        ax=axes[1][1],
+    )
+    axes[1, 1].set(
+        xlim=distr_lims,
+        ylim=(cap_val * 1.05, -cap_val * 0.05),
+        ylabel=None,
+        yticklabels=[],
+        yticks=[],
+    )
+    axes[1, 1].set_xlabel(names[0], fontsize=label_size)
+    size_b = int(distr_b["count"].sum())
+    axes[1, 1].text(0.80, cap_val, f"N = {size_b}", fontsize=11)
 
     return _plot_output(axes, img_path, show)
