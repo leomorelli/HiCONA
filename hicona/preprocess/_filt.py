@@ -2,30 +2,30 @@
 
 from typing import TYPE_CHECKING as _TYPE_CHECKING
 
-import pandas as _pd
+import pandas as pd
 
-from hicona._dtypes import PdChunks as _PdChunks
-from hicona._ops import chunked as _chunked
+from hicona._ops import chunked
+from hicona.preprocess._abcs import FiltOperation
 
 if _TYPE_CHECKING:
-    from hicona._core import base_table
-
+    from hicona._core import Table
+    from hicona._dtypes import PdChunks
 
 __all__ = [
-    "filt_genomic_dist",
-    "filt_column_quant",
-    "filt_column_value",
-    "filt_inter_chroms",
-    "filt_self_looping",
+    "FiltGenomicDist",
+    "FiltColumnQuant",
+    "FiltColumnValue",
+    "FiltInterChroms",
+    "FiltSelfLooping",
 ]
 
 
 def _inclusive_filter(
-    table: _pd.DataFrame,
+    table: pd.DataFrame,
     column: str,
     lower: int | float | None = None,
     upper: int | float | None = None,
-) -> _pd.DataFrame:
+) -> pd.DataFrame:
     """Remove pixels with column value outside of interval [lower, upper]."""
 
     table = table.loc[table[column] >= lower] if lower is not None else table
@@ -35,11 +35,11 @@ def _inclusive_filter(
 
 
 def _exclusive_filter(
-    table: _pd.DataFrame,
+    table: pd.DataFrame,
     column: str,
     lower: int | float | None = None,
     upper: int | float | None = None,
-) -> _pd.DataFrame:
+) -> pd.DataFrame:
     """Remove pixels with column value outside of interval (lower, upper)."""
 
     table = table.loc[table[column] > lower] if lower is not None else table
@@ -48,7 +48,7 @@ def _exclusive_filter(
     return table
 
 
-def _format_out_cols(chunk: _pd.DataFrame) -> _pd.DataFrame:
+def _format_out_cols(chunk: pd.DataFrame) -> pd.DataFrame:
     """Keep only bin1_id, bin2_id, count and norm (if present)."""
 
     base_cols = ["bin1_id", "bin2_id", "count", "norm"]
@@ -57,11 +57,7 @@ def _format_out_cols(chunk: _pd.DataFrame) -> _pd.DataFrame:
     return chunk[keep_cols]
 
 
-def filt_genomic_dist(
-    table: "base_table.Table",
-    min_dist: int | None = None,
-    max_dist: int | None = None,
-) -> _PdChunks:
+class FiltGenomicDist(FiltOperation):
     """Remove pixels whose genomic distance is outside of an interval.
 
     Genomic distance is calculated as the difference between ``bin1_id`` and
@@ -71,8 +67,6 @@ def filt_genomic_dist(
 
     Parameters
     ----------
-    table : Table
-        The table to be filtered.
     min_dist : int or None, optional
         Remove pixels whose genomic distance is greater than this value.
         Default is 'None'.
@@ -87,25 +81,23 @@ def filt_genomic_dist(
 
     """
 
-    if not any([min_dist, max_dist]):
-        raise ValueError("At least one distance threshold must be provided.")
+    def __init__(self, *, min_dist: int | None = None, max_dist: int | None = None):
+        if not any([min_dist, max_dist]):
+            raise ValueError("At least one distance threshold must be provided.")
+        self._min_dist = min_dist
+        self._max_dist = max_dist
 
-    # Workaround: set inter-chromosomal distances to set value in interval
-    for chunk in table.chunks(annotated=True):
-        chunk["dist"] = (chunk.bin2_id - chunk.bin1_id) * table.bin_size
-        chunk.loc[chunk.chrom1 != chunk.chrom2, "dist"] = min_dist
-        chunk = _inclusive_filter(chunk, "dist", min_dist, max_dist)
+    def run(self, table: "Table") -> "PdChunks":
 
-        yield _format_out_cols(chunk)
+        for chunk in table.chunks(annotated=True):
+            chunk["dist"] = (chunk.bin2_id - chunk.bin1_id) * table.bin_size
+            chunk.loc[chunk.chrom1 != chunk.chrom2, "dist"] = self._min_dist
+            chunk = _inclusive_filter(chunk, "dist", self._min_dist, self._max_dist)
+
+            yield _format_out_cols(chunk)
 
 
-def filt_column_quant(
-    table: "base_table.Table",
-    apply_col: str,
-    lower_quant: float | None = None,
-    upper_quant: float | None = None,
-    chrom_wise: bool = True,
-) -> _PdChunks:
+class FiltColumnQuant(FiltOperation):
     """Remove pixels with column value outside a certain quantile range.
 
     Filter out pixels where the value of the specified column is outside a
@@ -117,8 +109,6 @@ def filt_column_quant(
 
     Parameters
     ----------
-    table : Table
-        The table to be filtered.
     apply_col : str
         The column to apply the quantile filter to.
     lower_quant : float or None, optional
@@ -131,52 +121,67 @@ def filt_column_quant(
 
     Returns
     -------
-    A generator of filtered pixel chunks.
+    Generator of pandas.DataFrame
+        A generator of filtered pixel chunks.
+
     """
 
-    def quant_filt(dataf, col, values, quant, sign, split_cols):
-        """Apply individual quantile filter to a DataFrame."""
+    def __init__(
+        self,
+        *,
+        apply_col: str,
+        lower_quant: float | None = None,
+        upper_quant: float | None = None,
+        chrom_wise: bool = True,
+    ):
+        if not any([lower_quant, upper_quant]):
+            raise ValueError("At least one quantile threshold must be provided.")
+        self._apply_col = apply_col
+        self._lower_quant = lower_quant
+        self._upper_quant = upper_quant
+        self._chrom_wise = chrom_wise
 
-        values = values[values["quant"] == quant]
-        if split_cols:
-            merge = dataf.merge(values, how="left", on=split_cols)
-            index = merge.query(f"{col}_x{sign}{col}_y").index
-        else:
-            quant_val = values[0][col]
-            index = dataf.query(f"{col}{sign}{quant_val}").index
-        return dataf.iloc[index]
+    def run(self, table: "Table") -> "PdChunks":
 
-    split_cols = ["chrom1", "chrom2"] if chrom_wise else None
-    all_quants = [q for q in (lower_quant, upper_quant) if q is not None]
+        def quant_filt(dataf, col, values, quant, sign, split_cols):
+            """Apply individual quantile filter to a DataFrame."""
 
-    if not any(all_quants):
-        raise ValueError("At least one quantile threshold must be provided.")
+            values = values[values["quant"] == quant]
+            if split_cols:
+                merge = dataf.merge(values, how="left", on=split_cols)
+                index = merge.query(f"{col}_x{sign}{col}_y").index
+            else:
+                quant_val = values[0][col]
+                index = dataf.query(f"{col}{sign}{quant_val}").index
+            return dataf.iloc[index]
 
-    # Compute quantiles for each chromosome
-    vals = _chunked.chunked_quants(
-        table.chunks(annotated=chrom_wise),
-        column=apply_col,
-        quants=all_quants,
-        split_on=split_cols,
-    )
+        split_cols = ["chrom1", "chrom2"] if self._chrom_wise else None
+        quants = [q for q in (self._lower_quant, self._upper_quant) if q is not None]
 
-    # Apply the quantile filers to each chunk and yield it
-    for chunk in table.chunks(annotated=chrom_wise):
+        # Compute quantiles for each chromosome
+        vals = chunked.chunked_quants(
+            table.chunks(annotated=self._chrom_wise),
+            column=self._apply_col,
+            quants=quants,
+            split_on=split_cols,
+        )
 
-        if lower_quant is not None:
-            chunk = quant_filt(chunk, apply_col, vals, lower_quant, ">", split_cols)
-        if upper_quant is not None:
-            chunk = quant_filt(chunk, apply_col, vals, upper_quant, "<", split_cols)
+        # Apply the quantile filers to each chunk and yield it
+        for chunk in table.chunks(annotated=self._chrom_wise):
 
-        yield _format_out_cols(chunk)
+            if self._lower_quant is not None:
+                chunk = quant_filt(
+                    chunk, self._apply_col, vals, self._lower_quant, ">", split_cols
+                )
+            if self._upper_quant is not None:
+                chunk = quant_filt(
+                    chunk, self._apply_col, vals, self._upper_quant, "<", split_cols
+                )
+
+            yield _format_out_cols(chunk)
 
 
-def filt_column_value(
-    table: "base_table.Table",
-    apply_col: str,
-    lower_value: float | int | None = None,
-    upper_value: float | int | None = None,
-) -> _PdChunks:
+class FiltColumnValue(FiltOperation):
     """Remove pixels with column value outside a certain interval.
 
     Filter out pixels where the value of the specified column is outside a
@@ -184,8 +189,6 @@ def filt_column_value(
 
     Parameters
     ----------
-    table : Table
-        The table to be filtered.
     apply_col : str
         The column to apply the value filter to.
     lower_value : float or int or None, optional
@@ -195,17 +198,36 @@ def filt_column_value(
 
     Returns
     -------
-    A generator of filtered pixel chunks.
+    Generator of pandas.DataFrame
+        A generator of filtered pixel chunks.
+
     """
 
-    if not any([lower_value, upper_value]):
-        raise ValueError("At least one value threshold must be provided.")
+    def __init__(
+        self,
+        *,
+        apply_col: str,
+        lower_value: float | int | None = None,
+        upper_value: float | int | None = None,
+    ):
+        if not any([lower_value, upper_value]):
+            raise ValueError("At least one value threshold must be provided.")
+        self._apply_col = apply_col
+        self._lower_value = lower_value
+        self._upper_value = upper_value
 
-    for chunk in table.chunks():
-        yield _inclusive_filter(chunk, apply_col, lower_value, upper_value)
+    def run(self, table: "Table") -> "PdChunks":
+
+        for chunk in table.chunks():
+
+            chunk = _inclusive_filter(
+                chunk, self._apply_col, self._lower_value, self._upper_value
+            )
+
+            yield _format_out_cols(chunk)
 
 
-def filt_inter_chroms(table: "base_table.Table") -> _PdChunks:
+class FiltInterChroms(FiltOperation):
     """Remove inter-chromosomal pixels from the table.
 
     Remove pixels whose bin1_id and bin2_id are on different chromosomes.
@@ -220,12 +242,14 @@ def filt_inter_chroms(table: "base_table.Table") -> _PdChunks:
     A generator of filtered pixel chunks.
     """
 
-    for chunk in table.chunks(annotated=True):
-        chunk = chunk.loc[chunk.chrom1 == chunk.chrom2]
-        yield _format_out_cols(chunk)
+    def run(self, table: "Table") -> "PdChunks":
+
+        for chunk in table.chunks(annotated=True):
+            chunk = chunk.loc[chunk.chrom1 == chunk.chrom2]
+            yield _format_out_cols(chunk)
 
 
-def filt_self_looping(table: "base_table.Table") -> _PdChunks:
+class FiltSelfLooping(FiltOperation):
     """Remove self-looping pixels from the table.
 
     Remove pixels whose bin1_id and bin2_id are the same.
@@ -240,6 +264,8 @@ def filt_self_looping(table: "base_table.Table") -> _PdChunks:
     A generator of filtered pixel chunks.
     """
 
-    for chunk in table.chunks():
-        chunk = chunk.loc[chunk.bin1_id != chunk.bin2_id]
-        yield _format_out_cols(chunk)
+    def run(self, table: "Table") -> "PdChunks":
+
+        for chunk in table.chunks():
+            chunk = chunk.loc[chunk.bin1_id != chunk.bin2_id]
+            yield _format_out_cols(chunk)

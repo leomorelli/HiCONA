@@ -62,15 +62,15 @@ class TableProcessor:
     def _apply_functions(self):
         """ "Apply all filtering and normalization functions to the table."""
 
-        for op, kwargs in self._table.flow.ops_list():
+        for op in self._table.flow.ops:
 
-            logging.info("Starting to apply: %s", op.__name__)
+            logging.info("Starting to apply: %s", op.name)
 
-            tab_size = hdf5.write_table(self._table.uris, op(self._table, **kwargs))
+            tab_size = hdf5.write_table(self._table.uris, op.run(self._table))
             hdf5.resize_table(self._table.uris, tab_size)
             self._table.reset_index()
 
-            logging.info("Finished applying: %s", op.__name__)
+            logging.info("Finished applying: %s", op.name)
             logging.info("Table size: %s", tab_size)
 
     def _spar_table(self):

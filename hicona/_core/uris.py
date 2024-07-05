@@ -35,3 +35,7 @@ class Uris:
     def add_path(self, path: str) -> "Uris":
         """Add a part to the path uri and return a new instance."""
         return Uris(self._store, self._root, "/".join([self._path, path]))
+
+    def is_valid(self) -> bool:
+        """Check if the uri is valid."""
+        return True  # TODO: Not actually checking for now, implement later

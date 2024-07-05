@@ -6,74 +6,47 @@ normalize it.
 
 """
 
-from importlib import import_module
-from inspect import getmembers, Parameter, signature
-from typing import Any, Callable
+import importlib
+import inspect
+from typing import Iterable, Type, TYPE_CHECKING, Union
 
 from hicona._ops import io
-from hicona._dtypes import JsonDict
+from hicona.preprocess import _DEFAULT_FLOWS, _FUNCS_MODULES
+
+if TYPE_CHECKING:
+    from hicona._dtypes import JsonDict, Operation, KwargsDict
 
 
 __all__ = ["Flow"]
-
-
-_DEFAULT_FLOWS: str = "flows.json"
-_DEFAULT_MODULES: list[str] = [".preprocess._filt", ".preprocess._norm"]
 
 
 # TODO: Maybe make the Flow immutable when fetching a table,
 #       requiring to create a copy of the object to modify it again.
 
 
-class Operation:
-    """Individual filtering or normalization operation.
+def _fetch_funs(
+    fun_names: list[str],
+    fun_kwargs: list["KwargsDict"],
+    sources: list[str],
+) -> list["Operation"]:
+    """Fetch preprocessing functions from their names."""
 
-    Object to store, handle and retrieve information about a single filtering
-    or normalization operation to apply on a table.
+    funs: dict[str, Type["Operation"]] = {}
+    for mod in sources:
+        mod_obj = importlib.import_module(mod)
+        mod_funs = inspect.getmembers(mod_obj)
+        funs.update({k: v for k, v in mod_funs if k in mod_obj.__all__})
 
-    Parameters
-    ----------
-    fun_obj : Callable
-        The function object to be applied to the table.
-    fun_kwargs : dict[str, Any]
-        The kwargs to be passed to the function object.
-    """
+    outs: list["Operation"] = []
+    for ind, name in enumerate(fun_names):
+        fun_class: Union[Type["Operation"], None] = funs.get(name)
 
-    def __init__(self, fun_obj: Callable, fun_kwargs: dict[str, Any]):
-        self._fun_name = fun_obj.__name__
-        self._fun_obj = fun_obj
+        if not fun_class:
+            raise ValueError(f"{name} is not a default function.")
 
-        # Complete kwargs with default values, for non provided ones
-        # This is done to avoid json mismatch due to implied defaults
-        def_kwargs = {
-            name: value.default
-            for name, value in signature(fun_obj).parameters.items()
-            if value.default is not Parameter.empty
-        }
-        def_kwargs.update(fun_kwargs)
-        self._fun_kwargs = def_kwargs
+        outs.append(fun_class(**fun_kwargs[ind]))
 
-        # NOTE: no check on mandatory arguments, since an error would be
-        # raised at runtime anyway if they are not provided
-
-    @property
-    def fun_name(self) -> str:
-        """Get function name in string form."""
-        return self._fun_name
-
-    @property
-    def fun_kwargs(self) -> dict[str, Any]:
-        """Get function kwargs."""
-        return self._fun_kwargs
-
-    @property
-    def fun_obj(self) -> Callable:
-        """Get function object."""
-        return self._fun_obj
-
-    def json(self) -> dict[str, Any]:
-        """Return the operation in a json-like dictionary."""
-        return {"name": self._fun_name, "kwargs": self._fun_kwargs}
+    return outs
 
 
 class Flow:
@@ -138,14 +111,9 @@ class Flow:
 
     # TODO: find a way to remove the two warnings
 
-    def __init__(self):
-        self._ops_flow: list[Operation] = []
-        self._default_funs: dict[str, Callable] = {}
-
-        for mod in _DEFAULT_MODULES:
-            mod = import_module(mod, package="hicona")
-            funs = {k: v for k, v in getmembers(mod) if k in mod.__all__}
-            self._default_funs.update(funs)
+    def __init__(self, name: str, operations: Iterable["Operation"] | None = None):
+        self._name: str = name
+        self._ops: tuple[Operation, ...] = tuple(operations) if operations else tuple()
 
     def __eq__(self, other: "Flow") -> bool:
         """Check equality among ProcessingFlow objects."""
@@ -153,34 +121,75 @@ class Flow:
 
     def __len__(self) -> int:
         """Return the number of operations in the flow."""
-        return len(self._ops_flow)
+        return len(self._ops)
 
     def __str__(self) -> str:
         """Return the operations flow as a string."""
 
-        out_str = "Operations flow:\n"
+        out_str = f"Flow '{self.name}':\n"
 
-        for name, kwargs in self.ops_list():
-            out_str += f" - {name} -> {kwargs}\n"
+        for op in self._ops:
+            out_str += f" - {op.name} -> {op.kwargs}\n"
 
-        if len(self._ops_flow) == 0:
+        if len(self) == 0:
             out_str += " - No operations added yet."
 
         return out_str.strip()
 
-    def _fetch_fun(self, fun_name: str) -> Callable:
-        """Fetch a function from its name."""
+    @property
+    def name(self) -> str:
+        """Return the name of the flow."""
+        return self._name
 
-        fun_obj: Callable | None = globals().get(fun_name)
-        fun_obj = fun_obj or self._default_funs.get(fun_name)
+    def rename(self, new_name: str) -> "Flow":
+        """Rename the flow.
 
-        if not fun_obj:
-            raise ValueError(f"{fun_name} not found. Load it in the namespace.")
+        Since the `Flow` object is immutable, this method returns a new
+        instance of the object with the new name.
 
-        return fun_obj
+        Parameters
+        ----------
+        new_name: str
+            The new name for the flow.
+
+        Returns
+        -------
+        Flow
+            Flow with the new name.
+
+        Examples
+        --------
+        Rename the flow:
+
+        >>> from hicona.preprocess import Flow
+        >>> flow = Flow.from_default("hicona")
+        >>> print(flow.name)
+        'hicona'
+        >>> flow = flow.rename("new_name")
+        >>> print(flow.name)
+        'new_name'
+
+        """
+
+        return Flow(name=new_name, operations=self._ops)
 
     @classmethod
-    def from_json(cls, json: str | JsonDict) -> "Flow":
+    def from_dict(cls, name: str, flow_dict: "JsonDict") -> "Flow":
+        """Create a flow from a dictionary."""
+
+        # Sort flow_dict by keys to ensure order and check for gaps
+        sort_dict: JsonDict = dict(sorted(flow_dict.items(), key=lambda x: x[0]))
+        if not all(str(i) in sort_dict for i in range(len(sort_dict))):
+            raise ValueError("The json data is not properly formatted.")
+
+        names_list: list[str] = [op["name"] for op in sort_dict.values()]
+        kwargs_list: list[KwargsDict] = [op["kwargs"] for op in sort_dict.values()]
+        operations = _fetch_funs(names_list, kwargs_list, _FUNCS_MODULES)
+
+        return cls(name, operations)
+
+    @classmethod
+    def from_json(cls, json: str) -> "Flow":
         """Create an instance from a json file or dictionary.
 
         Create an instance of ``Flow`` from a ``Flow`` previously saved to a
@@ -211,30 +220,9 @@ class Flow:
 
         """
 
-        # TODO: Maybe find an alternative to loading in the namespace
-
-        flow = cls()
-
-        # Convert to json-like dictionary if not already
-        if isinstance(json, str):
-            json_data: JsonDict = io.read_resource(json)
-        else:
-            json_data = json
-
-        # Populate the flow with the operations
-        ind: int = 0
-        while ind < len(json_data):
-
-            key = str(ind)
-            if key not in json_data:
-                raise ValueError("The json data is not properly formatted.")
-
-            op_dict = json_data[key]
-            flow.ops_add(flow._fetch_fun(op_dict["name"]), op_dict["kwargs"])
-
-            ind += 1
-
-        return flow
+        json_data: dict[str, JsonDict] = io.read_resource(json)
+        name, data = json_data.popitem()
+        return cls.from_dict(name, data)
 
     @classmethod
     def from_default(cls, default_name: str) -> "Flow":
@@ -270,9 +258,10 @@ class Flow:
         """
 
         default_json = io.read_resource(_DEFAULT_FLOWS, is_static=True)
-        return cls.from_json(default_json[default_name])
+        return cls.from_dict(default_name, default_json[default_name])
 
-    def ops_list(self) -> list[tuple[Callable, dict[str, Any]]]:
+    @property
+    def ops(self) -> tuple["Operation", ...]:
         """Return the operations flow as a list of operations.
 
         Return a list of tuples with the operations in the flow.
@@ -289,7 +278,7 @@ class Flow:
 
         >>> from hicona.preprocess import Flow
         >>> flow = Flow.from_default("hicona")
-        >>> [print(f.__name__, kwargs) for f, kwargs in flow.ops_list()]
+        >>> [print(f.__name__, kwargs) for f, kwargs in flow.ops()]
         ('filt_self_looping', {})
         ('filt_inter_chroms', {})
         ('filt_genomic_dist', {'min_dist': None, 'max_dist': 200000000})
@@ -297,9 +286,9 @@ class Flow:
         ('filt_column_quant', {'lower_quant': 0.05, 'upper_quant': None ...  # etc
         """
 
-        return [(op.fun_obj, op.fun_kwargs) for op in self._ops_flow]
+        return self._ops
 
-    def ops_reset(self) -> None:
+    def ops_reset(self) -> "Flow":
         """Reset the operations flow.
 
         Reset the operations flow, removing all operations added so far.
@@ -318,9 +307,9 @@ class Flow:
 
         """
 
-        self._ops_flow = []
+        return Flow(name=self.name)
 
-    def ops_add(self, fun_obj: Callable, fun_kwargs: dict | None = None) -> None:
+    def ops_add(self, operation: "Operation") -> "Flow":
         """Add a new operation to the operations flow.
 
         Add a new operation to the operations flow. The function can be either
@@ -359,41 +348,9 @@ class Flow:
 
         """
 
-        fun_kwargs = fun_kwargs or {}
-        self._ops_flow.append(Operation(fun_obj, fun_kwargs))
+        return Flow(name=self.name, operations=[*self._ops, operation])
 
-    def ops_remove(self, fun_name: str) -> None:
-        """Remove the last occurrence of a function from the flow.
-
-        Remove the last occurrence of a function from the operations flow.
-        If the function is not present, exit silently.
-
-        Parameters
-        ----------
-        fun_name: str
-            The name of the function to remove.
-
-        Examples
-        --------
-        Remove an operation from the flow:
-
-        >>> from hicona.preprocess import Flow
-        >>> flow = Flow.from_default("hicona")
-        >>> print(len(flow))
-        5
-        >>> flow.ops_remove("filt_genomic_dist")
-        >>> print(len(flow))
-        4
-
-        """
-
-        # TODO: change to take callables?
-        for i in range(len(self._ops_flow) - 1, -1, -1):
-            if self._ops_flow[i].fun_name == fun_name:
-                del self._ops_flow[i]
-                break
-
-    def to_json(self, file_path=None | str) -> JsonDict:
+    def to_json(self, file_path=None | str) -> "JsonDict":
         """Return the flow in a json-like dictionary, optionally save it.
 
         Convert the flow to a json-like dictionary, where the keys are the
@@ -406,11 +363,12 @@ class Flow:
         """
 
         json_res: JsonDict = {
-            str(order): {"name": op.fun_name, "kwargs": op.fun_kwargs}
-            for order, op in enumerate(self._ops_flow)
+            str(order): {"name": op.name, "kwargs": op.kwargs}
+            for order, op in enumerate(self._ops)
         }
+        full_json = {self.name: json_res}
 
         if isinstance(file_path, str):
-            io.write_resource(file_path, json_res, is_static=False)
+            io.write_resource(file_path, full_json, is_static=False)
 
-        return json_res
+        return full_json

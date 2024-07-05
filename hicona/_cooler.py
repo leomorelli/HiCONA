@@ -14,7 +14,7 @@ import cooler
 import h5py
 import pandas as pd
 
-from hicona._core import base_table, sparsification, uris
+from hicona._core import Table, sparsification, uris
 from hicona._ops import bed, hdf5
 from hicona.preprocess import Flow
 from hicona._table import HiconaTable
@@ -152,15 +152,13 @@ class HiconaCooler(cooler.Cooler):
 
     def _init_raw_table(
         self,
-        serial: str,
         method: Flow,
         chunk_size: int,
     ) -> uris.Uris:
         """Initialize a new raw table with the given parameters."""
 
         # Get table uris
-        table_path = f"{self.tables_root}/table_{str(serial).zfill(6)}"
-        table_uris = self._uris.add_path(table_path)
+        table_uris = self._uris.add_path(f"{self.tables_root}/{method.name}")
 
         # Initialize table
         num_pix = self.info["nnz"]
@@ -175,7 +173,7 @@ class HiconaCooler(cooler.Cooler):
             hdf5.write_chunk(table_uris, chunk, lower, chunk.columns)
 
         # Set table attributes
-        table_attrs = {"process_info": json.dumps(method.to_json())}
+        table_attrs = {"flow": json.dumps(method.to_json())}
         hdf5.set_attrs(table_uris, table_attrs)
 
         return table_uris
@@ -232,31 +230,24 @@ class HiconaCooler(cooler.Cooler):
         4     0.4219     0.4155        3      890      1   1.0
         """
 
-        # TODO: Add a table alias to simplify the fetching
-
         # Convert any default string to the corresponding flow
         if isinstance(ops_flow, str):
             ops_flow = Flow.from_default(ops_flow)
 
         # Initialize the tables root if it does not exist already.
-        # TODO: Maybe do not hardcode the serial attribute
         table_root_uris = self._uris.add_path(self.tables_root)
-        hdf5.require_group(table_root_uris, {"serial": 0})
+        hdf5.require_group(table_root_uris)
 
         # Check there is no table with all matching keywords
         for table in self._iterate_tables():
             if table.flow == ops_flow:
                 raise ValueError("E: Table with the same flow already exists.")
 
-        # Get the next available table path
-        serial = hdf5.get_attrs(table_root_uris)["serial"]
-        hdf5.set_attrs(table_root_uris, {"serial": serial + 1})
-
-        table_uris = self._init_raw_table(serial, ops_flow, chunk_size)
-        processor = sparsification.TableProcessor(base_table.Table(table_uris))
+        table_uris = self._init_raw_table(ops_flow, chunk_size)
+        processor = sparsification.TableProcessor(Table(table_uris))
         return processor.create_table()
 
-    def fetch_table(self, ops_flow: str | Flow = "hicona") -> HiconaTable:
+    def fetch_table(self, name: str = "hicona") -> HiconaTable:
         """Retrieve a previously created sparsified pixel table.
 
         Get a previously sparsified ``pixel`` table as a ``HiconaTable``
@@ -296,22 +287,8 @@ class HiconaCooler(cooler.Cooler):
         4        0.4219     0.4155        3      890      1   1.0
         """
 
-        # TODO: maybe change the method to fetch the table using alias
-        # TODO: Sometimes there is an issue with fetching the table
-        if isinstance(ops_flow, str):
-            ops_flow = Flow.from_default(ops_flow)
-
-        try:
-            tables = [t for t in self._iterate_tables() if t.flow == ops_flow]
-        except ValueError as exc:
-            raise ValueError("E: No table has been generated yet.") from exc
-
-        if len(tables) > 1:  # NOTE: This should never happen
-            raise ValueError("E: Multiple tables with matching parameters found.")
-        if not tables:
-            raise ValueError("E: No table with matching parameters was found.")
-
-        return tables.pop()
+        tables_uris = self._uris.add_path(self._tables_root)
+        return HiconaTable(tables_uris.add_path(name))
 
     def list_tables(self) -> None:
         """Print the available pixel tables.

@@ -7,10 +7,11 @@ import cooler
 import pandas as pd
 
 from hicona._core import uris
-from hicona._dtypes import PdChunks
+from hicona._dtypes import PdChunks, OptionalAxes
 from hicona._ops import hdf5
 from hicona._core import genomic
 from hicona.preprocess import Flow
+from hicona.analysis import _plotting as plotting  # TODO: Make better
 
 
 FULL_TABLE = "full_table"
@@ -139,16 +140,18 @@ class Table:
         def reconstruct_flow(uri_path: uris.Uris) -> Flow:
             """Reconstruct the flow.Flow object from the store."""
 
-            # TODO: check whether the table is valid and skip if not
             tab_attrs = hdf5.get_attrs(uri_path)
-            flow_json = json.loads(tab_attrs["process_info"])
-            return Flow.from_json(flow_json)
+            flow_json = json.loads(tab_attrs["flow"])
+            return Flow.from_dict(*flow_json.popitem())
 
         def get_bin_size(uri_path: uris.Uris) -> int:
             """Return the bin size of the cooler."""
 
             parent_cool = cooler.Cooler(uri_path.cooler_uri())
             return parent_cool.binsize
+
+        if not uri_path.is_valid():
+            raise ValueError(f"Table '{uri_path.hdf5_uris()[1]}' does not exist.")
 
         self._uris = uri_path
         self._flow = reconstruct_flow(uri_path)

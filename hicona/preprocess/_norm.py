@@ -2,97 +2,34 @@
 
 from typing import TYPE_CHECKING as _TYPE_CHECKING
 
-import numpy as _np
+import numpy as np
 
-from hicona._dtypes import PdChunks as _PdChunks
-from hicona._ops import chunked as _chunked
+from hicona._ops import chunked
+from hicona.preprocess._abcs import NormOperation
 
 if _TYPE_CHECKING:
-    from hicona._core import base_table
+    from hicona._core import Table
+    from hicona._dtypes import PdChunks
 
 
-__all__ = ["norm_genomic_dist", "norm_none", "norm_binwise"]
+__all__ = ["NormNone", "NormBinwise", "NormGenomicDist"]
 
 
-def norm_genomic_dist(table: "base_table.Table", apply_col: str) -> _PdChunks:
-    """Apply default HiCONA normalization to a table (genomic distance).
-
-    The normalized value is computed as the log2 of 1 plus the ratio of the
-    value of the bin and some normalization factor. The normalization factor
-    is computed as the median of the values of the bins at a given distance.
-    Raises and error if inter-chromosomal pixels are found.
-
-    Parameters
-    ----------
-    table : Table
-        Pixel table to normalize.
-    apply_col : str
-        Column to apply the normalization to.
-
-    Returns
-    -------
-    A generator of filtered pixel chunks.
-    """
-
-    def distance_iter(table_obj):
-        """Iter chunks with genomic distance. Add inter-chromosomal check."""
-
-        chunks = table_obj.chunks(annotated=True)
-        bin_size = table_obj.bin_size
-
-        for chunk in _chunked.add_gen_dist(chunks, bin_size):
-
-            # Check that inter-chromosomal pixels where removed
-            if any(chunk["chrom1"] != chunk["chrom2"]):
-                raise ValueError("Inter-chromosomal pixels must be removed.")
-
-            yield chunk
-
-    norm_curve = _chunked.chunked_quants(
-        distance_iter(table),
-        column=apply_col,
-        quants=0.5,
-        split_on=["chrom1", "chrom2"],
-        group_by="dist",
-    )
-    norm_curve.rename(columns={apply_col: "dist_norm"}, inplace=True)
-
-    for chunk in distance_iter(table):
-        chunk = chunk.merge(norm_curve, how="left", on=["chrom1", "dist"])
-        chunk["norm"] = _np.log2(chunk[apply_col] / chunk["dist_norm"] + 1)
-
-        yield chunk[["bin1_id", "bin2_id", "count", "norm"]]
-
-
-def norm_none(table: "base_table.Table") -> _PdChunks:
+class NormNone(NormOperation):
     """Apply no normalization to a table.
 
     Do not apply any normalization to the table, just return the original
     count values as the normalized values. This is used to copy the raw
-    values to the normalized column.
-
-    Parameters
-    ----------
-    table : Table
-        Pixel table to normalize.
-
-    Returns
-    -------
-    A generator of filtered pixel chunks.
+    values to the normalized column when no normalization was applied.
     """
 
-    for chunk in table.chunks():
-        chunk["norm"] = chunk["count"]
-        yield chunk[["bin1_id", "bin2_id", "count", "norm"]]
+    def run(self, table: "Table") -> "PdChunks":
+        for chunk in table.chunks():
+            chunk["norm"] = chunk["count"]
+            yield chunk[["bin1_id", "bin2_id", "count", "norm"]]
 
 
-def norm_binwise(
-    table: "base_table.Table",
-    apply_col: str,
-    ann_name: str,
-    divisive: bool = False,
-    drop_nas: bool = False,
-) -> _PdChunks:
+class NormBinwise(NormOperation):
     """Apply a binwise normalization to a table.
 
     The normalization factors to use for normalization must be preemtively
@@ -100,10 +37,8 @@ def norm_binwise(
 
     Parameters
     ----------
-    table : Table
-        Pixel table to normalize.
     apply_col : str
-        Column to apply the normalization to.
+        Table column to apply the normalization to.
     ann_name : str
         Name of the column in the bin table to use for normalization.
     divisive : bool, optional
@@ -113,22 +48,84 @@ def norm_binwise(
         If True, drop rows with NaN values after normalization.
         Default is False.
 
-    Returns
-    -------
-    A generator of filtered pixel chunks.
+    Notes
+    -----
+    This function mimics matrix balancing normalization found in cooler.
     """
 
-    # NOTE: This function mimics matrix balancing normalization in cooler.
+    def __init__(
+        self,
+        *,
+        apply_col: str,
+        ann_name: str,
+        divisive: bool = False,
+        drop_nas: bool = False,
+    ):
+        self._apply_col = apply_col
+        self._ann_name = ann_name
+        self._divisive = divisive
+        self._drop_nas = drop_nas
 
-    col1, col2 = f"{ann_name}1", f"{ann_name}2"
+    def run(self, table: "Table") -> "PdChunks":
 
-    for chunk in table.chunks(annotated=True):
-        if divisive:
-            chunk[col1] = 1 / chunk[col1]
-            chunk[col2] = 1 / chunk[col2]
-        chunk["norm"] = chunk[apply_col] * chunk[col1] * chunk[col2]
+        col1, col2 = f"{self._ann_name}1", f"{self._ann_name}2"
 
-        if drop_nas:
-            chunk.dropna(inplace=True)
+        for chunk in table.chunks(annotated=True):
+            if self._divisive:
+                chunk[col1] = 1 / chunk[col1]
+                chunk[col2] = 1 / chunk[col2]
+            chunk["norm"] = chunk[self._apply_col] * chunk[col1] * chunk[col2]
 
-        yield chunk[["bin1_id", "bin2_id", "count", "norm"]]
+            if self._drop_nas:
+                chunk.dropna(inplace=True)
+
+            yield chunk[["bin1_id", "bin2_id", "count", "norm"]]
+
+
+class NormGenomicDist(NormOperation):
+    """Apply default HiCONA normalization to a table (genomic distance).
+
+    The normalized value is computed as the log2 of 1 plus the ratio of the
+    value of the bin and some normalization factor. The normalization factor
+    is computed as the median of the values of the bins at a given distance.
+    Raises and error if inter-chromosomal pixels are found.
+
+    Parameters
+    ----------
+    apply_col : str
+        Column to apply the normalization to.
+    """
+
+    def __init__(self, *, apply_col: str):
+        self._apply_col = apply_col
+
+    def run(self, table: "Table") -> "PdChunks":
+
+        def distance_iter(table_obj):
+            """Iter chunks with genomic distance. Add inter-chromosomal check."""
+
+            chunks = table_obj.chunks(annotated=True)
+            bin_size = table_obj.bin_size
+
+            for chunk in chunked.add_gen_dist(chunks, bin_size):
+
+                # Check that inter-chromosomal pixels where removed
+                if any(chunk["chrom1"] != chunk["chrom2"]):
+                    raise ValueError("Inter-chromosomal pixels must be removed.")
+
+                yield chunk
+
+        norm_curve = chunked.chunked_quants(
+            distance_iter(table),
+            column=self._apply_col,
+            quants=0.5,
+            split_on=["chrom1", "chrom2"],
+            group_by="dist",
+        )
+        norm_curve.rename(columns={self._apply_col: "dist_norm"}, inplace=True)
+
+        for chunk in distance_iter(table):
+            chunk = chunk.merge(norm_curve, how="left", on=["chrom1", "dist"])
+            chunk["norm"] = np.log2(chunk[self._apply_col] / chunk["dist_norm"] + 1)
+
+            yield chunk[["bin1_id", "bin2_id", "count", "norm"]]

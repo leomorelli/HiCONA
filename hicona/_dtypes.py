@@ -1,10 +1,12 @@
 """Module with custom data types for the hicona package type annotation."""
 
-from typing import Any, Iterable, Literal, TypeVar
+from typing import Any, Iterable, Literal, TypeVar, Union, TYPE_CHECKING
 
 import matplotlib.axes as ax
 import pandas as pd
 
+if TYPE_CHECKING:
+    from hicona.preprocess import FiltOperation, NormOperation
 
 # Type alias for an iterable (usually a generator) of pandas DataFrames.
 PdChunks = Iterable[pd.DataFrame]
@@ -18,8 +20,11 @@ AlphaModType = Literal["alpha_min", "alpha_max"]
 # Type alias for the axes type.
 OptionalAxes = ax.Axes | None
 
-# Type alias for the options dictionary.
-OptionsDict = dict[str, Any]
+# Type alias for a kwargs-like dict.
+KwargsDict = dict[str, Any]
 
 # Type alias for the JSON dictionary.
 JsonDict = dict[str, dict[str, Any]]
+
+
+Operation = Union["FiltOperation", "NormOperation"]
