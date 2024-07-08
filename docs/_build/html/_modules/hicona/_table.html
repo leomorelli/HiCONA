@@ -619,22 +619,23 @@ document.write(`
 
 <div class="viewcode-block" id="HiconaTable.get_distribution">
 <a class="viewcode-back" href="../../api_reference/api/hicona.HiconaTable.get_distribution.html#hicona.HiconaTable.get_distribution">[docs]</a>
-    <span class="k">def</span> <span class="nf">get_distribution</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">alpha_mod</span><span class="p">:</span> <span class="n">AlphaModType</span> <span class="o">=</span> <span class="s2">&quot;alpha_min&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return alpha distribution in the table as a pandas DataFrame.</span>
+    <span class="k">def</span> <span class="nf">get_distribution</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">colname</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the distribution for the column as a pandas DataFrame.</span>
 
-<span class="sd">        Obtain the distribution of the alpha values for a table and return it.</span>
+<span class="sd">        Obtain the value distribution for the specified column in the table.</span>
 <span class="sd">        The distribution is provided as a ``pandas.DataFrame`` with the columns</span>
-<span class="sd">        ``value`` and ``count`` representing the alpha values and their counts.</span>
+<span class="sd">        ``value`` and ``count`` representing the unique values and their number</span>
+<span class="sd">        of occurrences, respectively.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
-<span class="sd">        alpha_mod : &#39;alpha_min&#39; or &#39;alpha_max&#39;, optional</span>
-<span class="sd">            The alpha mode column to use. Default is &#39;alpha_min&#39;.</span>
+<span class="sd">        colname : str</span>
+<span class="sd">            The column for which to obtain the value distribution.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
 <span class="sd">        pandas.DataFrame</span>
-<span class="sd">            A dataframe with the alpha distribution.</span>
+<span class="sd">            A dataframe with the distribution.</span>
 
 <span class="sd">        Examples</span>
 <span class="sd">        --------</span>
@@ -642,7 +643,7 @@ document.write(`
 
 <span class="sd">        &gt;&gt;&gt; handle = HiconaCooler(&quot;path/to/cool_file.cool&quot;)</span>
 <span class="sd">        &gt;&gt;&gt; table = handle.fetch_table(&quot;hicona&quot;)</span>
-<span class="sd">        &gt;&gt;&gt; alpha_distr = table.get_distribution()</span>
+<span class="sd">        &gt;&gt;&gt; alpha_distr = table.get_distribution(&quot;alpha_min&quot;)</span>
 <span class="sd">        &gt;&gt;&gt; alpha_distr.head(3)</span>
 <span class="sd">            value  count</span>
 <span class="sd">        0   0.000    675</span>
@@ -654,9 +655,11 @@ document.write(`
 <span class="sd">        &gt;&gt;&gt; alpha_distr.plot(x=&quot;value&quot;, y=&quot;count&quot;)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
+        <span class="c1"># TODO: Maybe add check that it is a numeric column (e.i. no bin_id)</span>
+
         <span class="n">counter</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">Counter</span><span class="p">()</span>
         <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunks</span><span class="p">():</span>
-            <span class="n">counter</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">chunk</span><span class="p">[</span><span class="n">alpha_mod</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">())</span>
+            <span class="n">counter</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">chunk</span><span class="p">[</span><span class="n">colname</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">())</span>
 
         <span class="n">distr</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">counter</span><span class="o">.</span><span class="n">items</span><span class="p">(),</span> <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;value&quot;</span><span class="p">,</span> <span class="s2">&quot;count&quot;</span><span class="p">])</span>
         <span class="k">return</span> <span class="n">distr</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="s2">&quot;value&quot;</span><span class="p">)</span></div>

@@ -330,20 +330,20 @@ document.write(`
 <li class="toctree-l1 has-children"><a class="reference internal" href="preprocess.html">Preprocessing</a><input class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-4"><i class="fa-solid fa-chevron-down"></i></label><ul>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.html">hicona.preprocess.Flow</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.from_default.html">hicona.preprocess.Flow.from_default</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.from_file.html">hicona.preprocess.Flow.from_file</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.from_json.html">hicona.preprocess.Flow.from_json</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.rename.html">hicona.preprocess.Flow.rename</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.to_file.html">hicona.preprocess.Flow.to_file</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.to_json.html">hicona.preprocess.Flow.to_json</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.ops_add.html">hicona.preprocess.Flow.ops_add</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.ops_list.html">hicona.preprocess.Flow.ops_list</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.ops_remove.html">hicona.preprocess.Flow.ops_remove</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.ops_reset.html">hicona.preprocess.Flow.ops_reset</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.filt_genomic_dist.html">hicona.preprocess.filt_genomic_dist</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.filt_column_quant.html">hicona.preprocess.filt_column_quant</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.filt_column_value.html">hicona.preprocess.filt_column_value</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.filt_inter_chroms.html">hicona.preprocess.filt_inter_chroms</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.filt_self_looping.html">hicona.preprocess.filt_self_looping</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.norm_genomic_dist.html">hicona.preprocess.norm_genomic_dist</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.norm_none.html">hicona.preprocess.norm_none</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.norm_binwise.html">hicona.preprocess.norm_binwise</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.FiltGenomicDist.html">hicona.preprocess.FiltGenomicDist</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.FiltColumnQuant.html">hicona.preprocess.FiltColumnQuant</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.FiltColumnValue.html">hicona.preprocess.FiltColumnValue</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.FiltInterChroms.html">hicona.preprocess.FiltInterChroms</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.FiltSelfLooping.html">hicona.preprocess.FiltSelfLooping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.NormBinwise.html">hicona.preprocess.NormBinwise</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.NormGenomicDist.html">hicona.preprocess.NormGenomicDist</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="analysis.html">Analysis</a><input class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-5"><i class="fa-solid fa-chevron-down"></i></label><ul>
@@ -421,7 +421,7 @@ files, managing bin annotations as well as creating and retrieving processed
 pixel tables. Ideally one should use the <code class="docutils literal notranslate"><span class="pre">HiconaCooler</span></code> class to generate
 the pixel tables (instances of the <a class="reference internal" href="table.html"><span class="doc">HiconaTable</span></a> class) of interest, and then
 follow up with their analysis.</p>
-<p>The <code class="docutils literal notranslate"><span class="pre">HiconaCooler</span></code> class is a strict subclass of the <a class="reference external" href="https://cooler.readthedocs.io/en/latest/api.html#cooler.Cooler" title="(in cooler v0.9)"><code class="xref py py-class docutils literal notranslate"><span class="pre">cooler.Cooler</span></code></a>
+<p>The <code class="docutils literal notranslate"><span class="pre">HiconaCooler</span></code> class is a strict subclass of the <a class="reference external" href="https://cooler.readthedocs.io/en/latest/api.html#cooler.Cooler" title="(in cooler v0.10)"><code class="xref py py-class docutils literal notranslate"><span class="pre">cooler.Cooler</span></code></a>
 class, extending all its functionalities without modifying them. For this
 reason, an object of the <code class="docutils literal notranslate"><span class="pre">HiconaCooler</span></code> class can always be used as a
 <code class="docutils literal notranslate"><span class="pre">cooler.Cooler</span></code> object. Since no functionality is overwritten, attributes
@@ -466,11 +466,11 @@ impractical. If you find any issues, please report them on
 <tr class="row-odd"><td><p><a class="reference internal" href="api/hicona.HiconaCooler.create_table.html#hicona.HiconaCooler.create_table" title="hicona.HiconaCooler.create_table"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HiconaCooler.create_table</span></code></a>([ops_flow, chunk_size])</p></td>
 <td><p>Create a normalized and sparsified pixels table.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="api/hicona.HiconaCooler.fetch_table.html#hicona.HiconaCooler.fetch_table" title="hicona.HiconaCooler.fetch_table"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HiconaCooler.fetch_table</span></code></a>([ops_flow])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="api/hicona.HiconaCooler.fetch_table.html#hicona.HiconaCooler.fetch_table" title="hicona.HiconaCooler.fetch_table"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HiconaCooler.fetch_table</span></code></a>([name])</p></td>
 <td><p>Retrieve a previously created sparsified pixel table.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="api/hicona.HiconaCooler.list_tables.html#hicona.HiconaCooler.list_tables" title="hicona.HiconaCooler.list_tables"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HiconaCooler.list_tables</span></code></a>()</p></td>
-<td><p>Print the available pixel tables.</p></td>
+<td><p>Print the names of the available pixel tables.</p></td>
 </tr>
 </tbody>
 </table>

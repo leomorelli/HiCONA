@@ -256,10 +256,8 @@ class HiconaCooler(cooler.Cooler):
 
         Parameters
         ----------
-        ops_flow : str or Flow, optional
-            Flow originally used to create the table, provided as either a
-            string or a ``Flow`` object. If a string is provided, the default
-            flow for the corresponding method is used. Default is 'hicona'.
+        name : str, optional
+            Name of the flow used to create the table. Default is 'hicona'.
 
         Returns
         -------
@@ -268,7 +266,6 @@ class HiconaCooler(cooler.Cooler):
 
         See Also
         --------
-        preprocess.Flow : Used to define a preprocessing workflow.
         HiconaTable : Object to handle a sparsified pixel table.
         HiconaCooler.list_tables : Print the available pixel tables.
 

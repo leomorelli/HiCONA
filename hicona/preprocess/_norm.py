@@ -1,4 +1,4 @@
-"""Default functions for pixel table normalization."""
+"""Default classes for pixel table normalization."""
 
 from typing import TYPE_CHECKING as _TYPE_CHECKING
 

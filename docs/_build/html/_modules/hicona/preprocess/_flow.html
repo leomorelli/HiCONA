@@ -329,118 +329,69 @@ document.write(`
                 <article class="bd-article">
                   
   <h1>Source code for hicona.preprocess._flow</h1><div class="highlight"><pre>
-<span></span><span class="sd">&quot;&quot;&quot;Module to handle filtering and normalization functions for a table.</span>
+<span></span><span class="sd">&quot;&quot;&quot;Module to handle filtering and normalization flow for a table.</span>
 
 <span class="sd">This module contains the `Flow` class, which is used to schedule</span>
-<span class="sd">and retrieve the operations applied to a pixel table in order to filter and</span>
-<span class="sd">normalize it.</span>
+<span class="sd">and retrieve the operations applied to a pixel table in order to filter</span>
+<span class="sd">and normalize it.</span>
 
 <span class="sd">&quot;&quot;&quot;</span>
 
-<span class="kn">from</span> <span class="nn">importlib</span> <span class="kn">import</span> <span class="n">import_module</span>
-<span class="kn">from</span> <span class="nn">inspect</span> <span class="kn">import</span> <span class="n">getmembers</span><span class="p">,</span> <span class="n">Parameter</span><span class="p">,</span> <span class="n">signature</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span>
+<span class="kn">import</span> <span class="nn">importlib</span>
+<span class="kn">import</span> <span class="nn">inspect</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Iterable</span><span class="p">,</span> <span class="n">Type</span><span class="p">,</span> <span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">Union</span>
 
 <span class="kn">from</span> <span class="nn">hicona._ops</span> <span class="kn">import</span> <span class="n">io</span>
-<span class="kn">from</span> <span class="nn">hicona._dtypes</span> <span class="kn">import</span> <span class="n">JsonDict</span>
+<span class="kn">from</span> <span class="nn">hicona.preprocess</span> <span class="kn">import</span> <span class="n">_DEFAULT_FLOWS</span><span class="p">,</span> <span class="n">_FUNCS_MODULES</span>
+
+<span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">hicona._dtypes</span> <span class="kn">import</span> <span class="n">JsonDict</span><span class="p">,</span> <span class="n">Operation</span><span class="p">,</span> <span class="n">KwargsDict</span>
 
 
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Flow&quot;</span><span class="p">]</span>
 
 
-<span class="n">_DEFAULT_FLOWS</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;flows.json&quot;</span>
-<span class="n">_DEFAULT_MODULES</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;.preprocess._filt&quot;</span><span class="p">,</span> <span class="s2">&quot;.preprocess._norm&quot;</span><span class="p">]</span>
+<span class="k">def</span> <span class="nf">_fetch_funs</span><span class="p">(</span>
+    <span class="n">fun_names</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+    <span class="n">fun_kwargs</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="s2">&quot;KwargsDict&quot;</span><span class="p">],</span>
+    <span class="n">sources</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="s2">&quot;Operation&quot;</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Fetch preprocessing functions from their names.&quot;&quot;&quot;</span>
 
+    <span class="n">funs</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Type</span><span class="p">[</span><span class="s2">&quot;Operation&quot;</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">mod</span> <span class="ow">in</span> <span class="n">sources</span><span class="p">:</span>
+        <span class="n">mod_obj</span> <span class="o">=</span> <span class="n">importlib</span><span class="o">.</span><span class="n">import_module</span><span class="p">(</span><span class="n">mod</span><span class="p">)</span>
+        <span class="n">mod_funs</span> <span class="o">=</span> <span class="n">inspect</span><span class="o">.</span><span class="n">getmembers</span><span class="p">(</span><span class="n">mod_obj</span><span class="p">)</span>
+        <span class="n">funs</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">mod_funs</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">mod_obj</span><span class="o">.</span><span class="n">__all__</span><span class="p">})</span>
 
-<span class="c1"># TODO: Maybe make the Flow immutable when fetching a table,</span>
-<span class="c1">#       requiring to create a copy of the object to modify it again.</span>
+    <span class="n">outs</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="s2">&quot;Operation&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">ind</span><span class="p">,</span> <span class="n">name</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">fun_names</span><span class="p">):</span>
+        <span class="n">fun_class</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Type</span><span class="p">[</span><span class="s2">&quot;Operation&quot;</span><span class="p">],</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="n">funs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
 
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">fun_class</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> is not a default function.&quot;</span><span class="p">)</span>
 
-<span class="k">class</span> <span class="nc">Operation</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Individual filtering or normalization operation.</span>
+        <span class="n">outs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">fun_class</span><span class="p">(</span><span class="o">**</span><span class="n">fun_kwargs</span><span class="p">[</span><span class="n">ind</span><span class="p">]))</span>
 
-<span class="sd">    Object to store, handle and retrieve information about a single filtering</span>
-<span class="sd">    or normalization operation to apply on a table.</span>
-
-<span class="sd">    Parameters</span>
-<span class="sd">    ----------</span>
-<span class="sd">    fun_obj : Callable</span>
-<span class="sd">        The function object to be applied to the table.</span>
-<span class="sd">    fun_kwargs : dict[str, Any]</span>
-<span class="sd">        The kwargs to be passed to the function object.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fun_obj</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">fun_kwargs</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_fun_name</span> <span class="o">=</span> <span class="n">fun_obj</span><span class="o">.</span><span class="vm">__name__</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_fun_obj</span> <span class="o">=</span> <span class="n">fun_obj</span>
-
-        <span class="c1"># Complete kwargs with default values, for non provided ones</span>
-        <span class="c1"># This is done to avoid json mismatch due to implied defaults</span>
-        <span class="n">def_kwargs</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="n">name</span><span class="p">:</span> <span class="n">value</span><span class="o">.</span><span class="n">default</span>
-            <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">signature</span><span class="p">(</span><span class="n">fun_obj</span><span class="p">)</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
-            <span class="k">if</span> <span class="n">value</span><span class="o">.</span><span class="n">default</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">Parameter</span><span class="o">.</span><span class="n">empty</span>
-        <span class="p">}</span>
-        <span class="n">def_kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">fun_kwargs</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_fun_kwargs</span> <span class="o">=</span> <span class="n">def_kwargs</span>
-
-        <span class="c1"># NOTE: no check on mandatory arguments, since an error would be</span>
-        <span class="c1"># raised at runtime anyway if they are not provided</span>
-
-    <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">fun_name</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get function name in string form.&quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fun_name</span>
-
-    <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">fun_kwargs</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get function kwargs.&quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fun_kwargs</span>
-
-    <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">fun_obj</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get function object.&quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fun_obj</span>
-
-    <span class="k">def</span> <span class="nf">json</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the operation in a json-like dictionary.&quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fun_name</span><span class="p">,</span> <span class="s2">&quot;kwargs&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fun_kwargs</span><span class="p">}</span>
+    <span class="k">return</span> <span class="n">outs</span>
 
 
 <div class="viewcode-block" id="Flow">
 <a class="viewcode-back" href="../../../api_reference/api/hicona.preprocess.Flow.html#hicona.preprocess.Flow">[docs]</a>
 <span class="k">class</span> <span class="nc">Flow</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Class to organize filtering and normalization functions for a table.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Class to organize filtering and normalization steps for a table.</span>
 
-<span class="sd">    This class is used to specify a set of filtering and normalization</span>
-<span class="sd">    functions (in an order sensitive manner), which can be used to create</span>
-<span class="sd">    or fetch a processed pixel table.</span>
+<span class="sd">    This class is used to specify an ordered list of filtering and</span>
+<span class="sd">    normalization steps, which can be used to create or fetch a pixel table.</span>
 
-<span class="sd">    Though the object can be initialized directly using its constructor</span>
-<span class="sd">    method (which takes no arguments), it should generally be created</span>
-<span class="sd">    using one of its class methods (``from_default`` and ``from_json``).</span>
+<span class="sd">    The object can be initialized using its class constructor or one of the</span>
+<span class="sd">    class methods. Unless a custom ``Flow`` is required, usually the objects</span>
+<span class="sd">    will be initialized using the ``from_default`` method.</span>
 
-<span class="sd">    Any custom function can be added to the workflow as long as:</span>
+<span class="sd">    Instances of this class are immutable to prevent accidental changes to the</span>
+<span class="sd">    flow of processed tables, therefore all methods that modify the flow</span>
+<span class="sd">    return a new instance of the object with the changes applied.</span>
 
-<span class="sd">    - It takes an instance of ``HiconaTable`` as its first argument.</span>
-<span class="sd">    - All other arguments are JSON data-types.</span>
-<span class="sd">    - It returns an iterator of processed chunks as ``pandas.DataFrame``</span>
-<span class="sd">      instances with the columns ``bin1_id``, ``bin2_id``, ``count`` and ``norm``.</span>
-
-
-<span class="sd">    .. warning::</span>
-<span class="sd">        No check is performed on the custom functions, since it is complex</span>
-<span class="sd">        to test for a highly variable function signature. It is up to the</span>
-<span class="sd">        user to ensure that the functions are correctly implemented; if</span>
-<span class="sd">        they are not, the program might crash at runtime or, worst case,</span>
-<span class="sd">        produce incorrect results. A check might me added in the future.</span>
-
-<span class="sd">    .. warning::</span>
-<span class="sd">        At the moment, it is manually needed to ensure that at least one</span>
-<span class="sd">        normalization function is applied, that is, there there is at least</span>
-<span class="sd">        one function which saves the values to the ``norm`` column. If no</span>
-<span class="sd">        normalization is needed, add ``norm_none`` to the flow. This might</span>
-<span class="sd">        be performed automatically in the future.</span>
 
 <span class="sd">    See Also</span>
 <span class="sd">    --------</span>
@@ -448,37 +399,26 @@ document.write(`
 <span class="sd">        The class to handle pixel tables.</span>
 <span class="sd">    hicona.preprocess.Flow.from_default :</span>
 <span class="sd">        Load a default flow from the ones available from HiCONA.</span>
-<span class="sd">    hicona.preprocess.Flow.from_json :</span>
-<span class="sd">        Load a flow from a json-like file or dictionary.</span>
-<span class="sd">    hicona.preprocess.norm_none :</span>
-<span class="sd">        A normalization function that only copies the values to the ``norm`` column.</span>
-
 
 <span class="sd">    Examples</span>
 <span class="sd">    --------</span>
 
 <span class="sd">    Create an empty flow using its constructor:</span>
 
-<span class="sd">    &gt;&gt;&gt; from hicona.preprocess import Flow</span>
-<span class="sd">    &gt;&gt;&gt; flow = Flow()</span>
+<span class="sd">    &gt;&gt;&gt; import hicona.preprocess as prep</span>
+<span class="sd">    &gt;&gt;&gt; flow = prep.Flow(&quot;my_flow&quot;)  # Empty flow to add functions to</span>
 
-<span class="sd">    Load a default flow using the class methods:</span>
 
-<span class="sd">    &gt;&gt;&gt; flow = Flow.from_default(&quot;default_flow&quot;)</span>
-<span class="sd">    &gt;&gt;&gt; flow = Flow.from_json(&quot;path/to/file.json&quot;)</span>
+<span class="sd">    Load a flow using the class methods:</span>
+
+<span class="sd">    &gt;&gt;&gt; flow = prep.Flow.from_default(&quot;hicona&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; flow = prep.Flow.from_file(&quot;path/to/file.json&quot;)</span>
 
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="c1"># TODO: find a way to remove the two warnings</span>
-
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_ops_flow</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Operation</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_default_funs</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
-
-        <span class="k">for</span> <span class="n">mod</span> <span class="ow">in</span> <span class="n">_DEFAULT_MODULES</span><span class="p">:</span>
-            <span class="n">mod</span> <span class="o">=</span> <span class="n">import_module</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">package</span><span class="o">=</span><span class="s2">&quot;hicona&quot;</span><span class="p">)</span>
-            <span class="n">funs</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">getmembers</span><span class="p">(</span><span class="n">mod</span><span class="p">)</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">mod</span><span class="o">.</span><span class="n">__all__</span><span class="p">}</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_default_funs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">funs</span><span class="p">)</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">operations</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="s2">&quot;Operation&quot;</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ops</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Operation</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">operations</span><span class="p">)</span> <span class="k">if</span> <span class="n">operations</span> <span class="k">else</span> <span class="nb">tuple</span><span class="p">()</span>
 
     <span class="k">def</span> <span class="fm">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="s2">&quot;Flow&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Check equality among ProcessingFlow objects.&quot;&quot;&quot;</span>
@@ -486,46 +426,75 @@ document.write(`
 
     <span class="k">def</span> <span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the number of operations in the flow.&quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_ops_flow</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_ops</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the operations flow as a string.&quot;&quot;&quot;</span>
 
-        <span class="n">out_str</span> <span class="o">=</span> <span class="s2">&quot;Operations flow:</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="n">out_str</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Flow &#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39;:</span><span class="se">\n</span><span class="s2">&quot;</span>
 
-        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">kwargs</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">ops_list</span><span class="p">():</span>
-            <span class="n">out_str</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot; - </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> -&gt; </span><span class="si">{</span><span class="n">kwargs</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="k">for</span> <span class="n">op</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ops</span><span class="p">:</span>
+            <span class="n">out_str</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot; - </span><span class="si">{</span><span class="n">op</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> -&gt; </span><span class="si">{</span><span class="n">op</span><span class="o">.</span><span class="n">kwargs</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
 
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_ops_flow</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="n">out_str</span> <span class="o">+=</span> <span class="s2">&quot; - No operations added yet.&quot;</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">out_str</span> <span class="o">+=</span> <span class="s2">&quot; - No operations.&quot;</span>
 
         <span class="k">return</span> <span class="n">out_str</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
 
-    <span class="k">def</span> <span class="nf">_fetch_fun</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fun_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fetch a function from its name.&quot;&quot;&quot;</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">name</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the name of the flow.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_name</span>
 
-        <span class="n">fun_obj</span><span class="p">:</span> <span class="n">Callable</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="nb">globals</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">fun_name</span><span class="p">)</span>
-        <span class="n">fun_obj</span> <span class="o">=</span> <span class="n">fun_obj</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_default_funs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">fun_name</span><span class="p">)</span>
+<div class="viewcode-block" id="Flow.rename">
+<a class="viewcode-back" href="../../../api_reference/api/hicona.preprocess.Flow.rename.html#hicona.preprocess.Flow.rename">[docs]</a>
+    <span class="k">def</span> <span class="nf">rename</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">new_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Flow&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Rename the flow.</span>
 
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">fun_obj</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">fun_name</span><span class="si">}</span><span class="s2"> not found. Load it in the namespace.&quot;</span><span class="p">)</span>
+<span class="sd">        Since the `Flow` object is immutable, this method returns a new</span>
+<span class="sd">        instance of the object with the new name.</span>
 
-        <span class="k">return</span> <span class="n">fun_obj</span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        new_name: str</span>
+<span class="sd">            The new name for the flow.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Flow</span>
+<span class="sd">            Flow with the new name.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        Rename the flow:</span>
+
+<span class="sd">        &gt;&gt;&gt; import hicona.preprocess as prep</span>
+<span class="sd">        &gt;&gt;&gt; flow = prep.Flow.from_default(&quot;hicona&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; print(flow.name)</span>
+<span class="sd">        &#39;hicona&#39;</span>
+<span class="sd">        &gt;&gt;&gt; flow = flow.rename(&quot;new_name&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; print(flow.name)</span>
+<span class="sd">        &#39;new_name&#39;</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="n">Flow</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">new_name</span><span class="p">,</span> <span class="n">operations</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_ops</span><span class="p">)</span></div>
+
 
 <div class="viewcode-block" id="Flow.from_json">
 <a class="viewcode-back" href="../../../api_reference/api/hicona.preprocess.Flow.from_json.html#hicona.preprocess.Flow.from_json">[docs]</a>
     <span class="nd">@classmethod</span>
-    <span class="k">def</span> <span class="nf">from_json</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">json</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">JsonDict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Flow&quot;</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create an instance from a json file or dictionary.</span>
+    <span class="k">def</span> <span class="nf">from_json</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">flow_dict</span><span class="p">:</span> <span class="s2">&quot;JsonDict&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Flow&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a flow from a json-like dictionary.</span>
 
-<span class="sd">        Create an instance of ``Flow`` from a ``Flow`` previously saved to a</span>
-<span class="sd">        json file or from a json-like dictionary representation of a ``Flow``.</span>
-<span class="sd">        Any non default function required by the workflow must be accessible</span>
-<span class="sd">        in the namespace.</span>
+<span class="sd">        Create an instance of ``Flow`` from a json-like dictionary representation,</span>
+<span class="sd">        that is, a dictionary in the format ``{order: {&quot;name&quot;: &quot;op_name&quot;, &quot;kwargs&quot;: {}}}``.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
-<span class="sd">        json_data: str or json-like dictionary</span>
+<span class="sd">        name: str</span>
+<span class="sd">            The name of the flow.</span>
+<span class="sd">        flow_dict: dict</span>
 <span class="sd">            The operations to add to the flow, in json format.</span>
 
 <span class="sd">        Returns</span>
@@ -537,39 +506,61 @@ document.write(`
 <span class="sd">        --------</span>
 <span class="sd">        Create a flow from a json-like dictionary:</span>
 
-<span class="sd">        &gt;&gt;&gt; from hicona.preprocess import Flow</span>
-<span class="sd">        &gt;&gt;&gt; flow = Flow.from_json({0: {&quot;name&quot;: &quot;fun_name&quot;, &quot;kwargs&quot;: {}})</span>
-
-<span class="sd">        Create a flow from a json file:</span>
-
-<span class="sd">        &gt;&gt;&gt; flow = Flow.from_json(&quot;path/to/file.json&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; import hicona.preprocess as prep</span>
+<span class="sd">        &gt;&gt;&gt; json = {0: {&quot;name&quot;: &quot;FiltInterChroms&quot;, &quot;kwargs&quot;: {}}}</span>
+<span class="sd">        &gt;&gt;&gt; flow = prep.Flow.from_json(&quot;my_flow&quot;, json)</span>
 
 <span class="sd">        &quot;&quot;&quot;</span>
 
-        <span class="c1"># TODO: Maybe find an alternative to loading in the namespace</span>
+        <span class="c1"># Sort flow_dict by keys to ensure order and check for gaps</span>
+        <span class="n">sort_dict</span><span class="p">:</span> <span class="n">JsonDict</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">flow_dict</span><span class="o">.</span><span class="n">items</span><span class="p">(),</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="ow">in</span> <span class="n">sort_dict</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">sort_dict</span><span class="p">))):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The json data is not properly formatted.&quot;</span><span class="p">)</span>
 
-        <span class="n">flow</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">()</span>
+        <span class="n">names_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">op</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">op</span> <span class="ow">in</span> <span class="n">sort_dict</span><span class="o">.</span><span class="n">values</span><span class="p">()]</span>
+        <span class="n">kwargs_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">KwargsDict</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">op</span><span class="p">[</span><span class="s2">&quot;kwargs&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">op</span> <span class="ow">in</span> <span class="n">sort_dict</span><span class="o">.</span><span class="n">values</span><span class="p">()]</span>
+        <span class="n">operations</span> <span class="o">=</span> <span class="n">_fetch_funs</span><span class="p">(</span><span class="n">names_list</span><span class="p">,</span> <span class="n">kwargs_list</span><span class="p">,</span> <span class="n">_FUNCS_MODULES</span><span class="p">)</span>
 
-        <span class="c1"># Convert to json-like dictionary if not already</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">json</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
-            <span class="n">json_data</span><span class="p">:</span> <span class="n">JsonDict</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">read_resource</span><span class="p">(</span><span class="n">json</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">json_data</span> <span class="o">=</span> <span class="n">json</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">operations</span><span class="p">)</span></div>
 
-        <span class="c1"># Populate the flow with the operations</span>
-        <span class="n">ind</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
-        <span class="k">while</span> <span class="n">ind</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">json_data</span><span class="p">):</span>
 
-            <span class="n">key</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">ind</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">json_data</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The json data is not properly formatted.&quot;</span><span class="p">)</span>
+<div class="viewcode-block" id="Flow.from_file">
+<a class="viewcode-back" href="../../../api_reference/api/hicona.preprocess.Flow.from_file.html#hicona.preprocess.Flow.from_file">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">from_file</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">json</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Flow&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create an instance from a json file.</span>
 
-            <span class="n">op_dict</span> <span class="o">=</span> <span class="n">json_data</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
-            <span class="n">flow</span><span class="o">.</span><span class="n">ops_add</span><span class="p">(</span><span class="n">flow</span><span class="o">.</span><span class="n">_fetch_fun</span><span class="p">(</span><span class="n">op_dict</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]),</span> <span class="n">op_dict</span><span class="p">[</span><span class="s2">&quot;kwargs&quot;</span><span class="p">])</span>
+<span class="sd">        Load a flow which was previously saved to a json file using the method</span>
+<span class="sd">        ``to_file``.</span>
 
-            <span class="n">ind</span> <span class="o">+=</span> <span class="mi">1</span>
+<span class="sd">        .. warning::</span>
+<span class="sd">            Currently, the method only supports loading flows with all default</span>
+<span class="sd">            functions. Custom functions are not supported yet but will be in the</span>
+<span class="sd">            future.</span>
 
-        <span class="k">return</span> <span class="n">flow</span></div>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        json: str</span>
+<span class="sd">            The path to the json file containing the flow.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Flow</span>
+<span class="sd">            Workflow with the provided operations already added.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        Create a flow from a json file:</span>
+
+<span class="sd">        &gt;&gt;&gt; import hicona.preprocess as prep</span>
+<span class="sd">        &gt;&gt;&gt; flow = prep.Flow.from_file(&quot;path/to/file.json&quot;)</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">json_data</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">JsonDict</span><span class="p">]</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">read_resource</span><span class="p">(</span><span class="n">json</span><span class="p">)</span>
+        <span class="n">name</span><span class="p">,</span> <span class="n">data</span> <span class="o">=</span> <span class="n">json_data</span><span class="o">.</span><span class="n">popitem</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">from_json</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="Flow.from_default">
@@ -595,58 +586,54 @@ document.write(`
 <span class="sd">        --------</span>
 <span class="sd">        Load a default flow from HiCONA:</span>
 
-<span class="sd">        &gt;&gt;&gt; from hicona.preprocess import Flow</span>
-<span class="sd">        &gt;&gt;&gt; flow = Flow.from_default(&quot;hicona&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; import hicona.preprocess as prep</span>
+<span class="sd">        &gt;&gt;&gt; flow = prep.Flow.from_default(&quot;hicona&quot;)</span>
 <span class="sd">        &gt;&gt;&gt; print(flow)</span>
-<span class="sd">        Operations flow:</span>
-<span class="sd">         - filt_self_looping -&gt; {}</span>
-<span class="sd">         - filt_inter_chroms -&gt; {}</span>
-<span class="sd">         - filt_genomic_dist -&gt; {&#39;min_dist&#39;: None, &#39;max_dist&#39;: 200000000}</span>
-<span class="sd">         - norm_genomic_dist -&gt; {&#39;apply_col&#39;: &#39;count&#39;}</span>
-<span class="sd">         - filt_column_quant -&gt; {&#39;lower_quant&#39;: 0.05, &#39;upper_quant&#39;: None ...  # etc</span>
+<span class="sd">        Flow &#39;hicona&#39;:</span>
+<span class="sd">        - FiltSelfLooping -&gt; {}</span>
+<span class="sd">        - FiltInterChroms -&gt; {}</span>
+<span class="sd">        - FiltGenomicDist -&gt; {&#39;max_dist&#39;: 200000000}</span>
+<span class="sd">        - NormGenomicDist -&gt; {&#39;apply_col&#39;: &#39;count&#39;}</span>
+<span class="sd">        - FiltColumnQuant -&gt; {&#39;apply_col&#39;: &#39;norm&#39;, &#39;lower_quant&#39;: 0.05}</span>
 
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="n">default_json</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">read_resource</span><span class="p">(</span><span class="n">_DEFAULT_FLOWS</span><span class="p">,</span> <span class="n">is_static</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">from_json</span><span class="p">(</span><span class="n">default_json</span><span class="p">[</span><span class="n">default_name</span><span class="p">])</span></div>
+        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">from_json</span><span class="p">(</span><span class="n">default_name</span><span class="p">,</span> <span class="n">default_json</span><span class="p">[</span><span class="n">default_name</span><span class="p">])</span></div>
 
 
-<div class="viewcode-block" id="Flow.ops_list">
-<a class="viewcode-back" href="../../../api_reference/api/hicona.preprocess.Flow.ops_list.html#hicona.preprocess.Flow.ops_list">[docs]</a>
-    <span class="k">def</span> <span class="nf">ops_list</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="n">Callable</span><span class="p">,</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the operations flow as a list of operations.</span>
-
-<span class="sd">        Return a list of tuples with the operations in the flow.</span>
-<span class="sd">        Each tuple contains the function object and its kwargs.</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">ops</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="s2">&quot;Operation&quot;</span><span class="p">,</span> <span class="o">...</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the operations in the flow as a tuple of operations.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
-<span class="sd">        list of tuples[Callable, dict[str, Any]]</span>
-<span class="sd">            List of tuples with the operations in the flow.</span>
+<span class="sd">        tuple of Operation objects</span>
+<span class="sd">            The operations in the flow.</span>
 
 <span class="sd">        Examples</span>
 <span class="sd">        --------</span>
-<span class="sd">        List the operations in the flow:</span>
+<span class="sd">        Get the operations in the flow as a tuple:</span>
 
-<span class="sd">        &gt;&gt;&gt; from hicona.preprocess import Flow</span>
-<span class="sd">        &gt;&gt;&gt; flow = Flow.from_default(&quot;hicona&quot;)</span>
-<span class="sd">        &gt;&gt;&gt; [print(f.__name__, kwargs) for f, kwargs in flow.ops_list()]</span>
-<span class="sd">        (&#39;filt_self_looping&#39;, {})</span>
-<span class="sd">        (&#39;filt_inter_chroms&#39;, {})</span>
-<span class="sd">        (&#39;filt_genomic_dist&#39;, {&#39;min_dist&#39;: None, &#39;max_dist&#39;: 200000000})</span>
-<span class="sd">        (&#39;norm_genomic_dist&#39;, {&#39;apply_col&#39;: &#39;count&#39;})</span>
-<span class="sd">        (&#39;filt_column_quant&#39;, {&#39;lower_quant&#39;: 0.05, &#39;upper_quant&#39;: None ...  # etc</span>
+<span class="sd">        &gt;&gt;&gt; import hicona.preprocess as prep</span>
+<span class="sd">        &gt;&gt;&gt; flow = prep.Flow.from_default(&quot;hicona&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; print(flow.ops)</span>
+<span class="sd">        (FiltSelfLooping, FiltInterChroms, FiltGenomicDist, NormGenomicDist, FiltColumnQuant)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
-        <span class="k">return</span> <span class="p">[(</span><span class="n">op</span><span class="o">.</span><span class="n">fun_obj</span><span class="p">,</span> <span class="n">op</span><span class="o">.</span><span class="n">fun_kwargs</span><span class="p">)</span> <span class="k">for</span> <span class="n">op</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ops_flow</span><span class="p">]</span></div>
-
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ops</span>
 
 <div class="viewcode-block" id="Flow.ops_reset">
 <a class="viewcode-back" href="../../../api_reference/api/hicona.preprocess.Flow.ops_reset.html#hicona.preprocess.Flow.ops_reset">[docs]</a>
-    <span class="k">def</span> <span class="nf">ops_reset</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">ops_reset</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Flow&quot;</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Reset the operations flow.</span>
 
 <span class="sd">        Reset the operations flow, removing all operations added so far.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Flow</span>
+<span class="sd">            Empty flow.</span>
 
 <span class="sd">        Examples</span>
 <span class="sd">        --------</span>
@@ -662,109 +649,116 @@ document.write(`
 
 <span class="sd">        &quot;&quot;&quot;</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">_ops_flow</span> <span class="o">=</span> <span class="p">[]</span></div>
+        <span class="k">return</span> <span class="n">Flow</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="Flow.ops_add">
 <a class="viewcode-back" href="../../../api_reference/api/hicona.preprocess.Flow.ops_add.html#hicona.preprocess.Flow.ops_add">[docs]</a>
-    <span class="k">def</span> <span class="nf">ops_add</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fun_obj</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">fun_kwargs</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">ops_add</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">operation</span><span class="p">:</span> <span class="s2">&quot;Operation&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Flow&quot;</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Add a new operation to the operations flow.</span>
 
-<span class="sd">        Add a new operation to the operations flow. The function can be either</span>
-<span class="sd">        one of the default ones provided by HiCONA or a custom one, as long as</span>
-<span class="sd">        it follows the requirements specified in the class docstring.</span>
+<span class="sd">        Given an instance of a class that inherits from either ``FiltOperation`` or</span>
+<span class="sd">        ``NormOperation``, add it as the last operation in the flow.</span>
+
+<span class="sd">        .. warning::</span>
+<span class="sd">            Currently the method only supports adding default functions. Custom</span>
+<span class="sd">            functions are not supported yet but will be in the future.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
-<span class="sd">        fun_obj: Callable</span>
-<span class="sd">            The name of the function to add to the operations flow.</span>
-<span class="sd">        fun_kwargs: dict or None, optional</span>
-<span class="sd">            The kwargs to pass to the function. Default is &#39;None&#39;.</span>
+<span class="sd">        operation: Operation</span>
+<span class="sd">            The operation to add to the flow.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Flow</span>
+<span class="sd">            Flow with the new operation added.</span>
 
 <span class="sd">        Examples</span>
 <span class="sd">        --------</span>
-<span class="sd">        Add a default operation to the flow:</span>
+<span class="sd">        Add a new operation to the flow:</span>
 
-<span class="sd">        &gt;&gt;&gt; from hicona.preprocess import Flow, filt_genomic_dist</span>
-<span class="sd">        &gt;&gt;&gt; flow = Flow.from_default(&quot;hicona&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; import hicona.preprocess as prep</span>
+<span class="sd">        &gt;&gt;&gt; flow = prep.Flow.from_default(&quot;hicona&quot;)</span>
 <span class="sd">        &gt;&gt;&gt; print(len(flow))</span>
 <span class="sd">        5</span>
-<span class="sd">        &gt;&gt;&gt; flow.ops_add(filt_genomic_dist, {&quot;max_dist&quot;: 2000000})</span>
+<span class="sd">        &gt;&gt;&gt; flow = flow.ops_add(prep.NormBinwise())</span>
 <span class="sd">        &gt;&gt;&gt; print(len(flow))</span>
 <span class="sd">        6</span>
 
-<span class="sd">        Add a custom operation to the flow:</span>
+<span class="sd">        Adding operations can be done in a chain-like fashion:</span>
 
-<span class="sd">        &gt;&gt;&gt; def custom_fun(table, arg1, arg2):</span>
-<span class="sd">        ...     for chunk in table:</span>
-<span class="sd">        ...         # Some custom code here</span>
-<span class="sd">        ...         yield chunk</span>
-<span class="sd">        ...</span>
-<span class="sd">        &gt;&gt;&gt; flow.ops_add(custom_fun, {&quot;arg1&quot;: 1, &quot;arg2&quot;: 2})</span>
+<span class="sd">        &gt;&gt;&gt; flow = (</span>
+<span class="sd">        ...     prep.Flow(&quot;custom_flow&quot;)</span>
+<span class="sd">        ...     .ops_add(prep.FiltSelfLooping())</span>
+<span class="sd">        ...     .ops_add(prep.FiltInterChroms())</span>
+<span class="sd">        ...     .ops_add(prep.FiltGenomicDist(min_dist=1000000))</span>
+<span class="sd">        ...     .ops_add(prep.NormGenomicDist(apply_col=&quot;count&quot;))</span>
+<span class="sd">        ...     .ops_add(prep.FiltColumnQuant(apply_col=&quot;norm&quot;, lower_quant=0.05))</span>
+<span class="sd">        ... )</span>
 <span class="sd">        &gt;&gt;&gt; print(len(flow))</span>
-<span class="sd">        7</span>
+<span class="sd">        5</span>
 
 <span class="sd">        &quot;&quot;&quot;</span>
 
-        <span class="n">fun_kwargs</span> <span class="o">=</span> <span class="n">fun_kwargs</span> <span class="ow">or</span> <span class="p">{}</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_ops_flow</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Operation</span><span class="p">(</span><span class="n">fun_obj</span><span class="p">,</span> <span class="n">fun_kwargs</span><span class="p">))</span></div>
+        <span class="k">return</span> <span class="n">Flow</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">operations</span><span class="o">=</span><span class="p">[</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">_ops</span><span class="p">,</span> <span class="n">operation</span><span class="p">])</span></div>
 
 
-<div class="viewcode-block" id="Flow.ops_remove">
-<a class="viewcode-back" href="../../../api_reference/api/hicona.preprocess.Flow.ops_remove.html#hicona.preprocess.Flow.ops_remove">[docs]</a>
-    <span class="k">def</span> <span class="nf">ops_remove</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fun_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Remove the last occurrence of a function from the flow.</span>
+<div class="viewcode-block" id="Flow.to_file">
+<a class="viewcode-back" href="../../../api_reference/api/hicona.preprocess.Flow.to_file.html#hicona.preprocess.Flow.to_file">[docs]</a>
+    <span class="k">def</span> <span class="nf">to_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Save a flow to a json file.</span>
 
-<span class="sd">        Remove the last occurrence of a function from the operations flow.</span>
-<span class="sd">        If the function is not present, exit silently.</span>
+<span class="sd">        Save a flow to a json file so that it can be loaded later.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
-<span class="sd">        fun_name: str</span>
-<span class="sd">            The name of the function to remove.</span>
+<span class="sd">        file_path: str</span>
+<span class="sd">            The path to save the flow to.</span>
 
 <span class="sd">        Examples</span>
 <span class="sd">        --------</span>
-<span class="sd">        Remove an operation from the flow:</span>
+<span class="sd">        Save a flow to a json file after modifying it:</span>
 
-<span class="sd">        &gt;&gt;&gt; from hicona.preprocess import Flow</span>
-<span class="sd">        &gt;&gt;&gt; flow = Flow.from_default(&quot;hicona&quot;)</span>
-<span class="sd">        &gt;&gt;&gt; print(len(flow))</span>
-<span class="sd">        5</span>
-<span class="sd">        &gt;&gt;&gt; flow.ops_remove(&quot;filt_genomic_dist&quot;)</span>
-<span class="sd">        &gt;&gt;&gt; print(len(flow))</span>
-<span class="sd">        4</span>
+<span class="sd">        &gt;&gt;&gt; import hicona.preprocess as prep</span>
+<span class="sd">        &gt;&gt;&gt; flow = prep.Flow.from_default(&quot;hicona&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; flow.to_file(&quot;path/to/file.json&quot;)</span>
 
 <span class="sd">        &quot;&quot;&quot;</span>
 
-        <span class="c1"># TODO: change to take callables?</span>
-        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_ops_flow</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">):</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ops_flow</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">fun_name</span> <span class="o">==</span> <span class="n">fun_name</span><span class="p">:</span>
-                <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ops_flow</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
-                <span class="k">break</span></div>
+        <span class="n">full_json</span> <span class="o">=</span> <span class="p">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">to_json</span><span class="p">()}</span>
+
+        <span class="n">io</span><span class="o">.</span><span class="n">write_resource</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">full_json</span><span class="p">,</span> <span class="n">is_static</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="Flow.to_json">
 <a class="viewcode-back" href="../../../api_reference/api/hicona.preprocess.Flow.to_json.html#hicona.preprocess.Flow.to_json">[docs]</a>
-    <span class="k">def</span> <span class="nf">to_json</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_path</span><span class="o">=</span><span class="kc">None</span> <span class="o">|</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">JsonDict</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the flow in a json-like dictionary, optionally save it.</span>
+    <span class="k">def</span> <span class="nf">to_json</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;JsonDict&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the flow as a json-like dictionary.</span>
 
-<span class="sd">        Convert the flow to a json-like dictionary, where the keys are the</span>
-<span class="sd">        order of the operations and the values are dictionaries with the</span>
-<span class="sd">        operation name and its kwargs. This is done to preserve the order.</span>
+<span class="sd">        Convert the flow to a json-like dictionary, that is, a dictionary in the</span>
+<span class="sd">        format ``{order: {&quot;name&quot;: &quot;op_name&quot;, &quot;kwargs&quot;: {}}}``.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
-<span class="sd">        A dictionary with the operations flow in json-like format.</span>
+<span class="sd">        dict</span>
+<span class="sd">            The flow as a json-like dictionary.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        Get the flow as a json-like dictionary:</span>
+
+<span class="sd">        &gt;&gt;&gt; import hicona.preprocess as prep</span>
+<span class="sd">        &gt;&gt;&gt; flow = prep.Flow(&quot;my_flow&quot;).add(prep.FiltInterChroms())</span>
+<span class="sd">        &gt;&gt;&gt; print(flow.to_json())</span>
+<span class="sd">        {0: {&quot;name&quot;: &quot;FiltInterChroms&quot;, &quot;kwargs&quot;: {}}}</span>
+
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="n">json_res</span><span class="p">:</span> <span class="n">JsonDict</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="nb">str</span><span class="p">(</span><span class="n">order</span><span class="p">):</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">op</span><span class="o">.</span><span class="n">fun_name</span><span class="p">,</span> <span class="s2">&quot;kwargs&quot;</span><span class="p">:</span> <span class="n">op</span><span class="o">.</span><span class="n">fun_kwargs</span><span class="p">}</span>
-            <span class="k">for</span> <span class="n">order</span><span class="p">,</span> <span class="n">op</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_ops_flow</span><span class="p">)</span>
+            <span class="nb">str</span><span class="p">(</span><span class="n">order</span><span class="p">):</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">op</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s2">&quot;kwargs&quot;</span><span class="p">:</span> <span class="n">op</span><span class="o">.</span><span class="n">kwargs</span><span class="p">}</span>
+            <span class="k">for</span> <span class="n">order</span><span class="p">,</span> <span class="n">op</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_ops</span><span class="p">)</span>
         <span class="p">}</span>
-
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
-            <span class="n">io</span><span class="o">.</span><span class="n">write_resource</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">json_res</span><span class="p">,</span> <span class="n">is_static</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">json_res</span></div>
 </div>

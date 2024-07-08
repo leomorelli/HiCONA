@@ -329,34 +329,35 @@ document.write(`
                 <article class="bd-article">
                   
   <h1>Source code for hicona.preprocess._filt</h1><div class="highlight"><pre>
-<span></span><span class="sd">&quot;&quot;&quot;Default functions for pixel table filtering.&quot;&quot;&quot;</span>
+<span></span><span class="sd">&quot;&quot;&quot;Default classes for pixel table filtering.&quot;&quot;&quot;</span>
 
-<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">TYPE_CHECKING</span> <span class="k">as</span> <span class="n">_TYPE_CHECKING</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">TYPE_CHECKING</span>
 
-<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">_pd</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
 
-<span class="kn">from</span> <span class="nn">hicona._dtypes</span> <span class="kn">import</span> <span class="n">PdChunks</span> <span class="k">as</span> <span class="n">_PdChunks</span>
-<span class="kn">from</span> <span class="nn">hicona._ops</span> <span class="kn">import</span> <span class="n">chunked</span> <span class="k">as</span> <span class="n">_chunked</span>
+<span class="kn">from</span> <span class="nn">hicona._ops</span> <span class="kn">import</span> <span class="n">chunked</span>
+<span class="kn">from</span> <span class="nn">hicona.preprocess._abcs</span> <span class="kn">import</span> <span class="n">FiltOperation</span>
 
-<span class="k">if</span> <span class="n">_TYPE_CHECKING</span><span class="p">:</span>
-    <span class="kn">from</span> <span class="nn">hicona._core</span> <span class="kn">import</span> <span class="n">base_table</span>
+<span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">hicona._core</span> <span class="kn">import</span> <span class="n">Table</span>
+    <span class="kn">from</span> <span class="nn">hicona._dtypes</span> <span class="kn">import</span> <span class="n">PdChunks</span>
 
 
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
-    <span class="s2">&quot;filt_genomic_dist&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;filt_column_quant&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;filt_column_value&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;filt_inter_chroms&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;filt_self_looping&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;FiltGenomicDist&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;FiltColumnQuant&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;FiltColumnValue&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;FiltInterChroms&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;FiltSelfLooping&quot;</span><span class="p">,</span>
 <span class="p">]</span>
 
 
 <span class="k">def</span> <span class="nf">_inclusive_filter</span><span class="p">(</span>
-    <span class="n">table</span><span class="p">:</span> <span class="n">_pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+    <span class="n">table</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
     <span class="n">column</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">lower</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">upper</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Remove pixels with column value outside of interval [lower, upper].&quot;&quot;&quot;</span>
 
     <span class="n">table</span> <span class="o">=</span> <span class="n">table</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">table</span><span class="p">[</span><span class="n">column</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">lower</span><span class="p">]</span> <span class="k">if</span> <span class="n">lower</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">table</span>
@@ -366,11 +367,11 @@ document.write(`
 
 
 <span class="k">def</span> <span class="nf">_exclusive_filter</span><span class="p">(</span>
-    <span class="n">table</span><span class="p">:</span> <span class="n">_pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+    <span class="n">table</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
     <span class="n">column</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">lower</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">upper</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Remove pixels with column value outside of interval (lower, upper).&quot;&quot;&quot;</span>
 
     <span class="n">table</span> <span class="o">=</span> <span class="n">table</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">table</span><span class="p">[</span><span class="n">column</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">lower</span><span class="p">]</span> <span class="k">if</span> <span class="n">lower</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">table</span>
@@ -379,7 +380,7 @@ document.write(`
     <span class="k">return</span> <span class="n">table</span>
 
 
-<span class="k">def</span> <span class="nf">_format_out_cols</span><span class="p">(</span><span class="n">chunk</span><span class="p">:</span> <span class="n">_pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="k">def</span> <span class="nf">_format_out_cols</span><span class="p">(</span><span class="n">chunk</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Keep only bin1_id, bin2_id, count and norm (if present).&quot;&quot;&quot;</span>
 
     <span class="n">base_cols</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;bin1_id&quot;</span><span class="p">,</span> <span class="s2">&quot;bin2_id&quot;</span><span class="p">,</span> <span class="s2">&quot;count&quot;</span><span class="p">,</span> <span class="s2">&quot;norm&quot;</span><span class="p">]</span>
@@ -388,13 +389,9 @@ document.write(`
     <span class="k">return</span> <span class="n">chunk</span><span class="p">[</span><span class="n">keep_cols</span><span class="p">]</span>
 
 
-<div class="viewcode-block" id="filt_genomic_dist">
-<a class="viewcode-back" href="../../../api_reference/api/hicona.preprocess.filt_genomic_dist.html#hicona.preprocess.filt_genomic_dist">[docs]</a>
-<span class="k">def</span> <span class="nf">filt_genomic_dist</span><span class="p">(</span>
-    <span class="n">table</span><span class="p">:</span> <span class="s2">&quot;base_table.Table&quot;</span><span class="p">,</span>
-    <span class="n">min_dist</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">max_dist</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_PdChunks</span><span class="p">:</span>
+<div class="viewcode-block" id="FiltGenomicDist">
+<a class="viewcode-back" href="../../../api_reference/api/hicona.preprocess.FiltGenomicDist.html#hicona.preprocess.FiltGenomicDist">[docs]</a>
+<span class="k">class</span> <span class="nc">FiltGenomicDist</span><span class="p">(</span><span class="n">FiltOperation</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Remove pixels whose genomic distance is outside of an interval.</span>
 
 <span class="sd">    Genomic distance is calculated as the difference between ``bin1_id`` and</span>
@@ -404,8 +401,6 @@ document.write(`
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
-<span class="sd">    table : Table</span>
-<span class="sd">        The table to be filtered.</span>
 <span class="sd">    min_dist : int or None, optional</span>
 <span class="sd">        Remove pixels whose genomic distance is greater than this value.</span>
 <span class="sd">        Default is &#39;None&#39;.</span>
@@ -413,35 +408,28 @@ document.write(`
 <span class="sd">        Remove pixels whose genomic distance is smaller than this value.</span>
 <span class="sd">        Default is &#39;None&#39;.</span>
 
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
-<span class="sd">    Generator of pandas.DataFrame</span>
-<span class="sd">        A generator of filtered pixel chunks.</span>
-
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">if</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">([</span><span class="n">min_dist</span><span class="p">,</span> <span class="n">max_dist</span><span class="p">]):</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;At least one distance threshold must be provided.&quot;</span><span class="p">)</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">min_dist</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">max_dist</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">([</span><span class="n">min_dist</span><span class="p">,</span> <span class="n">max_dist</span><span class="p">]):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;At least one distance threshold must be provided.&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_min_dist</span> <span class="o">=</span> <span class="n">min_dist</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_max_dist</span> <span class="o">=</span> <span class="n">max_dist</span>
 
-    <span class="c1"># Workaround: set inter-chromosomal distances to set value in interval</span>
-    <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">table</span><span class="o">.</span><span class="n">chunks</span><span class="p">(</span><span class="n">annotated</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
-        <span class="n">chunk</span><span class="p">[</span><span class="s2">&quot;dist&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">chunk</span><span class="o">.</span><span class="n">bin2_id</span> <span class="o">-</span> <span class="n">chunk</span><span class="o">.</span><span class="n">bin1_id</span><span class="p">)</span> <span class="o">*</span> <span class="n">table</span><span class="o">.</span><span class="n">bin_size</span>
-        <span class="n">chunk</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">chunk</span><span class="o">.</span><span class="n">chrom1</span> <span class="o">!=</span> <span class="n">chunk</span><span class="o">.</span><span class="n">chrom2</span><span class="p">,</span> <span class="s2">&quot;dist&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">min_dist</span>
-        <span class="n">chunk</span> <span class="o">=</span> <span class="n">_inclusive_filter</span><span class="p">(</span><span class="n">chunk</span><span class="p">,</span> <span class="s2">&quot;dist&quot;</span><span class="p">,</span> <span class="n">min_dist</span><span class="p">,</span> <span class="n">max_dist</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">table</span><span class="p">:</span> <span class="s2">&quot;Table&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;PdChunks&quot;</span><span class="p">:</span>
 
-        <span class="k">yield</span> <span class="n">_format_out_cols</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span></div>
+        <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">table</span><span class="o">.</span><span class="n">chunks</span><span class="p">(</span><span class="n">annotated</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+            <span class="n">chunk</span><span class="p">[</span><span class="s2">&quot;dist&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">chunk</span><span class="o">.</span><span class="n">bin2_id</span> <span class="o">-</span> <span class="n">chunk</span><span class="o">.</span><span class="n">bin1_id</span><span class="p">)</span> <span class="o">*</span> <span class="n">table</span><span class="o">.</span><span class="n">bin_size</span>
+            <span class="n">chunk</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">chunk</span><span class="o">.</span><span class="n">chrom1</span> <span class="o">!=</span> <span class="n">chunk</span><span class="o">.</span><span class="n">chrom2</span><span class="p">,</span> <span class="s2">&quot;dist&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_min_dist</span>
+            <span class="n">chunk</span> <span class="o">=</span> <span class="n">_inclusive_filter</span><span class="p">(</span><span class="n">chunk</span><span class="p">,</span> <span class="s2">&quot;dist&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_min_dist</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_max_dist</span><span class="p">)</span>
+
+            <span class="k">yield</span> <span class="n">_format_out_cols</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span></div>
 
 
 
-<div class="viewcode-block" id="filt_column_quant">
-<a class="viewcode-back" href="../../../api_reference/api/hicona.preprocess.filt_column_quant.html#hicona.preprocess.filt_column_quant">[docs]</a>
-<span class="k">def</span> <span class="nf">filt_column_quant</span><span class="p">(</span>
-    <span class="n">table</span><span class="p">:</span> <span class="s2">&quot;base_table.Table&quot;</span><span class="p">,</span>
-    <span class="n">apply_col</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">lower_quant</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">upper_quant</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">chrom_wise</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_PdChunks</span><span class="p">:</span>
+<div class="viewcode-block" id="FiltColumnQuant">
+<a class="viewcode-back" href="../../../api_reference/api/hicona.preprocess.FiltColumnQuant.html#hicona.preprocess.FiltColumnQuant">[docs]</a>
+<span class="k">class</span> <span class="nc">FiltColumnQuant</span><span class="p">(</span><span class="n">FiltOperation</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Remove pixels with column value outside a certain quantile range.</span>
 
 <span class="sd">    Filter out pixels where the value of the specified column is outside a</span>
@@ -453,8 +441,6 @@ document.write(`
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
-<span class="sd">    table : Table</span>
-<span class="sd">        The table to be filtered.</span>
 <span class="sd">    apply_col : str</span>
 <span class="sd">        The column to apply the quantile filter to.</span>
 <span class="sd">    lower_quant : float or None, optional</span>
@@ -465,57 +451,67 @@ document.write(`
 <span class="sd">        If True, compute quantiles for each pair of chromosomes separately.</span>
 <span class="sd">        Default is True.</span>
 
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
-<span class="sd">    A generator of filtered pixel chunks.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">quant_filt</span><span class="p">(</span><span class="n">dataf</span><span class="p">,</span> <span class="n">col</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">quant</span><span class="p">,</span> <span class="n">sign</span><span class="p">,</span> <span class="n">split_cols</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Apply individual quantile filter to a DataFrame.&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">apply_col</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">lower_quant</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">upper_quant</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">chrom_wise</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">([</span><span class="n">lower_quant</span><span class="p">,</span> <span class="n">upper_quant</span><span class="p">]):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;At least one quantile threshold must be provided.&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_apply_col</span> <span class="o">=</span> <span class="n">apply_col</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_lower_quant</span> <span class="o">=</span> <span class="n">lower_quant</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_upper_quant</span> <span class="o">=</span> <span class="n">upper_quant</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_chrom_wise</span> <span class="o">=</span> <span class="n">chrom_wise</span>
 
-        <span class="n">values</span> <span class="o">=</span> <span class="n">values</span><span class="p">[</span><span class="n">values</span><span class="p">[</span><span class="s2">&quot;quant&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">quant</span><span class="p">]</span>
-        <span class="k">if</span> <span class="n">split_cols</span><span class="p">:</span>
-            <span class="n">merge</span> <span class="o">=</span> <span class="n">dataf</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s2">&quot;left&quot;</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="n">split_cols</span><span class="p">)</span>
-            <span class="n">index</span> <span class="o">=</span> <span class="n">merge</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">col</span><span class="si">}</span><span class="s2">_x</span><span class="si">{</span><span class="n">sign</span><span class="si">}{</span><span class="n">col</span><span class="si">}</span><span class="s2">_y&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">index</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">quant_val</span> <span class="o">=</span> <span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">col</span><span class="p">]</span>
-            <span class="n">index</span> <span class="o">=</span> <span class="n">dataf</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">col</span><span class="si">}{</span><span class="n">sign</span><span class="si">}{</span><span class="n">quant_val</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">index</span>
-        <span class="k">return</span> <span class="n">dataf</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
+    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">table</span><span class="p">:</span> <span class="s2">&quot;Table&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;PdChunks&quot;</span><span class="p">:</span>
 
-    <span class="n">split_cols</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;chrom1&quot;</span><span class="p">,</span> <span class="s2">&quot;chrom2&quot;</span><span class="p">]</span> <span class="k">if</span> <span class="n">chrom_wise</span> <span class="k">else</span> <span class="kc">None</span>
-    <span class="n">all_quants</span> <span class="o">=</span> <span class="p">[</span><span class="n">q</span> <span class="k">for</span> <span class="n">q</span> <span class="ow">in</span> <span class="p">(</span><span class="n">lower_quant</span><span class="p">,</span> <span class="n">upper_quant</span><span class="p">)</span> <span class="k">if</span> <span class="n">q</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">]</span>
+        <span class="k">def</span> <span class="nf">quant_filt</span><span class="p">(</span><span class="n">dataf</span><span class="p">,</span> <span class="n">col</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">quant</span><span class="p">,</span> <span class="n">sign</span><span class="p">,</span> <span class="n">split_cols</span><span class="p">):</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;Apply individual quantile filter to a DataFrame.&quot;&quot;&quot;</span>
 
-    <span class="k">if</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span><span class="n">all_quants</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;At least one quantile threshold must be provided.&quot;</span><span class="p">)</span>
+            <span class="n">values</span> <span class="o">=</span> <span class="n">values</span><span class="p">[</span><span class="n">values</span><span class="p">[</span><span class="s2">&quot;quant&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">quant</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">split_cols</span><span class="p">:</span>
+                <span class="n">merge</span> <span class="o">=</span> <span class="n">dataf</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s2">&quot;left&quot;</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="n">split_cols</span><span class="p">)</span>
+                <span class="n">index</span> <span class="o">=</span> <span class="n">merge</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">col</span><span class="si">}</span><span class="s2">_x</span><span class="si">{</span><span class="n">sign</span><span class="si">}{</span><span class="n">col</span><span class="si">}</span><span class="s2">_y&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">index</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">quant_val</span> <span class="o">=</span> <span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">col</span><span class="p">]</span>
+                <span class="n">index</span> <span class="o">=</span> <span class="n">dataf</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">col</span><span class="si">}{</span><span class="n">sign</span><span class="si">}{</span><span class="n">quant_val</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">index</span>
+            <span class="k">return</span> <span class="n">dataf</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
 
-    <span class="c1"># Compute quantiles for each chromosome</span>
-    <span class="n">vals</span> <span class="o">=</span> <span class="n">_chunked</span><span class="o">.</span><span class="n">chunked_quants</span><span class="p">(</span>
-        <span class="n">table</span><span class="o">.</span><span class="n">chunks</span><span class="p">(</span><span class="n">annotated</span><span class="o">=</span><span class="n">chrom_wise</span><span class="p">),</span>
-        <span class="n">column</span><span class="o">=</span><span class="n">apply_col</span><span class="p">,</span>
-        <span class="n">quants</span><span class="o">=</span><span class="n">all_quants</span><span class="p">,</span>
-        <span class="n">split_on</span><span class="o">=</span><span class="n">split_cols</span><span class="p">,</span>
-    <span class="p">)</span>
+        <span class="n">split_cols</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;chrom1&quot;</span><span class="p">,</span> <span class="s2">&quot;chrom2&quot;</span><span class="p">]</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_chrom_wise</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="n">quants</span> <span class="o">=</span> <span class="p">[</span><span class="n">q</span> <span class="k">for</span> <span class="n">q</span> <span class="ow">in</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_lower_quant</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_upper_quant</span><span class="p">)</span> <span class="k">if</span> <span class="n">q</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">]</span>
 
-    <span class="c1"># Apply the quantile filers to each chunk and yield it</span>
-    <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">table</span><span class="o">.</span><span class="n">chunks</span><span class="p">(</span><span class="n">annotated</span><span class="o">=</span><span class="n">chrom_wise</span><span class="p">):</span>
+        <span class="c1"># Compute quantiles for each chromosome</span>
+        <span class="n">vals</span> <span class="o">=</span> <span class="n">chunked</span><span class="o">.</span><span class="n">chunked_quants</span><span class="p">(</span>
+            <span class="n">table</span><span class="o">.</span><span class="n">chunks</span><span class="p">(</span><span class="n">annotated</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_chrom_wise</span><span class="p">),</span>
+            <span class="n">column</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_apply_col</span><span class="p">,</span>
+            <span class="n">quants</span><span class="o">=</span><span class="n">quants</span><span class="p">,</span>
+            <span class="n">split_on</span><span class="o">=</span><span class="n">split_cols</span><span class="p">,</span>
+        <span class="p">)</span>
 
-        <span class="k">if</span> <span class="n">lower_quant</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">chunk</span> <span class="o">=</span> <span class="n">quant_filt</span><span class="p">(</span><span class="n">chunk</span><span class="p">,</span> <span class="n">apply_col</span><span class="p">,</span> <span class="n">vals</span><span class="p">,</span> <span class="n">lower_quant</span><span class="p">,</span> <span class="s2">&quot;&gt;&quot;</span><span class="p">,</span> <span class="n">split_cols</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">upper_quant</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">chunk</span> <span class="o">=</span> <span class="n">quant_filt</span><span class="p">(</span><span class="n">chunk</span><span class="p">,</span> <span class="n">apply_col</span><span class="p">,</span> <span class="n">vals</span><span class="p">,</span> <span class="n">upper_quant</span><span class="p">,</span> <span class="s2">&quot;&lt;&quot;</span><span class="p">,</span> <span class="n">split_cols</span><span class="p">)</span>
+        <span class="c1"># Apply the quantile filers to each chunk and yield it</span>
+        <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">table</span><span class="o">.</span><span class="n">chunks</span><span class="p">(</span><span class="n">annotated</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_chrom_wise</span><span class="p">):</span>
 
-        <span class="k">yield</span> <span class="n">_format_out_cols</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span></div>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lower_quant</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">chunk</span> <span class="o">=</span> <span class="n">quant_filt</span><span class="p">(</span>
+                    <span class="n">chunk</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_apply_col</span><span class="p">,</span> <span class="n">vals</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lower_quant</span><span class="p">,</span> <span class="s2">&quot;&gt;&quot;</span><span class="p">,</span> <span class="n">split_cols</span>
+                <span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_upper_quant</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">chunk</span> <span class="o">=</span> <span class="n">quant_filt</span><span class="p">(</span>
+                    <span class="n">chunk</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_apply_col</span><span class="p">,</span> <span class="n">vals</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_upper_quant</span><span class="p">,</span> <span class="s2">&quot;&lt;&quot;</span><span class="p">,</span> <span class="n">split_cols</span>
+                <span class="p">)</span>
+
+            <span class="k">yield</span> <span class="n">_format_out_cols</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span></div>
 
 
 
-<div class="viewcode-block" id="filt_column_value">
-<a class="viewcode-back" href="../../../api_reference/api/hicona.preprocess.filt_column_value.html#hicona.preprocess.filt_column_value">[docs]</a>
-<span class="k">def</span> <span class="nf">filt_column_value</span><span class="p">(</span>
-    <span class="n">table</span><span class="p">:</span> <span class="s2">&quot;base_table.Table&quot;</span><span class="p">,</span>
-    <span class="n">apply_col</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">lower_value</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">upper_value</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_PdChunks</span><span class="p">:</span>
+<div class="viewcode-block" id="FiltColumnValue">
+<a class="viewcode-back" href="../../../api_reference/api/hicona.preprocess.FiltColumnValue.html#hicona.preprocess.FiltColumnValue">[docs]</a>
+<span class="k">class</span> <span class="nc">FiltColumnValue</span><span class="p">(</span><span class="n">FiltOperation</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Remove pixels with column value outside a certain interval.</span>
 
 <span class="sd">    Filter out pixels where the value of the specified column is outside a</span>
@@ -523,8 +519,6 @@ document.write(`
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
-<span class="sd">    table : Table</span>
-<span class="sd">        The table to be filtered.</span>
 <span class="sd">    apply_col : str</span>
 <span class="sd">        The column to apply the value filter to.</span>
 <span class="sd">    lower_value : float or int or None, optional</span>
@@ -532,62 +526,64 @@ document.write(`
 <span class="sd">    upper_value : float or int or None, optional</span>
 <span class="sd">        Remove pixels whose column value is not smaller than this value.</span>
 
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
-<span class="sd">    A generator of filtered pixel chunks.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">if</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">([</span><span class="n">lower_value</span><span class="p">,</span> <span class="n">upper_value</span><span class="p">]):</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;At least one value threshold must be provided.&quot;</span><span class="p">)</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">apply_col</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">lower_value</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">upper_value</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">([</span><span class="n">lower_value</span><span class="p">,</span> <span class="n">upper_value</span><span class="p">]):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;At least one value threshold must be provided.&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_apply_col</span> <span class="o">=</span> <span class="n">apply_col</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_lower_value</span> <span class="o">=</span> <span class="n">lower_value</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_upper_value</span> <span class="o">=</span> <span class="n">upper_value</span>
 
-    <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">table</span><span class="o">.</span><span class="n">chunks</span><span class="p">():</span>
-        <span class="k">yield</span> <span class="n">_inclusive_filter</span><span class="p">(</span><span class="n">chunk</span><span class="p">,</span> <span class="n">apply_col</span><span class="p">,</span> <span class="n">lower_value</span><span class="p">,</span> <span class="n">upper_value</span><span class="p">)</span></div>
+    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">table</span><span class="p">:</span> <span class="s2">&quot;Table&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;PdChunks&quot;</span><span class="p">:</span>
+
+        <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">table</span><span class="o">.</span><span class="n">chunks</span><span class="p">():</span>
+
+            <span class="n">chunk</span> <span class="o">=</span> <span class="n">_inclusive_filter</span><span class="p">(</span>
+                <span class="n">chunk</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_apply_col</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lower_value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_upper_value</span>
+            <span class="p">)</span>
+
+            <span class="k">yield</span> <span class="n">_format_out_cols</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span></div>
 
 
 
-<div class="viewcode-block" id="filt_inter_chroms">
-<a class="viewcode-back" href="../../../api_reference/api/hicona.preprocess.filt_inter_chroms.html#hicona.preprocess.filt_inter_chroms">[docs]</a>
-<span class="k">def</span> <span class="nf">filt_inter_chroms</span><span class="p">(</span><span class="n">table</span><span class="p">:</span> <span class="s2">&quot;base_table.Table&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_PdChunks</span><span class="p">:</span>
+<div class="viewcode-block" id="FiltInterChroms">
+<a class="viewcode-back" href="../../../api_reference/api/hicona.preprocess.FiltInterChroms.html#hicona.preprocess.FiltInterChroms">[docs]</a>
+<span class="k">class</span> <span class="nc">FiltInterChroms</span><span class="p">(</span><span class="n">FiltOperation</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Remove inter-chromosomal pixels from the table.</span>
 
 <span class="sd">    Remove pixels whose bin1_id and bin2_id are on different chromosomes.</span>
 
-<span class="sd">    Parameters</span>
-<span class="sd">    ----------</span>
-<span class="sd">    table : Table</span>
-<span class="sd">        The table to be filtered.</span>
-
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
-<span class="sd">    A generator of filtered pixel chunks.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">table</span><span class="o">.</span><span class="n">chunks</span><span class="p">(</span><span class="n">annotated</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
-        <span class="n">chunk</span> <span class="o">=</span> <span class="n">chunk</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">chunk</span><span class="o">.</span><span class="n">chrom1</span> <span class="o">==</span> <span class="n">chunk</span><span class="o">.</span><span class="n">chrom2</span><span class="p">]</span>
-        <span class="k">yield</span> <span class="n">_format_out_cols</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span></div>
+    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">table</span><span class="p">:</span> <span class="s2">&quot;Table&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;PdChunks&quot;</span><span class="p">:</span>
+
+        <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">table</span><span class="o">.</span><span class="n">chunks</span><span class="p">(</span><span class="n">annotated</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+            <span class="n">chunk</span> <span class="o">=</span> <span class="n">chunk</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">chunk</span><span class="o">.</span><span class="n">chrom1</span> <span class="o">==</span> <span class="n">chunk</span><span class="o">.</span><span class="n">chrom2</span><span class="p">]</span>
+            <span class="k">yield</span> <span class="n">_format_out_cols</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span></div>
 
 
 
-<div class="viewcode-block" id="filt_self_looping">
-<a class="viewcode-back" href="../../../api_reference/api/hicona.preprocess.filt_self_looping.html#hicona.preprocess.filt_self_looping">[docs]</a>
-<span class="k">def</span> <span class="nf">filt_self_looping</span><span class="p">(</span><span class="n">table</span><span class="p">:</span> <span class="s2">&quot;base_table.Table&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_PdChunks</span><span class="p">:</span>
+<div class="viewcode-block" id="FiltSelfLooping">
+<a class="viewcode-back" href="../../../api_reference/api/hicona.preprocess.FiltSelfLooping.html#hicona.preprocess.FiltSelfLooping">[docs]</a>
+<span class="k">class</span> <span class="nc">FiltSelfLooping</span><span class="p">(</span><span class="n">FiltOperation</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Remove self-looping pixels from the table.</span>
 
 <span class="sd">    Remove pixels whose bin1_id and bin2_id are the same.</span>
 
-<span class="sd">    Parameters</span>
-<span class="sd">    ----------</span>
-<span class="sd">    table : Table</span>
-<span class="sd">        The table to be filtered.</span>
-
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
-<span class="sd">    A generator of filtered pixel chunks.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">table</span><span class="o">.</span><span class="n">chunks</span><span class="p">():</span>
-        <span class="n">chunk</span> <span class="o">=</span> <span class="n">chunk</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">chunk</span><span class="o">.</span><span class="n">bin1_id</span> <span class="o">!=</span> <span class="n">chunk</span><span class="o">.</span><span class="n">bin2_id</span><span class="p">]</span>
-        <span class="k">yield</span> <span class="n">_format_out_cols</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span></div>
+    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">table</span><span class="p">:</span> <span class="s2">&quot;Table&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;PdChunks&quot;</span><span class="p">:</span>
+
+        <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">table</span><span class="o">.</span><span class="n">chunks</span><span class="p">():</span>
+            <span class="n">chunk</span> <span class="o">=</span> <span class="n">chunk</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">chunk</span><span class="o">.</span><span class="n">bin1_id</span> <span class="o">!=</span> <span class="n">chunk</span><span class="o">.</span><span class="n">bin2_id</span><span class="p">]</span>
+            <span class="k">yield</span> <span class="n">_format_out_cols</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span></div>
 
 </pre></div>
 

@@ -330,20 +330,20 @@ document.write(`
 <li class="toctree-l1 has-children"><a class="reference internal" href="preprocess.html">Preprocessing</a><input class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-4"><i class="fa-solid fa-chevron-down"></i></label><ul>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.html">hicona.preprocess.Flow</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.from_default.html">hicona.preprocess.Flow.from_default</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.from_file.html">hicona.preprocess.Flow.from_file</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.from_json.html">hicona.preprocess.Flow.from_json</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.rename.html">hicona.preprocess.Flow.rename</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.to_file.html">hicona.preprocess.Flow.to_file</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.to_json.html">hicona.preprocess.Flow.to_json</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.ops_add.html">hicona.preprocess.Flow.ops_add</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.ops_list.html">hicona.preprocess.Flow.ops_list</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.ops_remove.html">hicona.preprocess.Flow.ops_remove</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.ops_reset.html">hicona.preprocess.Flow.ops_reset</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.filt_genomic_dist.html">hicona.preprocess.filt_genomic_dist</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.filt_column_quant.html">hicona.preprocess.filt_column_quant</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.filt_column_value.html">hicona.preprocess.filt_column_value</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.filt_inter_chroms.html">hicona.preprocess.filt_inter_chroms</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.filt_self_looping.html">hicona.preprocess.filt_self_looping</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.norm_genomic_dist.html">hicona.preprocess.norm_genomic_dist</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.norm_none.html">hicona.preprocess.norm_none</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.norm_binwise.html">hicona.preprocess.norm_binwise</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.FiltGenomicDist.html">hicona.preprocess.FiltGenomicDist</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.FiltColumnQuant.html">hicona.preprocess.FiltColumnQuant</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.FiltColumnValue.html">hicona.preprocess.FiltColumnValue</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.FiltInterChroms.html">hicona.preprocess.FiltInterChroms</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.FiltSelfLooping.html">hicona.preprocess.FiltSelfLooping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.NormBinwise.html">hicona.preprocess.NormBinwise</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.NormGenomicDist.html">hicona.preprocess.NormGenomicDist</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="analysis.html">Analysis</a><input class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-5"><i class="fa-solid fa-chevron-down"></i></label><ul>
@@ -489,8 +489,8 @@ class).</p>
 <h2>Analysis<a class="headerlink" href="#analysis" title="Link to this heading">#</a></h2>
 <table class="autosummary longtable table autosummary">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="api/hicona.HiconaTable.get_distribution.html#hicona.HiconaTable.get_distribution" title="hicona.HiconaTable.get_distribution"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HiconaTable.get_distribution</span></code></a>([alpha_mod])</p></td>
-<td><p>Return alpha distribution in the table as a pandas DataFrame.</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="api/hicona.HiconaTable.get_distribution.html#hicona.HiconaTable.get_distribution" title="hicona.HiconaTable.get_distribution"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HiconaTable.get_distribution</span></code></a>(colname)</p></td>
+<td><p>Return the distribution for the column as a pandas DataFrame.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="api/hicona.HiconaTable.get_alpha_grid.html#hicona.HiconaTable.get_alpha_grid" title="hicona.HiconaTable.get_alpha_grid"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HiconaTable.get_alpha_grid</span></code></a>([decimals, ...])</p></td>
 <td><p>Return a grid of statistics for the table filtered at different alpha values.</p></td>

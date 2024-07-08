@@ -40,15 +40,19 @@
       
    
       
-      ~HiconaTable.get_distribution
-      
-   
-      
       ~HiconaTable.get_alpha_grid
       
    
       
       ~HiconaTable.get_annot_dynamics
+      
+   
+      
+      ~HiconaTable.get_distribution
+      
+   
+      
+      ~HiconaTable.plot_as_heatmap
       
    
       

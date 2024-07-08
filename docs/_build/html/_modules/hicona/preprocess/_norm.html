@@ -329,109 +329,40 @@ document.write(`
                 <article class="bd-article">
                   
   <h1>Source code for hicona.preprocess._norm</h1><div class="highlight"><pre>
-<span></span><span class="sd">&quot;&quot;&quot;Default functions for pixel table normalization.&quot;&quot;&quot;</span>
+<span></span><span class="sd">&quot;&quot;&quot;Default classes for pixel table normalization.&quot;&quot;&quot;</span>
 
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">TYPE_CHECKING</span> <span class="k">as</span> <span class="n">_TYPE_CHECKING</span>
 
-<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">_np</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 
-<span class="kn">from</span> <span class="nn">hicona._dtypes</span> <span class="kn">import</span> <span class="n">PdChunks</span> <span class="k">as</span> <span class="n">_PdChunks</span>
-<span class="kn">from</span> <span class="nn">hicona._ops</span> <span class="kn">import</span> <span class="n">chunked</span> <span class="k">as</span> <span class="n">_chunked</span>
+<span class="kn">from</span> <span class="nn">hicona._ops</span> <span class="kn">import</span> <span class="n">chunked</span>
+<span class="kn">from</span> <span class="nn">hicona.preprocess._abcs</span> <span class="kn">import</span> <span class="n">NormOperation</span>
 
 <span class="k">if</span> <span class="n">_TYPE_CHECKING</span><span class="p">:</span>
-    <span class="kn">from</span> <span class="nn">hicona._core</span> <span class="kn">import</span> <span class="n">base_table</span>
+    <span class="kn">from</span> <span class="nn">hicona._core</span> <span class="kn">import</span> <span class="n">Table</span>
+    <span class="kn">from</span> <span class="nn">hicona._dtypes</span> <span class="kn">import</span> <span class="n">PdChunks</span>
 
 
-<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;norm_genomic_dist&quot;</span><span class="p">,</span> <span class="s2">&quot;norm_none&quot;</span><span class="p">,</span> <span class="s2">&quot;norm_binwise&quot;</span><span class="p">]</span>
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;NormNone&quot;</span><span class="p">,</span> <span class="s2">&quot;NormBinwise&quot;</span><span class="p">,</span> <span class="s2">&quot;NormGenomicDist&quot;</span><span class="p">]</span>
 
 
-<div class="viewcode-block" id="norm_genomic_dist">
-<a class="viewcode-back" href="../../../api_reference/api/hicona.preprocess.norm_genomic_dist.html#hicona.preprocess.norm_genomic_dist">[docs]</a>
-<span class="k">def</span> <span class="nf">norm_genomic_dist</span><span class="p">(</span><span class="n">table</span><span class="p">:</span> <span class="s2">&quot;base_table.Table&quot;</span><span class="p">,</span> <span class="n">apply_col</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_PdChunks</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Apply default HiCONA normalization to a table (genomic distance).</span>
-
-<span class="sd">    The normalized value is computed as the log2 of 1 plus the ratio of the</span>
-<span class="sd">    value of the bin and some normalization factor. The normalization factor</span>
-<span class="sd">    is computed as the median of the values of the bins at a given distance.</span>
-<span class="sd">    Raises and error if inter-chromosomal pixels are found.</span>
-
-<span class="sd">    Parameters</span>
-<span class="sd">    ----------</span>
-<span class="sd">    table : Table</span>
-<span class="sd">        Pixel table to normalize.</span>
-<span class="sd">    apply_col : str</span>
-<span class="sd">        Column to apply the normalization to.</span>
-
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
-<span class="sd">    A generator of filtered pixel chunks.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-
-    <span class="k">def</span> <span class="nf">distance_iter</span><span class="p">(</span><span class="n">table_obj</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Iter chunks with genomic distance. Add inter-chromosomal check.&quot;&quot;&quot;</span>
-
-        <span class="n">chunks</span> <span class="o">=</span> <span class="n">table_obj</span><span class="o">.</span><span class="n">chunks</span><span class="p">(</span><span class="n">annotated</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-        <span class="n">bin_size</span> <span class="o">=</span> <span class="n">table_obj</span><span class="o">.</span><span class="n">bin_size</span>
-
-        <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">_chunked</span><span class="o">.</span><span class="n">add_gen_dist</span><span class="p">(</span><span class="n">chunks</span><span class="p">,</span> <span class="n">bin_size</span><span class="p">):</span>
-
-            <span class="c1"># Check that inter-chromosomal pixels where removed</span>
-            <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">chunk</span><span class="p">[</span><span class="s2">&quot;chrom1&quot;</span><span class="p">]</span> <span class="o">!=</span> <span class="n">chunk</span><span class="p">[</span><span class="s2">&quot;chrom2&quot;</span><span class="p">]):</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Inter-chromosomal pixels must be removed.&quot;</span><span class="p">)</span>
-
-            <span class="k">yield</span> <span class="n">chunk</span>
-
-    <span class="n">norm_curve</span> <span class="o">=</span> <span class="n">_chunked</span><span class="o">.</span><span class="n">chunked_quants</span><span class="p">(</span>
-        <span class="n">distance_iter</span><span class="p">(</span><span class="n">table</span><span class="p">),</span>
-        <span class="n">column</span><span class="o">=</span><span class="n">apply_col</span><span class="p">,</span>
-        <span class="n">quants</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
-        <span class="n">split_on</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;chrom1&quot;</span><span class="p">,</span> <span class="s2">&quot;chrom2&quot;</span><span class="p">],</span>
-        <span class="n">group_by</span><span class="o">=</span><span class="s2">&quot;dist&quot;</span><span class="p">,</span>
-    <span class="p">)</span>
-    <span class="n">norm_curve</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">{</span><span class="n">apply_col</span><span class="p">:</span> <span class="s2">&quot;dist_norm&quot;</span><span class="p">},</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-
-    <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">distance_iter</span><span class="p">(</span><span class="n">table</span><span class="p">):</span>
-        <span class="n">chunk</span> <span class="o">=</span> <span class="n">chunk</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">norm_curve</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s2">&quot;left&quot;</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;chrom1&quot;</span><span class="p">,</span> <span class="s2">&quot;dist&quot;</span><span class="p">])</span>
-        <span class="n">chunk</span><span class="p">[</span><span class="s2">&quot;norm&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">log2</span><span class="p">(</span><span class="n">chunk</span><span class="p">[</span><span class="n">apply_col</span><span class="p">]</span> <span class="o">/</span> <span class="n">chunk</span><span class="p">[</span><span class="s2">&quot;dist_norm&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
-
-        <span class="k">yield</span> <span class="n">chunk</span><span class="p">[[</span><span class="s2">&quot;bin1_id&quot;</span><span class="p">,</span> <span class="s2">&quot;bin2_id&quot;</span><span class="p">,</span> <span class="s2">&quot;count&quot;</span><span class="p">,</span> <span class="s2">&quot;norm&quot;</span><span class="p">]]</span></div>
-
-
-
-<div class="viewcode-block" id="norm_none">
-<a class="viewcode-back" href="../../../api_reference/api/hicona.preprocess.norm_none.html#hicona.preprocess.norm_none">[docs]</a>
-<span class="k">def</span> <span class="nf">norm_none</span><span class="p">(</span><span class="n">table</span><span class="p">:</span> <span class="s2">&quot;base_table.Table&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_PdChunks</span><span class="p">:</span>
+<span class="k">class</span> <span class="nc">NormNone</span><span class="p">(</span><span class="n">NormOperation</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Apply no normalization to a table.</span>
 
 <span class="sd">    Do not apply any normalization to the table, just return the original</span>
 <span class="sd">    count values as the normalized values. This is used to copy the raw</span>
-<span class="sd">    values to the normalized column.</span>
-
-<span class="sd">    Parameters</span>
-<span class="sd">    ----------</span>
-<span class="sd">    table : Table</span>
-<span class="sd">        Pixel table to normalize.</span>
-
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
-<span class="sd">    A generator of filtered pixel chunks.</span>
+<span class="sd">    values to the normalized column when no normalization was applied.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">table</span><span class="o">.</span><span class="n">chunks</span><span class="p">():</span>
-        <span class="n">chunk</span><span class="p">[</span><span class="s2">&quot;norm&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">chunk</span><span class="p">[</span><span class="s2">&quot;count&quot;</span><span class="p">]</span>
-        <span class="k">yield</span> <span class="n">chunk</span><span class="p">[[</span><span class="s2">&quot;bin1_id&quot;</span><span class="p">,</span> <span class="s2">&quot;bin2_id&quot;</span><span class="p">,</span> <span class="s2">&quot;count&quot;</span><span class="p">,</span> <span class="s2">&quot;norm&quot;</span><span class="p">]]</span></div>
+    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">table</span><span class="p">:</span> <span class="s2">&quot;Table&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;PdChunks&quot;</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">table</span><span class="o">.</span><span class="n">chunks</span><span class="p">():</span>
+            <span class="n">chunk</span><span class="p">[</span><span class="s2">&quot;norm&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">chunk</span><span class="p">[</span><span class="s2">&quot;count&quot;</span><span class="p">]</span>
+            <span class="k">yield</span> <span class="n">chunk</span><span class="p">[[</span><span class="s2">&quot;bin1_id&quot;</span><span class="p">,</span> <span class="s2">&quot;bin2_id&quot;</span><span class="p">,</span> <span class="s2">&quot;count&quot;</span><span class="p">,</span> <span class="s2">&quot;norm&quot;</span><span class="p">]]</span>
 
 
-
-<div class="viewcode-block" id="norm_binwise">
-<a class="viewcode-back" href="../../../api_reference/api/hicona.preprocess.norm_binwise.html#hicona.preprocess.norm_binwise">[docs]</a>
-<span class="k">def</span> <span class="nf">norm_binwise</span><span class="p">(</span>
-    <span class="n">table</span><span class="p">:</span> <span class="s2">&quot;base_table.Table&quot;</span><span class="p">,</span>
-    <span class="n">apply_col</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">ann_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">divisive</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-    <span class="n">drop_nas</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_PdChunks</span><span class="p">:</span>
+<div class="viewcode-block" id="NormBinwise">
+<a class="viewcode-back" href="../../../api_reference/api/hicona.preprocess.NormBinwise.html#hicona.preprocess.NormBinwise">[docs]</a>
+<span class="k">class</span> <span class="nc">NormBinwise</span><span class="p">(</span><span class="n">NormOperation</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Apply a binwise normalization to a table.</span>
 
 <span class="sd">    The normalization factors to use for normalization must be preemtively</span>
@@ -439,10 +370,8 @@ document.write(`
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
-<span class="sd">    table : Table</span>
-<span class="sd">        Pixel table to normalize.</span>
 <span class="sd">    apply_col : str</span>
-<span class="sd">        Column to apply the normalization to.</span>
+<span class="sd">        Table column to apply the normalization to.</span>
 <span class="sd">    ann_name : str</span>
 <span class="sd">        Name of the column in the bin table to use for normalization.</span>
 <span class="sd">    divisive : bool, optional</span>
@@ -452,25 +381,90 @@ document.write(`
 <span class="sd">        If True, drop rows with NaN values after normalization.</span>
 <span class="sd">        Default is False.</span>
 
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
-<span class="sd">    A generator of filtered pixel chunks.</span>
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    This function mimics matrix balancing normalization found in cooler.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="c1"># NOTE: This function mimics matrix balancing normalization in cooler.</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">apply_col</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">ann_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">divisive</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">drop_nas</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_apply_col</span> <span class="o">=</span> <span class="n">apply_col</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ann_name</span> <span class="o">=</span> <span class="n">ann_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_divisive</span> <span class="o">=</span> <span class="n">divisive</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_drop_nas</span> <span class="o">=</span> <span class="n">drop_nas</span>
 
-    <span class="n">col1</span><span class="p">,</span> <span class="n">col2</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">ann_name</span><span class="si">}</span><span class="s2">1&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">ann_name</span><span class="si">}</span><span class="s2">2&quot;</span>
+    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">table</span><span class="p">:</span> <span class="s2">&quot;Table&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;PdChunks&quot;</span><span class="p">:</span>
 
-    <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">table</span><span class="o">.</span><span class="n">chunks</span><span class="p">(</span><span class="n">annotated</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
-        <span class="k">if</span> <span class="n">divisive</span><span class="p">:</span>
-            <span class="n">chunk</span><span class="p">[</span><span class="n">col1</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">chunk</span><span class="p">[</span><span class="n">col1</span><span class="p">]</span>
-            <span class="n">chunk</span><span class="p">[</span><span class="n">col2</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">chunk</span><span class="p">[</span><span class="n">col2</span><span class="p">]</span>
-        <span class="n">chunk</span><span class="p">[</span><span class="s2">&quot;norm&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">chunk</span><span class="p">[</span><span class="n">apply_col</span><span class="p">]</span> <span class="o">*</span> <span class="n">chunk</span><span class="p">[</span><span class="n">col1</span><span class="p">]</span> <span class="o">*</span> <span class="n">chunk</span><span class="p">[</span><span class="n">col2</span><span class="p">]</span>
+        <span class="n">col1</span><span class="p">,</span> <span class="n">col2</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_ann_name</span><span class="si">}</span><span class="s2">1&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_ann_name</span><span class="si">}</span><span class="s2">2&quot;</span>
 
-        <span class="k">if</span> <span class="n">drop_nas</span><span class="p">:</span>
-            <span class="n">chunk</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">table</span><span class="o">.</span><span class="n">chunks</span><span class="p">(</span><span class="n">annotated</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_divisive</span><span class="p">:</span>
+                <span class="n">chunk</span><span class="p">[</span><span class="n">col1</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">chunk</span><span class="p">[</span><span class="n">col1</span><span class="p">]</span>
+                <span class="n">chunk</span><span class="p">[</span><span class="n">col2</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">chunk</span><span class="p">[</span><span class="n">col2</span><span class="p">]</span>
+            <span class="n">chunk</span><span class="p">[</span><span class="s2">&quot;norm&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">chunk</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_apply_col</span><span class="p">]</span> <span class="o">*</span> <span class="n">chunk</span><span class="p">[</span><span class="n">col1</span><span class="p">]</span> <span class="o">*</span> <span class="n">chunk</span><span class="p">[</span><span class="n">col2</span><span class="p">]</span>
 
-        <span class="k">yield</span> <span class="n">chunk</span><span class="p">[[</span><span class="s2">&quot;bin1_id&quot;</span><span class="p">,</span> <span class="s2">&quot;bin2_id&quot;</span><span class="p">,</span> <span class="s2">&quot;count&quot;</span><span class="p">,</span> <span class="s2">&quot;norm&quot;</span><span class="p">]]</span></div>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_drop_nas</span><span class="p">:</span>
+                <span class="n">chunk</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+            <span class="k">yield</span> <span class="n">chunk</span><span class="p">[[</span><span class="s2">&quot;bin1_id&quot;</span><span class="p">,</span> <span class="s2">&quot;bin2_id&quot;</span><span class="p">,</span> <span class="s2">&quot;count&quot;</span><span class="p">,</span> <span class="s2">&quot;norm&quot;</span><span class="p">]]</span></div>
+
+
+
+<div class="viewcode-block" id="NormGenomicDist">
+<a class="viewcode-back" href="../../../api_reference/api/hicona.preprocess.NormGenomicDist.html#hicona.preprocess.NormGenomicDist">[docs]</a>
+<span class="k">class</span> <span class="nc">NormGenomicDist</span><span class="p">(</span><span class="n">NormOperation</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Apply default HiCONA normalization to a table (genomic distance).</span>
+
+<span class="sd">    The normalized value is computed as the log2 of 1 plus the ratio of the</span>
+<span class="sd">    value of the bin and some normalization factor. The normalization factor</span>
+<span class="sd">    is computed as the median of the values of the bins at a given distance.</span>
+<span class="sd">    Raises and error if inter-chromosomal pixels are found.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    apply_col : str</span>
+<span class="sd">        Column to apply the normalization to.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">apply_col</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_apply_col</span> <span class="o">=</span> <span class="n">apply_col</span>
+
+    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">table</span><span class="p">:</span> <span class="s2">&quot;Table&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;PdChunks&quot;</span><span class="p">:</span>
+
+        <span class="k">def</span> <span class="nf">distance_iter</span><span class="p">(</span><span class="n">table_obj</span><span class="p">):</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;Iter chunks with genomic distance. Add inter-chromosomal check.&quot;&quot;&quot;</span>
+
+            <span class="n">chunks</span> <span class="o">=</span> <span class="n">table_obj</span><span class="o">.</span><span class="n">chunks</span><span class="p">(</span><span class="n">annotated</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">bin_size</span> <span class="o">=</span> <span class="n">table_obj</span><span class="o">.</span><span class="n">bin_size</span>
+
+            <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">chunked</span><span class="o">.</span><span class="n">add_gen_dist</span><span class="p">(</span><span class="n">chunks</span><span class="p">,</span> <span class="n">bin_size</span><span class="p">):</span>
+
+                <span class="c1"># Check that inter-chromosomal pixels where removed</span>
+                <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">chunk</span><span class="p">[</span><span class="s2">&quot;chrom1&quot;</span><span class="p">]</span> <span class="o">!=</span> <span class="n">chunk</span><span class="p">[</span><span class="s2">&quot;chrom2&quot;</span><span class="p">]):</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Inter-chromosomal pixels must be removed.&quot;</span><span class="p">)</span>
+
+                <span class="k">yield</span> <span class="n">chunk</span>
+
+        <span class="n">norm_curve</span> <span class="o">=</span> <span class="n">chunked</span><span class="o">.</span><span class="n">chunked_quants</span><span class="p">(</span>
+            <span class="n">distance_iter</span><span class="p">(</span><span class="n">table</span><span class="p">),</span>
+            <span class="n">column</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_apply_col</span><span class="p">,</span>
+            <span class="n">quants</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+            <span class="n">split_on</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;chrom1&quot;</span><span class="p">,</span> <span class="s2">&quot;chrom2&quot;</span><span class="p">],</span>
+            <span class="n">group_by</span><span class="o">=</span><span class="s2">&quot;dist&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">norm_curve</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_apply_col</span><span class="p">:</span> <span class="s2">&quot;dist_norm&quot;</span><span class="p">},</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">distance_iter</span><span class="p">(</span><span class="n">table</span><span class="p">):</span>
+            <span class="n">chunk</span> <span class="o">=</span> <span class="n">chunk</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">norm_curve</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s2">&quot;left&quot;</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;chrom1&quot;</span><span class="p">,</span> <span class="s2">&quot;dist&quot;</span><span class="p">])</span>
+            <span class="n">chunk</span><span class="p">[</span><span class="s2">&quot;norm&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log2</span><span class="p">(</span><span class="n">chunk</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_apply_col</span><span class="p">]</span> <span class="o">/</span> <span class="n">chunk</span><span class="p">[</span><span class="s2">&quot;dist_norm&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+
+            <span class="k">yield</span> <span class="n">chunk</span><span class="p">[[</span><span class="s2">&quot;bin1_id&quot;</span><span class="p">,</span> <span class="s2">&quot;bin2_id&quot;</span><span class="p">,</span> <span class="s2">&quot;count&quot;</span><span class="p">,</span> <span class="s2">&quot;norm&quot;</span><span class="p">]]</span></div>
 
 </pre></div>
 

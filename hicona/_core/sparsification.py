@@ -96,6 +96,9 @@ class TableProcessor:
 
             tab_size += len(spar_chunk)
 
+        # TODO: Check if a normalization was applied
+        # TODO: Maybe make this a method of the flow object
+
     def create_table(self) -> HiconaTable:
         """Begin actual table processing."""
 

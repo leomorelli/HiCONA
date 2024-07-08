@@ -1,15 +1,16 @@
-"""Default functions for pixel table filtering."""
+"""Default classes for pixel table filtering."""
 
-from typing import TYPE_CHECKING as _TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 import pandas as pd
 
 from hicona._ops import chunked
 from hicona.preprocess._abcs import FiltOperation
 
-if _TYPE_CHECKING:
+if TYPE_CHECKING:
     from hicona._core import Table
     from hicona._dtypes import PdChunks
+
 
 __all__ = [
     "FiltGenomicDist",
@@ -74,11 +75,6 @@ class FiltGenomicDist(FiltOperation):
         Remove pixels whose genomic distance is smaller than this value.
         Default is 'None'.
 
-    Returns
-    -------
-    Generator of pandas.DataFrame
-        A generator of filtered pixel chunks.
-
     """
 
     def __init__(self, *, min_dist: int | None = None, max_dist: int | None = None):
@@ -118,11 +114,6 @@ class FiltColumnQuant(FiltOperation):
     chrom_wise : bool, optional
         If True, compute quantiles for each pair of chromosomes separately.
         Default is True.
-
-    Returns
-    -------
-    Generator of pandas.DataFrame
-        A generator of filtered pixel chunks.
 
     """
 
@@ -196,11 +187,6 @@ class FiltColumnValue(FiltOperation):
     upper_value : float or int or None, optional
         Remove pixels whose column value is not smaller than this value.
 
-    Returns
-    -------
-    Generator of pandas.DataFrame
-        A generator of filtered pixel chunks.
-
     """
 
     def __init__(
@@ -232,14 +218,6 @@ class FiltInterChroms(FiltOperation):
 
     Remove pixels whose bin1_id and bin2_id are on different chromosomes.
 
-    Parameters
-    ----------
-    table : Table
-        The table to be filtered.
-
-    Returns
-    -------
-    A generator of filtered pixel chunks.
     """
 
     def run(self, table: "Table") -> "PdChunks":
@@ -254,14 +232,6 @@ class FiltSelfLooping(FiltOperation):
 
     Remove pixels whose bin1_id and bin2_id are the same.
 
-    Parameters
-    ----------
-    table : Table
-        The table to be filtered.
-
-    Returns
-    -------
-    A generator of filtered pixel chunks.
     """
 
     def run(self, table: "Table") -> "PdChunks":

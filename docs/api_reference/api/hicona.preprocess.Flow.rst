@@ -10,6 +10,10 @@
 
    .. autosummary::
    
+      ~Flow.name
+   
+      ~Flow.ops
+   
    
    
    
@@ -24,6 +28,10 @@
       
    
       
+      ~Flow.from_file
+      
+   
+      
       ~Flow.from_json
       
    
@@ -32,15 +40,15 @@
       
    
       
-      ~Flow.ops_list
-      
-   
-      
-      ~Flow.ops_remove
-      
-   
-      
       ~Flow.ops_reset
+      
+   
+      
+      ~Flow.rename
+      
+   
+      
+      ~Flow.to_file
       
    
       

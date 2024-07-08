@@ -8,21 +8,15 @@ Preprocessing
 
 The preprocessing module provides a set of functionalities to customize the
 default preprocessing from the package. It mainly provides a :class:`Flow` class
-and a set of preprocessing functions.
+and a set of preprocessing operations which can be added to it.
 
-The :class:`Flow` can be used to specify the filtering and normalization operations
+The :class:`Flow` class can be used to specify the filtering and normalization operations
 to be applied to the data (in an order sensitive manner); it can be created from 
 scratch or by modifying a default one. Moreover these objects can be saved and loaded
 for a later use.
 
-The package provides a set of filtering and normalization functions, namely those
-that are more likely to be used. Nevertheless, any function can be used as long as 
-it satisfies the following conditions:
-
-- It must take an instance of the :class:`~hicona.HiconaTable` as its first argument.
-- All other arguments must be JSON-types.
-- It must return an iterable of ``pandas.DataFrame`` objects representing processed
-  table chunks.
+The package provides some filtering and normalization operations, namely those that are 
+more likely to be used. Support for custom operation is currently being worked on.
 
 
 Flow object
@@ -40,7 +34,10 @@ I/O methods
     :toctree: api/
 
     Flow.from_default
+    Flow.from_file
     Flow.from_json
+    Flow.rename
+    Flow.to_file
     Flow.to_json
 
 Operations
@@ -50,26 +47,23 @@ Operations
     :toctree: api/
 
     Flow.ops_add
-    Flow.ops_list
-    Flow.ops_remove
     Flow.ops_reset
 
-Filtering functions
--------------------
+Filtering operations
+--------------------
 .. autosummary::
     :toctree: api/
     
-    filt_genomic_dist
-    filt_column_quant
-    filt_column_value
-    filt_inter_chroms
-    filt_self_looping
+    FiltGenomicDist
+    FiltColumnQuant
+    FiltColumnValue
+    FiltInterChroms
+    FiltSelfLooping
 
-Normalization functions
------------------------
+Normalization operations
+------------------------
 .. autosummary::
     :toctree: api/
 
-    norm_genomic_dist
-    norm_none
-    norm_binwise
+    NormBinwise
+    NormGenomicDist

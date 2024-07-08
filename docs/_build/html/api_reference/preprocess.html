@@ -330,20 +330,20 @@ document.write(`
 <li class="toctree-l1 current active has-children"><a class="current reference internal" href="#">Preprocessing</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-4"><i class="fa-solid fa-chevron-down"></i></label><ul>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.html">hicona.preprocess.Flow</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.from_default.html">hicona.preprocess.Flow.from_default</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.from_file.html">hicona.preprocess.Flow.from_file</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.from_json.html">hicona.preprocess.Flow.from_json</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.rename.html">hicona.preprocess.Flow.rename</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.to_file.html">hicona.preprocess.Flow.to_file</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.to_json.html">hicona.preprocess.Flow.to_json</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.ops_add.html">hicona.preprocess.Flow.ops_add</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.ops_list.html">hicona.preprocess.Flow.ops_list</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.ops_remove.html">hicona.preprocess.Flow.ops_remove</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.Flow.ops_reset.html">hicona.preprocess.Flow.ops_reset</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.filt_genomic_dist.html">hicona.preprocess.filt_genomic_dist</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.filt_column_quant.html">hicona.preprocess.filt_column_quant</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.filt_column_value.html">hicona.preprocess.filt_column_value</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.filt_inter_chroms.html">hicona.preprocess.filt_inter_chroms</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.filt_self_looping.html">hicona.preprocess.filt_self_looping</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.norm_genomic_dist.html">hicona.preprocess.norm_genomic_dist</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.norm_none.html">hicona.preprocess.norm_none</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.norm_binwise.html">hicona.preprocess.norm_binwise</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.FiltGenomicDist.html">hicona.preprocess.FiltGenomicDist</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.FiltColumnQuant.html">hicona.preprocess.FiltColumnQuant</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.FiltColumnValue.html">hicona.preprocess.FiltColumnValue</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.FiltInterChroms.html">hicona.preprocess.FiltInterChroms</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.FiltSelfLooping.html">hicona.preprocess.FiltSelfLooping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.NormBinwise.html">hicona.preprocess.NormBinwise</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.NormGenomicDist.html">hicona.preprocess.NormGenomicDist</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="analysis.html">Analysis</a><input class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-5"><i class="fa-solid fa-chevron-down"></i></label><ul>
@@ -417,26 +417,19 @@ document.write(`
 <span id="api-preprocess"></span><h1>Preprocessing<a class="headerlink" href="#preprocessing" title="Link to this heading">#</a></h1>
 <p>The preprocessing module provides a set of functionalities to customize the
 default preprocessing from the package. It mainly provides a <a class="reference internal" href="api/hicona.preprocess.Flow.html#hicona.preprocess.Flow" title="hicona.preprocess.Flow"><code class="xref py py-class docutils literal notranslate"><span class="pre">Flow</span></code></a> class
-and a set of preprocessing functions.</p>
-<p>The <a class="reference internal" href="api/hicona.preprocess.Flow.html#hicona.preprocess.Flow" title="hicona.preprocess.Flow"><code class="xref py py-class docutils literal notranslate"><span class="pre">Flow</span></code></a> can be used to specify the filtering and normalization operations
+and a set of preprocessing operations which can be added to it.</p>
+<p>The <a class="reference internal" href="api/hicona.preprocess.Flow.html#hicona.preprocess.Flow" title="hicona.preprocess.Flow"><code class="xref py py-class docutils literal notranslate"><span class="pre">Flow</span></code></a> class can be used to specify the filtering and normalization operations
 to be applied to the data (in an order sensitive manner); it can be created from
 scratch or by modifying a default one. Moreover these objects can be saved and loaded
 for a later use.</p>
-<p>The package provides a set of filtering and normalization functions, namely those
-that are more likely to be used. Nevertheless, any function can be used as long as
-it satisfies the following conditions:</p>
-<ul class="simple">
-<li><p>It must take an instance of the <a class="reference internal" href="api/hicona.HiconaTable.html#hicona.HiconaTable" title="hicona.HiconaTable"><code class="xref py py-class docutils literal notranslate"><span class="pre">HiconaTable</span></code></a> as its first argument.</p></li>
-<li><p>All other arguments must be JSON-types.</p></li>
-<li><p>It must return an iterable of <code class="docutils literal notranslate"><span class="pre">pandas.DataFrame</span></code> objects representing processed
-table chunks.</p></li>
-</ul>
+<p>The package provides some filtering and normalization operations, namely those that are
+more likely to be used. Support for custom operation is currently being worked on.</p>
 <section id="flow-object">
 <h2>Flow object<a class="headerlink" href="#flow-object" title="Link to this heading">#</a></h2>
 <table class="autosummary longtable table autosummary">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="api/hicona.preprocess.Flow.html#hicona.preprocess.Flow" title="hicona.preprocess.Flow"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Flow</span></code></a>()</p></td>
-<td><p>Class to organize filtering and normalization functions for a table.</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="api/hicona.preprocess.Flow.html#hicona.preprocess.Flow" title="hicona.preprocess.Flow"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Flow</span></code></a>(name[, operations])</p></td>
+<td><p>Class to organize filtering and normalization steps for a table.</p></td>
 </tr>
 </tbody>
 </table>
@@ -445,13 +438,22 @@ table chunks.</p></li>
 <table class="autosummary longtable table autosummary">
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="api/hicona.preprocess.Flow.from_default.html#hicona.preprocess.Flow.from_default" title="hicona.preprocess.Flow.from_default"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Flow.from_default</span></code></a>(default_name)</p></td>
-<td><p>Load a default Flow.</p></td>
+<td><p>Load a default workflow provided by HiCONA.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="api/hicona.preprocess.Flow.from_json.html#hicona.preprocess.Flow.from_json" title="hicona.preprocess.Flow.from_json"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Flow.from_json</span></code></a>(json)</p></td>
-<td><p>Create an instance from a json file or dictionary.</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="api/hicona.preprocess.Flow.from_file.html#hicona.preprocess.Flow.from_file" title="hicona.preprocess.Flow.from_file"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Flow.from_file</span></code></a>(json)</p></td>
+<td><p>Create an instance from a json file.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="api/hicona.preprocess.Flow.to_json.html#hicona.preprocess.Flow.to_json" title="hicona.preprocess.Flow.to_json"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Flow.to_json</span></code></a>([file_path])</p></td>
-<td><p>Return the flow in a json-like dictionary, optionally save it.</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="api/hicona.preprocess.Flow.from_json.html#hicona.preprocess.Flow.from_json" title="hicona.preprocess.Flow.from_json"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Flow.from_json</span></code></a>(name, flow_dict)</p></td>
+<td><p>Create a flow from a json-like dictionary.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="api/hicona.preprocess.Flow.rename.html#hicona.preprocess.Flow.rename" title="hicona.preprocess.Flow.rename"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Flow.rename</span></code></a>(new_name)</p></td>
+<td><p>Rename the flow.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="api/hicona.preprocess.Flow.to_file.html#hicona.preprocess.Flow.to_file" title="hicona.preprocess.Flow.to_file"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Flow.to_file</span></code></a>(file_path)</p></td>
+<td><p>Save a flow to a json file.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="api/hicona.preprocess.Flow.to_json.html#hicona.preprocess.Flow.to_json" title="hicona.preprocess.Flow.to_json"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Flow.to_json</span></code></a>()</p></td>
+<td><p>Return the flow as a json-like dictionary.</p></td>
 </tr>
 </tbody>
 </table>
@@ -460,14 +462,8 @@ table chunks.</p></li>
 <h3>Operations<a class="headerlink" href="#operations" title="Link to this heading">#</a></h3>
 <table class="autosummary longtable table autosummary">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="api/hicona.preprocess.Flow.ops_add.html#hicona.preprocess.Flow.ops_add" title="hicona.preprocess.Flow.ops_add"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Flow.ops_add</span></code></a>(fun_obj[, fun_kwargs])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="api/hicona.preprocess.Flow.ops_add.html#hicona.preprocess.Flow.ops_add" title="hicona.preprocess.Flow.ops_add"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Flow.ops_add</span></code></a>(operation)</p></td>
 <td><p>Add a new operation to the operations flow.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="api/hicona.preprocess.Flow.ops_list.html#hicona.preprocess.Flow.ops_list" title="hicona.preprocess.Flow.ops_list"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Flow.ops_list</span></code></a>()</p></td>
-<td><p>Return the operations flow as a list of operations.</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="api/hicona.preprocess.Flow.ops_remove.html#hicona.preprocess.Flow.ops_remove" title="hicona.preprocess.Flow.ops_remove"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Flow.ops_remove</span></code></a>(fun_name)</p></td>
-<td><p>Remove the last occurrence of a function from the flow.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="api/hicona.preprocess.Flow.ops_reset.html#hicona.preprocess.Flow.ops_reset" title="hicona.preprocess.Flow.ops_reset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Flow.ops_reset</span></code></a>()</p></td>
 <td><p>Reset the operations flow.</p></td>
@@ -476,40 +472,37 @@ table chunks.</p></li>
 </table>
 </section>
 </section>
-<section id="filtering-functions">
-<h2>Filtering functions<a class="headerlink" href="#filtering-functions" title="Link to this heading">#</a></h2>
+<section id="filtering-operations">
+<h2>Filtering operations<a class="headerlink" href="#filtering-operations" title="Link to this heading">#</a></h2>
 <table class="autosummary longtable table autosummary">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="api/hicona.preprocess.filt_genomic_dist.html#hicona.preprocess.filt_genomic_dist" title="hicona.preprocess.filt_genomic_dist"><code class="xref py py-obj docutils literal notranslate"><span class="pre">filt_genomic_dist</span></code></a>(table[, min_dist, max_dist])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="api/hicona.preprocess.FiltGenomicDist.html#hicona.preprocess.FiltGenomicDist" title="hicona.preprocess.FiltGenomicDist"><code class="xref py py-obj docutils literal notranslate"><span class="pre">FiltGenomicDist</span></code></a>(**kwargs)</p></td>
 <td><p>Remove pixels whose genomic distance is outside of an interval.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="api/hicona.preprocess.filt_column_quant.html#hicona.preprocess.filt_column_quant" title="hicona.preprocess.filt_column_quant"><code class="xref py py-obj docutils literal notranslate"><span class="pre">filt_column_quant</span></code></a>(table, apply_col[, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="api/hicona.preprocess.FiltColumnQuant.html#hicona.preprocess.FiltColumnQuant" title="hicona.preprocess.FiltColumnQuant"><code class="xref py py-obj docutils literal notranslate"><span class="pre">FiltColumnQuant</span></code></a>(**kwargs)</p></td>
 <td><p>Remove pixels with column value outside a certain quantile range.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="api/hicona.preprocess.filt_column_value.html#hicona.preprocess.filt_column_value" title="hicona.preprocess.filt_column_value"><code class="xref py py-obj docutils literal notranslate"><span class="pre">filt_column_value</span></code></a>(table, apply_col[, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="api/hicona.preprocess.FiltColumnValue.html#hicona.preprocess.FiltColumnValue" title="hicona.preprocess.FiltColumnValue"><code class="xref py py-obj docutils literal notranslate"><span class="pre">FiltColumnValue</span></code></a>(**kwargs)</p></td>
 <td><p>Remove pixels with column value outside a certain interval.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="api/hicona.preprocess.filt_inter_chroms.html#hicona.preprocess.filt_inter_chroms" title="hicona.preprocess.filt_inter_chroms"><code class="xref py py-obj docutils literal notranslate"><span class="pre">filt_inter_chroms</span></code></a>(table)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="api/hicona.preprocess.FiltInterChroms.html#hicona.preprocess.FiltInterChroms" title="hicona.preprocess.FiltInterChroms"><code class="xref py py-obj docutils literal notranslate"><span class="pre">FiltInterChroms</span></code></a>(**kwargs)</p></td>
 <td><p>Remove inter-chromosomal pixels from the table.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="api/hicona.preprocess.filt_self_looping.html#hicona.preprocess.filt_self_looping" title="hicona.preprocess.filt_self_looping"><code class="xref py py-obj docutils literal notranslate"><span class="pre">filt_self_looping</span></code></a>(table)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="api/hicona.preprocess.FiltSelfLooping.html#hicona.preprocess.FiltSelfLooping" title="hicona.preprocess.FiltSelfLooping"><code class="xref py py-obj docutils literal notranslate"><span class="pre">FiltSelfLooping</span></code></a>(**kwargs)</p></td>
 <td><p>Remove self-looping pixels from the table.</p></td>
 </tr>
 </tbody>
 </table>
 </section>
-<section id="normalization-functions">
-<h2>Normalization functions<a class="headerlink" href="#normalization-functions" title="Link to this heading">#</a></h2>
+<section id="normalization-operations">
+<h2>Normalization operations<a class="headerlink" href="#normalization-operations" title="Link to this heading">#</a></h2>
 <table class="autosummary longtable table autosummary">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="api/hicona.preprocess.norm_genomic_dist.html#hicona.preprocess.norm_genomic_dist" title="hicona.preprocess.norm_genomic_dist"><code class="xref py py-obj docutils literal notranslate"><span class="pre">norm_genomic_dist</span></code></a>(table, apply_col)</p></td>
-<td><p>Apply default HiCONA normalization to a table (genomic distance).</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="api/hicona.preprocess.norm_none.html#hicona.preprocess.norm_none" title="hicona.preprocess.norm_none"><code class="xref py py-obj docutils literal notranslate"><span class="pre">norm_none</span></code></a>(table)</p></td>
-<td><p>Apply no normalization to a table.</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="api/hicona.preprocess.norm_binwise.html#hicona.preprocess.norm_binwise" title="hicona.preprocess.norm_binwise"><code class="xref py py-obj docutils literal notranslate"><span class="pre">norm_binwise</span></code></a>(table, apply_col, ann_name[, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="api/hicona.preprocess.NormBinwise.html#hicona.preprocess.NormBinwise" title="hicona.preprocess.NormBinwise"><code class="xref py py-obj docutils literal notranslate"><span class="pre">NormBinwise</span></code></a>(**kwargs)</p></td>
 <td><p>Apply a binwise normalization to a table.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="api/hicona.preprocess.NormGenomicDist.html#hicona.preprocess.NormGenomicDist" title="hicona.preprocess.NormGenomicDist"><code class="xref py py-obj docutils literal notranslate"><span class="pre">NormGenomicDist</span></code></a>(**kwargs)</p></td>
+<td><p>Apply default HiCONA normalization to a table (genomic distance).</p></td>
 </tr>
 </tbody>
 </table>
@@ -567,8 +560,8 @@ table chunks.</p></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#operations">Operations</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#filtering-functions">Filtering functions</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#normalization-functions">Normalization functions</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#filtering-operations">Filtering operations</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#normalization-operations">Normalization operations</a></li>
 </ul>
   </nav></div>
 

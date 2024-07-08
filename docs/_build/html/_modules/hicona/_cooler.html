@@ -345,7 +345,7 @@ document.write(`
 <span class="kn">import</span> <span class="nn">h5py</span>
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
 
-<span class="kn">from</span> <span class="nn">hicona._core</span> <span class="kn">import</span> <span class="n">base_table</span><span class="p">,</span> <span class="n">sparsification</span><span class="p">,</span> <span class="n">uris</span>
+<span class="kn">from</span> <span class="nn">hicona._core</span> <span class="kn">import</span> <span class="n">Table</span><span class="p">,</span> <span class="n">sparsification</span><span class="p">,</span> <span class="n">uris</span>
 <span class="kn">from</span> <span class="nn">hicona._ops</span> <span class="kn">import</span> <span class="n">bed</span><span class="p">,</span> <span class="n">hdf5</span>
 <span class="kn">from</span> <span class="nn">hicona.preprocess</span> <span class="kn">import</span> <span class="n">Flow</span>
 <span class="kn">from</span> <span class="nn">hicona._table</span> <span class="kn">import</span> <span class="n">HiconaTable</span>
@@ -485,15 +485,13 @@ document.write(`
 
     <span class="k">def</span> <span class="nf">_init_raw_table</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">serial</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="n">method</span><span class="p">:</span> <span class="n">Flow</span><span class="p">,</span>
         <span class="n">chunk_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">uris</span><span class="o">.</span><span class="n">Uris</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize a new raw table with the given parameters.&quot;&quot;&quot;</span>
 
         <span class="c1"># Get table uris</span>
-        <span class="n">table_path</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">tables_root</span><span class="si">}</span><span class="s2">/table_</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">serial</span><span class="p">)</span><span class="o">.</span><span class="n">zfill</span><span class="p">(</span><span class="mi">6</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
-        <span class="n">table_uris</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_uris</span><span class="o">.</span><span class="n">add_path</span><span class="p">(</span><span class="n">table_path</span><span class="p">)</span>
+        <span class="n">table_uris</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_uris</span><span class="o">.</span><span class="n">add_path</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">tables_root</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">method</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
         <span class="c1"># Initialize table</span>
         <span class="n">num_pix</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;nnz&quot;</span><span class="p">]</span>
@@ -508,7 +506,7 @@ document.write(`
             <span class="n">hdf5</span><span class="o">.</span><span class="n">write_chunk</span><span class="p">(</span><span class="n">table_uris</span><span class="p">,</span> <span class="n">chunk</span><span class="p">,</span> <span class="n">lower</span><span class="p">,</span> <span class="n">chunk</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span>
 
         <span class="c1"># Set table attributes</span>
-        <span class="n">table_attrs</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;process_info&quot;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">method</span><span class="o">.</span><span class="n">to_json</span><span class="p">())}</span>
+        <span class="n">table_attrs</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;flow&quot;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">method</span><span class="o">.</span><span class="n">to_json</span><span class="p">())}</span>
         <span class="n">hdf5</span><span class="o">.</span><span class="n">set_attrs</span><span class="p">(</span><span class="n">table_uris</span><span class="p">,</span> <span class="n">table_attrs</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">table_uris</span>
@@ -567,34 +565,27 @@ document.write(`
 <span class="sd">        4     0.4219     0.4155        3      890      1   1.0</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
-        <span class="c1"># TODO: Add a table alias to simplify the fetching</span>
-
         <span class="c1"># Convert any default string to the corresponding flow</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ops_flow</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
             <span class="n">ops_flow</span> <span class="o">=</span> <span class="n">Flow</span><span class="o">.</span><span class="n">from_default</span><span class="p">(</span><span class="n">ops_flow</span><span class="p">)</span>
 
         <span class="c1"># Initialize the tables root if it does not exist already.</span>
-        <span class="c1"># TODO: Maybe do not hardcode the serial attribute</span>
         <span class="n">table_root_uris</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_uris</span><span class="o">.</span><span class="n">add_path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tables_root</span><span class="p">)</span>
-        <span class="n">hdf5</span><span class="o">.</span><span class="n">require_group</span><span class="p">(</span><span class="n">table_root_uris</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;serial&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">})</span>
+        <span class="n">hdf5</span><span class="o">.</span><span class="n">require_group</span><span class="p">(</span><span class="n">table_root_uris</span><span class="p">)</span>
 
         <span class="c1"># Check there is no table with all matching keywords</span>
         <span class="k">for</span> <span class="n">table</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_iterate_tables</span><span class="p">():</span>
             <span class="k">if</span> <span class="n">table</span><span class="o">.</span><span class="n">flow</span> <span class="o">==</span> <span class="n">ops_flow</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;E: Table with the same flow already exists.&quot;</span><span class="p">)</span>
 
-        <span class="c1"># Get the next available table path</span>
-        <span class="n">serial</span> <span class="o">=</span> <span class="n">hdf5</span><span class="o">.</span><span class="n">get_attrs</span><span class="p">(</span><span class="n">table_root_uris</span><span class="p">)[</span><span class="s2">&quot;serial&quot;</span><span class="p">]</span>
-        <span class="n">hdf5</span><span class="o">.</span><span class="n">set_attrs</span><span class="p">(</span><span class="n">table_root_uris</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;serial&quot;</span><span class="p">:</span> <span class="n">serial</span> <span class="o">+</span> <span class="mi">1</span><span class="p">})</span>
-
-        <span class="n">table_uris</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_init_raw_table</span><span class="p">(</span><span class="n">serial</span><span class="p">,</span> <span class="n">ops_flow</span><span class="p">,</span> <span class="n">chunk_size</span><span class="p">)</span>
-        <span class="n">processor</span> <span class="o">=</span> <span class="n">sparsification</span><span class="o">.</span><span class="n">TableProcessor</span><span class="p">(</span><span class="n">base_table</span><span class="o">.</span><span class="n">Table</span><span class="p">(</span><span class="n">table_uris</span><span class="p">))</span>
+        <span class="n">table_uris</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_init_raw_table</span><span class="p">(</span><span class="n">ops_flow</span><span class="p">,</span> <span class="n">chunk_size</span><span class="p">)</span>
+        <span class="n">processor</span> <span class="o">=</span> <span class="n">sparsification</span><span class="o">.</span><span class="n">TableProcessor</span><span class="p">(</span><span class="n">Table</span><span class="p">(</span><span class="n">table_uris</span><span class="p">))</span>
         <span class="k">return</span> <span class="n">processor</span><span class="o">.</span><span class="n">create_table</span><span class="p">()</span></div>
 
 
 <div class="viewcode-block" id="HiconaCooler.fetch_table">
 <a class="viewcode-back" href="../../api_reference/api/hicona.HiconaCooler.fetch_table.html#hicona.HiconaCooler.fetch_table">[docs]</a>
-    <span class="k">def</span> <span class="nf">fetch_table</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ops_flow</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Flow</span> <span class="o">=</span> <span class="s2">&quot;hicona&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">HiconaTable</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">fetch_table</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;hicona&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">HiconaTable</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Retrieve a previously created sparsified pixel table.</span>
 
 <span class="sd">        Get a previously sparsified ``pixel`` table as a ``HiconaTable``</span>
@@ -603,10 +594,8 @@ document.write(`
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
-<span class="sd">        ops_flow : str or Flow, optional</span>
-<span class="sd">            Flow originally used to create the table, provided as either a</span>
-<span class="sd">            string or a ``Flow`` object. If a string is provided, the default</span>
-<span class="sd">            flow for the corresponding method is used. Default is &#39;hicona&#39;.</span>
+<span class="sd">        name : str, optional</span>
+<span class="sd">            Name of the flow used to create the table. Default is &#39;hicona&#39;.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -615,7 +604,6 @@ document.write(`
 
 <span class="sd">        See Also</span>
 <span class="sd">        --------</span>
-<span class="sd">        preprocess.Flow : Used to define a preprocessing workflow.</span>
 <span class="sd">        HiconaTable : Object to handle a sparsified pixel table.</span>
 <span class="sd">        HiconaCooler.list_tables : Print the available pixel tables.</span>
 
@@ -634,53 +622,39 @@ document.write(`
 <span class="sd">        4        0.4219     0.4155        3      890      1   1.0</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
-        <span class="c1"># TODO: maybe change the method to fetch the table using alias</span>
-        <span class="c1"># TODO: Sometimes there is an issue with fetching the table</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ops_flow</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
-            <span class="n">ops_flow</span> <span class="o">=</span> <span class="n">Flow</span><span class="o">.</span><span class="n">from_default</span><span class="p">(</span><span class="n">ops_flow</span><span class="p">)</span>
-
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">tables</span> <span class="o">=</span> <span class="p">[</span><span class="n">t</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_iterate_tables</span><span class="p">()</span> <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">flow</span> <span class="o">==</span> <span class="n">ops_flow</span><span class="p">]</span>
-        <span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;E: No table has been generated yet.&quot;</span><span class="p">)</span> <span class="kn">from</span> <span class="nn">exc</span>
-
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tables</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>  <span class="c1"># NOTE: This should never happen</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;E: Multiple tables with matching parameters found.&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">tables</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;E: No table with matching parameters was found.&quot;</span><span class="p">)</span>
-
-        <span class="k">return</span> <span class="n">tables</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span></div>
+        <span class="n">tables_uris</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_uris</span><span class="o">.</span><span class="n">add_path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_tables_root</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">HiconaTable</span><span class="p">(</span><span class="n">tables_uris</span><span class="o">.</span><span class="n">add_path</span><span class="p">(</span><span class="n">name</span><span class="p">))</span></div>
 
 
 <div class="viewcode-block" id="HiconaCooler.list_tables">
 <a class="viewcode-back" href="../../api_reference/api/hicona.HiconaCooler.list_tables.html#hicona.HiconaCooler.list_tables">[docs]</a>
     <span class="k">def</span> <span class="nf">list_tables</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Print the available pixel tables.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Print the names of the available pixel tables.</span>
 
-<span class="sd">        Print the available sparsified ``pixel`` tables and the operations</span>
-<span class="sd">        used to create them in a tabular format.</span>
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        Print the names of the available tables.</span>
 
-<span class="sd">        Notes</span>
-<span class="sd">        -----</span>
-<span class="sd">        Graphical representation is still being worked on.</span>
+<span class="sd">        &gt;&gt;&gt; import hicona</span>
+<span class="sd">        &gt;&gt;&gt; handle = hicona.HiconaCooler(&quot;path/to/file.cool&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; handle.list_tables()</span>
+<span class="sd">        Available tables:</span>
+<span class="sd">        - hicona</span>
+<span class="sd">        - ice</span>
+
 <span class="sd">        &quot;&quot;&quot;</span>
 
-        <span class="c1"># TODO: Add a better printout and remove comment from docstring</span>
-        <span class="c1"># TODO: Add example to docstring when printout is defined</span>
         <span class="c1"># TODO: Breaks if the group does not exists</span>
 
         <span class="n">out</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
-        <span class="n">separator</span> <span class="o">=</span> <span class="s2">&quot;-&quot;</span> <span class="o">*</span> <span class="mi">78</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
 
         <span class="k">for</span> <span class="n">table</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_iterate_tables</span><span class="p">():</span>
-            <span class="n">out</span> <span class="o">+=</span> <span class="n">separator</span>
-            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">table</span><span class="o">.</span><span class="n">flow</span><span class="o">.</span><span class="n">to_json</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-                <span class="n">out</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;- </span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">v</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="n">out</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;- </span><span class="si">{</span><span class="n">table</span><span class="o">.</span><span class="n">flow</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">out</span><span class="p">:</span>
-            <span class="n">out</span> <span class="o">=</span> <span class="s2">&quot;No tables available yet.</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="s2">&quot;- No tables available yet.</span><span class="se">\n</span><span class="s2">&quot;</span>
 
-        <span class="n">out</span> <span class="o">=</span> <span class="n">separator</span> <span class="o">+</span> <span class="n">out</span> <span class="o">+</span> <span class="n">separator</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="s2">&quot;Available tables:</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="n">out</span>
         <span class="nb">print</span><span class="p">(</span><span class="n">out</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span></div>
 
 
