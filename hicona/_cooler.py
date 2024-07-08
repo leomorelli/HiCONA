@@ -291,32 +291,32 @@ class HiconaCooler(cooler.Cooler):
         return HiconaTable(tables_uris.add_path(name))
 
     def list_tables(self) -> None:
-        """Print the available pixel tables.
+        """Print the names of the available pixel tables.
 
-        Print the available sparsified ``pixel`` tables and the operations
-        used to create them in a tabular format.
+        Examples
+        --------
+        Print the names of the available tables.
 
-        Notes
-        -----
-        Graphical representation is still being worked on.
+        >>> import hicona
+        >>> handle = hicona.HiconaCooler("path/to/file.cool")
+        >>> handle.list_tables()
+        Available tables:
+        - hicona
+        - ice
+
         """
 
-        # TODO: Add a better printout and remove comment from docstring
-        # TODO: Add example to docstring when printout is defined
-        # TODO: Breaks if the group does not exists
+        # TODO: Breaks if the tables group does not exists
 
         out = ""
-        separator = "-" * 78 + "\n"
 
         for table in self._iterate_tables():
-            out += separator
-            for k, v in table.flow.to_json().items():
-                out += f"- {k}: {v}\n"
+            out += f"- {table.flow.name}\n"
 
         if not out:
-            out = "No tables available yet.\n"
+            out = "- No tables available yet.\n"
 
-        out = separator + out + separator
+        out = "Available tables:\n" + out
         print(out.strip())
 
     # ////////////////////////////////////////////////////////////////////////
