@@ -1,8 +1,8 @@
-"""Module to handle filtering and normalization functions for a table.
+"""Module to handle filtering and normalization flow for a table.
 
 This module contains the `Flow` class, which is used to schedule
-and retrieve the operations applied to a pixel table in order to filter and
-normalize it.
+and retrieve the operations applied to a pixel table in order to filter
+and normalize it.
 
 """
 
@@ -18,10 +18,6 @@ if TYPE_CHECKING:
 
 
 __all__ = ["Flow"]
-
-
-# TODO: Maybe make the Flow immutable when fetching a table,
-#       requiring to create a copy of the object to modify it again.
 
 
 def _fetch_funs(
@@ -50,37 +46,19 @@ def _fetch_funs(
 
 
 class Flow:
-    """Class to organize filtering and normalization functions for a table.
+    """Class to organize filtering and normalization steps for a table.
 
-    This class is used to specify a set of filtering and normalization
-    functions (in an order sensitive manner), which can be used to create
-    or fetch a processed pixel table.
+    This class is used to specify an ordered list of filtering and
+    normalization steps, which can be used to create or fetch a pixel table.
 
-    Though the object can be initialized directly using its constructor
-    method (which takes no arguments), it should generally be created
-    using one of its class methods (``from_default`` and ``from_json``).
+    The object can be initialized using its class constructor or one of the
+    class methods. Unless a custom ``Flow`` is required, usually the objects
+    will be initialized using the ``from_default`` method.
 
-    Any custom function can be added to the workflow as long as:
+    Instances of this class are immutable to prevent accidental changes to the
+    flow of processed tables, therefore all methods that modify the flow
+    return a new instance of the object with the changes applied.
 
-    - It takes an instance of ``HiconaTable`` as its first argument.
-    - All other arguments are JSON data-types.
-    - It returns an iterator of processed chunks as ``pandas.DataFrame``
-      instances with the columns ``bin1_id``, ``bin2_id``, ``count`` and ``norm``.
-
-
-    .. warning::
-        No check is performed on the custom functions, since it is complex
-        to test for a highly variable function signature. It is up to the
-        user to ensure that the functions are correctly implemented; if
-        they are not, the program might crash at runtime or, worst case,
-        produce incorrect results. A check might me added in the future.
-
-    .. warning::
-        At the moment, it is manually needed to ensure that at least one
-        normalization function is applied, that is, there there is at least
-        one function which saves the values to the ``norm`` column. If no
-        normalization is needed, add ``norm_none`` to the flow. This might
-        be performed automatically in the future.
 
     See Also
     --------
@@ -88,28 +66,22 @@ class Flow:
         The class to handle pixel tables.
     hicona.preprocess.Flow.from_default :
         Load a default flow from the ones available from HiCONA.
-    hicona.preprocess.Flow.from_json :
-        Load a flow from a json-like file or dictionary.
-    hicona.preprocess.norm_none :
-        A normalization function that only copies the values to the ``norm`` column.
-
 
     Examples
     --------
 
     Create an empty flow using its constructor:
 
-    >>> from hicona.preprocess import Flow
-    >>> flow = Flow()
+    >>> import hicona.preprocess as prep
+    >>> flow = prep.Flow("my_flow")  # Empty flow to add functions to
 
-    Load a default flow using the class methods:
 
-    >>> flow = Flow.from_default("default_flow")
-    >>> flow = Flow.from_json("path/to/file.json")
+    Load a flow using the class methods:
+
+    >>> flow = prep.Flow.from_default("hicona")
+    >>> flow = prep.Flow.from_file("path/to/file.json")
 
     """
-
-    # TODO: find a way to remove the two warnings
 
     def __init__(self, name: str, operations: Iterable["Operation"] | None = None):
         self._name: str = name
@@ -132,7 +104,7 @@ class Flow:
             out_str += f" - {op.name} -> {op.kwargs}\n"
 
         if len(self) == 0:
-            out_str += " - No operations added yet."
+            out_str += " - No operations."
 
         return out_str.strip()
 
@@ -161,8 +133,8 @@ class Flow:
         --------
         Rename the flow:
 
-        >>> from hicona.preprocess import Flow
-        >>> flow = Flow.from_default("hicona")
+        >>> import hicona.preprocess as prep
+        >>> flow = prep.Flow.from_default("hicona")
         >>> print(flow.name)
         'hicona'
         >>> flow = flow.rename("new_name")
@@ -174,8 +146,33 @@ class Flow:
         return Flow(name=new_name, operations=self._ops)
 
     @classmethod
-    def from_dict(cls, name: str, flow_dict: "JsonDict") -> "Flow":
-        """Create a flow from a dictionary."""
+    def from_json(cls, name: str, flow_dict: "JsonDict") -> "Flow":
+        """Create a flow from a json-like dictionary.
+
+        Create an instance of ``Flow`` from a json-like dictionary representation,
+        that is, a dictionary in the format ``{order: {"name": "op_name", "kwargs": {}}}``.
+
+        Parameters
+        ----------
+        name: str
+            The name of the flow.
+        flow_dict: dict
+            The operations to add to the flow, in json format.
+
+        Returns
+        -------
+        Flow
+            Workflow with the provided operations already added.
+
+        Examples
+        --------
+        Create a flow from a json-like dictionary:
+
+        >>> import hicona.preprocess as prep
+        >>> json = {0: {"name": "FiltInterChroms", "kwargs": {}}}
+        >>> flow = prep.Flow.from_json("my_flow", json)
+
+        """
 
         # Sort flow_dict by keys to ensure order and check for gaps
         sort_dict: JsonDict = dict(sorted(flow_dict.items(), key=lambda x: x[0]))
@@ -189,18 +186,22 @@ class Flow:
         return cls(name, operations)
 
     @classmethod
-    def from_json(cls, json: str) -> "Flow":
-        """Create an instance from a json file or dictionary.
+    def from_file(cls, json: str) -> "Flow":
+        """Create an instance from a json file.
 
-        Create an instance of ``Flow`` from a ``Flow`` previously saved to a
-        json file or from a json-like dictionary representation of a ``Flow``.
-        Any non default function required by the workflow must be accessible
-        in the namespace.
+        Load a flow which was previously saved to a json file using the method
+        ``to_file``.
+
+        .. warning::
+            Currently, the method only supports loading flows with all default
+            functions. Custom functions are not supported yet but will be in the
+            future.
+
 
         Parameters
         ----------
-        json_data: str or json-like dictionary
-            The operations to add to the flow, in json format.
+        json: str
+            The path to the json file containing the flow.
 
         Returns
         -------
@@ -209,20 +210,16 @@ class Flow:
 
         Examples
         --------
-        Create a flow from a json-like dictionary:
-
-        >>> from hicona.preprocess import Flow
-        >>> flow = Flow.from_json({0: {"name": "fun_name", "kwargs": {}})
-
         Create a flow from a json file:
 
-        >>> flow = Flow.from_json("path/to/file.json")
+        >>> import hicona.preprocess as prep
+        >>> flow = prep.Flow.from_file("path/to/file.json")
 
         """
 
         json_data: dict[str, JsonDict] = io.read_resource(json)
         name, data = json_data.popitem()
-        return cls.from_dict(name, data)
+        return cls.from_json(name, data)
 
     @classmethod
     def from_default(cls, default_name: str) -> "Flow":
@@ -245,45 +242,38 @@ class Flow:
         --------
         Load a default flow from HiCONA:
 
-        >>> from hicona.preprocess import Flow
-        >>> flow = Flow.from_default("hicona")
+        >>> import hicona.preprocess as prep
+        >>> flow = prep.Flow.from_default("hicona")
         >>> print(flow)
-        Operations flow:
-         - filt_self_looping -> {}
-         - filt_inter_chroms -> {}
-         - filt_genomic_dist -> {'min_dist': None, 'max_dist': 200000000}
-         - norm_genomic_dist -> {'apply_col': 'count'}
-         - filt_column_quant -> {'lower_quant': 0.05, 'upper_quant': None ...  # etc
+        Flow 'hicona':
+        - FiltSelfLooping -> {}
+        - FiltInterChroms -> {}
+        - FiltGenomicDist -> {'max_dist': 200000000}
+        - NormGenomicDist -> {'apply_col': 'count'}
+        - FiltColumnQuant -> {'apply_col': 'norm', 'lower_quant': 0.05}
 
         """
 
         default_json = io.read_resource(_DEFAULT_FLOWS, is_static=True)
-        return cls.from_dict(default_name, default_json[default_name])
+        return cls.from_json(default_name, default_json[default_name])
 
     @property
     def ops(self) -> tuple["Operation", ...]:
-        """Return the operations flow as a list of operations.
-
-        Return a list of tuples with the operations in the flow.
-        Each tuple contains the function object and its kwargs.
+        """Return the operations in the flow as a tuple of operations.
 
         Returns
         -------
-        list of tuples[Callable, dict[str, Any]]
-            List of tuples with the operations in the flow.
+        tuple of Operation objects
+            The operations in the flow.
 
         Examples
         --------
-        List the operations in the flow:
+        Get the operations in the flow as a tuple:
 
-        >>> from hicona.preprocess import Flow
-        >>> flow = Flow.from_default("hicona")
-        >>> [print(f.__name__, kwargs) for f, kwargs in flow.ops()]
-        ('filt_self_looping', {})
-        ('filt_inter_chroms', {})
-        ('filt_genomic_dist', {'min_dist': None, 'max_dist': 200000000})
-        ('norm_genomic_dist', {'apply_col': 'count'})
-        ('filt_column_quant', {'lower_quant': 0.05, 'upper_quant': None ...  # etc
+        >>> import hicona.preprocess as prep
+        >>> flow = prep.Flow.from_default("hicona")
+        >>> print(flow.ops)
+        (FiltSelfLooping, FiltInterChroms, FiltGenomicDist, NormGenomicDist, FiltColumnQuant)
         """
 
         return self._ops
@@ -292,6 +282,11 @@ class Flow:
         """Reset the operations flow.
 
         Reset the operations flow, removing all operations added so far.
+
+        Returns
+        -------
+        Flow
+            Empty flow.
 
         Examples
         --------
@@ -312,63 +307,101 @@ class Flow:
     def ops_add(self, operation: "Operation") -> "Flow":
         """Add a new operation to the operations flow.
 
-        Add a new operation to the operations flow. The function can be either
-        one of the default ones provided by HiCONA or a custom one, as long as
-        it follows the requirements specified in the class docstring.
+        Given an instance of a class that inherits from either ``FiltOperation`` or
+        ``NormOperation``, add it as the last operation in the flow.
+
+        .. warning::
+            Currently the method only supports adding default functions. Custom
+            functions are not supported yet but will be in the future.
 
         Parameters
         ----------
-        fun_obj: Callable
-            The name of the function to add to the operations flow.
-        fun_kwargs: dict or None, optional
-            The kwargs to pass to the function. Default is 'None'.
+        operation: Operation
+            The operation to add to the flow.
+
+        Returns
+        -------
+        Flow
+            Flow with the new operation added.
 
         Examples
         --------
-        Add a default operation to the flow:
+        Add a new operation to the flow:
 
-        >>> from hicona.preprocess import Flow, filt_genomic_dist
-        >>> flow = Flow.from_default("hicona")
+        >>> import hicona.preprocess as prep
+        >>> flow = prep.Flow.from_default("hicona")
         >>> print(len(flow))
         5
-        >>> flow.ops_add(filt_genomic_dist, {"max_dist": 2000000})
+        >>> flow = flow.ops_add(prep.NormBinwise())
         >>> print(len(flow))
         6
 
-        Add a custom operation to the flow:
+        Adding operations can be done in a chain-like fashion:
 
-        >>> def custom_fun(table, arg1, arg2):
-        ...     for chunk in table:
-        ...         # Some custom code here
-        ...         yield chunk
-        ...
-        >>> flow.ops_add(custom_fun, {"arg1": 1, "arg2": 2})
+        >>> flow = (
+        ...     prep.Flow("custom_flow")
+        ...     .ops_add(prep.FiltSelfLooping())
+        ...     .ops_add(prep.FiltInterChroms())
+        ...     .ops_add(prep.FiltGenomicDist(min_dist=1000000))
+        ...     .ops_add(prep.NormGenomicDist(apply_col="count"))
+        ...     .ops_add(prep.FiltColumnQuant(apply_col="norm", lower_quant=0.05))
+        ... )
         >>> print(len(flow))
-        7
+        5
 
         """
 
         return Flow(name=self.name, operations=[*self._ops, operation])
 
-    def to_json(self, file_path=None | str) -> "JsonDict":
-        """Return the flow in a json-like dictionary, optionally save it.
+    def to_file(self, file_path: str) -> None:
+        """Save a flow to a json file.
 
-        Convert the flow to a json-like dictionary, where the keys are the
-        order of the operations and the values are dictionaries with the
-        operation name and its kwargs. This is done to preserve the order.
+        Save a flow to a json file so that it can be loaded later.
+
+        Parameters
+        ----------
+        file_path: str
+            The path to save the flow to.
+
+        Examples
+        --------
+        Save a flow to a json file after modifying it:
+
+        >>> import hicona.preprocess as prep
+        >>> flow = prep.Flow.from_default("hicona")
+        >>> flow.to_file("path/to/file.json")
+
+        """
+
+        full_json = {self.name: self.to_json()}
+
+        io.write_resource(file_path, full_json, is_static=False)
+
+    def to_json(self) -> "JsonDict":
+        """Return the flow as a json-like dictionary.
+
+        Convert the flow to a json-like dictionary, that is, a dictionary in the
+        format ``{order: {"name": "op_name", "kwargs": {}}}``.
 
         Returns
         -------
-        A dictionary with the operations flow in json-like format.
+        dict
+            The flow as a json-like dictionary.
+
+        Examples
+        --------
+        Get the flow as a json-like dictionary:
+
+        >>> import hicona.preprocess as prep
+        >>> flow = prep.Flow("my_flow").add(prep.FiltInterChroms())
+        >>> print(flow.to_json())
+        {0: {"name": "FiltInterChroms", "kwargs": {}}}
+
         """
 
         json_res: JsonDict = {
             str(order): {"name": op.name, "kwargs": op.kwargs}
             for order, op in enumerate(self._ops)
         }
-        full_json = {self.name: json_res}
 
-        if isinstance(file_path, str):
-            io.write_resource(file_path, full_json, is_static=False)
-
-        return full_json
+        return json_res
