@@ -1,6 +1,7 @@
 """Module containing the Table class and related utilities."""
 
 import json
+from pathlib import Path
 from typing import Iterable
 
 import cooler
@@ -141,8 +142,9 @@ class Table:
             """Reconstruct the flow.Flow object from the store."""
 
             tab_attrs = hdf5.get_attrs(uri_path)
+            flow_name = Path(uri_path.hdf5_uris()[1]).name
             flow_json = json.loads(tab_attrs["flow"])
-            return Flow.from_dict(*flow_json.popitem())
+            return Flow.from_json(flow_name, flow_json)
 
         def get_bin_size(uri_path: uris.Uris) -> int:
             """Return the bin size of the cooler."""
