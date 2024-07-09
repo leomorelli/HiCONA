@@ -12,21 +12,21 @@ if _TYPE_CHECKING:
     from hicona._dtypes import PdChunks
 
 
-__all__ = ["NormNone", "NormBinwise", "NormGenomicDist"]
+__all__ = ["NormBinwise", "NormGenomicDist"]
 
 
-class NormNone(NormOperation):
-    """Apply no normalization to a table.
+# class NormNone(NormOperation):
+#     """Apply no normalization to a table.
 
-    Do not apply any normalization to the table, just return the original
-    count values as the normalized values. This is used to copy the raw
-    values to the normalized column when no normalization was applied.
-    """
+#     Do not apply any normalization to the table, just return the original
+#     count values as the normalized values. This is used to copy the raw
+#     values to the normalized column when no normalization was applied.
+#     """
 
-    def run(self, table: "Table") -> "PdChunks":
-        for chunk in table.chunks():
-            chunk["norm"] = chunk["count"]
-            yield chunk[["bin1_id", "bin2_id", "count", "norm"]]
+#     def run(self, table: "Table") -> "PdChunks":
+#         for chunk in table.chunks():
+#             chunk["norm"] = chunk["count"]
+#             yield chunk[["bin1_id", "bin2_id", "count", "norm"]]
 
 
 class NormBinwise(NormOperation):

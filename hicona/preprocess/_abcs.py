@@ -108,3 +108,19 @@ class FiltOperation(OperationABC):  # pylint: disable=abstract-method
 
     def __init__(self):
         pass
+
+
+class SparOperation(OperationABC):  # pylint: disable=abstract-method
+    """Abstract class for any sparsification operation.
+
+    Any custom sparsification operation should inherit from this class and
+    override the `run` method with the function of interest. The run method
+    should not take any parameters aside from the `Table` instance.
+
+    If any parameter needs to be passed, override the class constructor.
+    All parameters in the class constructor should be provided as keyword
+    arguments and should be in a format that can be serialized to json.
+    """
+
+    def __init__(self):
+        pass

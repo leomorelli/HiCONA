@@ -10,7 +10,7 @@
 		},
 		"2": {
 			"name": "FiltGenomicDist", 
-			"kwargs": {"max_dist": 200000000}
+			"kwargs": {"max_dist": 50000000}
 		},
         "3": {
 			"name": "NormGenomicDist", 
@@ -18,25 +18,63 @@
 		},
 		"4": {
 			"name": "FiltColumnQuant", 
-			"kwargs": {"apply_col": "norm", "lower_quant": 0.05}
+			"kwargs": {"apply_col": "norm", "lower_quant": 0.01}
+		},
+		"5": {
+			"name": "SparWeighted",
+			"kwargs": {"apply_col": "norm", "bonferroni": false}
 		}
     },
-    "ice": { 
+	"hicona_ice": {
 		"0": {
-			"name": "NormBinwise", 
-			"kwargs": {"apply_col": "count", "ann_name": "weight", "divisive": false, "drop_nas": true}
-		},
-		"1": {
-			"name": "FiltInterChroms", 
-			"kwargs": {}
-		},
-		"2": {
 			"name": "FiltSelfLooping", 
 			"kwargs": {}
 		},
-		"3": {
+		"1": {
+			"name": "FiltInterChroms",
+			"kwargs": {}
+		},
+		"2": {
 			"name": "FiltGenomicDist", 
 			"kwargs": {"max_dist": 50000000}
+		},
+		"3": {
+			"name": "NormBinwise",
+			"kwargs": {"apply_col": "count", "ann_name": "weight"}
+		},
+        "4": {
+			"name": "NormGenomicDist", 
+			"kwargs": {"apply_col": "count"}
+		},
+		"5": {
+			"name": "FiltColumnQuant", 
+			"kwargs": {"apply_col": "norm", "lower_quant": 0.01}
+		},
+		"6": {
+			"name": "SparWeighted",
+			"kwargs": {"apply_col": "norm", "bonferroni": false}
 		}
-	}
+    },
+	"raw": {
+		"0": {
+			"name": "FiltSelfLooping", 
+			"kwargs": {}
+		},
+		"1": {
+			"name": "FiltInterChroms",
+			"kwargs": {}
+		},
+		"2": {
+			"name": "FiltGenomicDist", 
+			"kwargs": {"max_dist": 50000000}
+		},
+		"3": {
+			"name": "FiltColumnQuant", 
+			"kwargs": {"apply_col": "count", "lower_quant": 0.01}
+		},
+		"4": {
+			"name": "SparWeighted",
+			"kwargs": {"apply_col": "count", "bonferroni": false}
+		}
+    }
 }

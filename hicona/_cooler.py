@@ -14,7 +14,7 @@ import cooler
 import h5py
 import pandas as pd
 
-from hicona._core import Table, sparsification, uris
+from hicona._core import Table, uris
 from hicona._ops import bed, hdf5
 from hicona.preprocess import Flow
 from hicona._table import HiconaTable
@@ -243,9 +243,19 @@ class HiconaCooler(cooler.Cooler):
             if table.flow == ops_flow:
                 raise ValueError("E: Table with the same flow already exists.")
 
-        table_uris = self._init_raw_table(ops_flow, chunk_size)
-        processor = sparsification.TableProcessor(Table(table_uris))
-        return processor.create_table()
+        table = Table(self._init_raw_table(ops_flow, chunk_size))
+        for op in table.flow.ops:
+
+            print(f"Starting to apply: {op.name}")
+
+            tab_size = hdf5.write_table(table.uris, op.run(table))
+            hdf5.resize_table(table.uris, tab_size)
+            table.reset_index()
+
+            print(f"Finished applying: {op.name}")
+            print(f"Table size: {tab_size}")
+
+        return HiconaTable(table.uris)
 
     def fetch_table(self, name: str = "hicona") -> HiconaTable:
         """Retrieve a previously created sparsified pixel table.

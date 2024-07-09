@@ -6,7 +6,7 @@ import matplotlib.axes as ax
 import pandas as pd
 
 if TYPE_CHECKING:
-    from hicona.preprocess import FiltOperation, NormOperation
+    from hicona.preprocess import FiltOperation, NormOperation, SparOperation
 
 # Type alias for an iterable (usually a generator) of pandas DataFrames.
 PdChunks = Iterable[pd.DataFrame]
@@ -27,4 +27,4 @@ KwargsDict = dict[str, Any]
 JsonDict = dict[str, dict[str, Any]]
 
 
-Operation = Union["FiltOperation", "NormOperation"]
+Operation = Union["FiltOperation", "NormOperation", "SparOperation"]
