@@ -16,7 +16,7 @@ test.py
 */.coverage
 
 # Ignore misc
-tables_tutorial.py
+statistical_test
 
 # Ignore vscode files
 .vscode/

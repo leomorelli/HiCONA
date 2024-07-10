@@ -45,11 +45,11 @@ def test_annotations_list_some(annotated_cooler):
 
 
 """
-def test_add_bin_annotation():
+def test_add_bin_annot():
     pass
 
 
-def test_del_bin_annotation():
+def test_del_bin_annot():
     pass
 
 

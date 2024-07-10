@@ -3,12 +3,14 @@ Hicona
 ======
 
 A Python3 package for the network analysis of Hi-C data.
+
 """
 
-from .hicona_cooler import *
-from .hicona_graph import *
-from .plotting import *
-from .processing import *
-from .settings import *
+__version__ = "alpha"
 
-# from .chrom_table import *
+
+from ._cooler import HiconaCooler
+from ._graph import HiconaGraph  # TODO: Make optional
+from ._table import HiconaTable
+from . import analysis
+from . import preprocess

@@ -1,0 +1,1150 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>hicona._cooler &#8212; HiCONA alpha documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "light";
+  </script>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../_static/styles/theme.css?digest=8d27b9dea8ad943066ae" rel="stylesheet" />
+<link href="../../_static/styles/bootstrap.css?digest=8d27b9dea8ad943066ae" rel="stylesheet" />
+<link href="../../_static/styles/pydata-sphinx-theme.css?digest=8d27b9dea8ad943066ae" rel="stylesheet" />
+
+  
+  <link href="../../_static/vendor/fontawesome/6.5.1/css/all.min.css?digest=8d27b9dea8ad943066ae" rel="stylesheet" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="../../_static/vendor/fontawesome/6.5.1/webfonts/fa-solid-900.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../_static/vendor/fontawesome/6.5.1/webfonts/fa-brands-400.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../_static/vendor/fontawesome/6.5.1/webfonts/fa-regular-400.woff2" />
+
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=362ab14a" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../_static/design-style.1e8bd061cd6da7fc9cf755528e8ffc24.min.css?v=0a3b3ea7" />
+  
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=8d27b9dea8ad943066ae" />
+<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=8d27b9dea8ad943066ae" />
+  <script src="../../_static/vendor/fontawesome/6.5.1/js/all.min.js?digest=8d27b9dea8ad943066ae"></script>
+
+    <script src="../../_static/documentation_options.js?v=1f169f65"></script>
+    <script src="../../_static/doctools.js?v=9a2dae69"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../../_static/copybutton.js?v=f281be69"></script>
+    <script src="../../_static/design-tabs.js?v=36754332"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = '_modules/hicona/_cooler';</script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <a id="pst-skip-link" class="skip-link" href="#main-content">Skip to main content</a>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>
+    Back to top
+  </button>
+
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          name="__primary"
+          id="__primary"/>
+  <label class="overlay overlay-primary" for="__primary"></label>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          name="__secondary"
+          id="__secondary"/>
+  <label class="overlay overlay-secondary" for="__secondary"></label>
+  
+  <div class="search-button__wrapper">
+    <div class="search-button__overlay"></div>
+    <div class="search-button__search-container">
+<form class="bd-search d-flex align-items-center"
+      action="../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         id="search-input"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+  </div>
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar">
+<div class="bd-header__inner bd-page-width">
+  <label class="sidebar-toggle primary-toggle" for="__primary">
+    <span class="fa-solid fa-bars"></span>
+  </label>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+
+<a class="navbar-brand logo" href="../../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">HiCONA alpha documentation</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav class="navbar-nav">
+  <ul class="bd-navbar-elements navbar-nav">
+    
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../getting_started/index.html">
+                        Getting started
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../user_guide/index.html">
+                        User guide
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../api_reference/index.html">
+                        API reference
+                      </a>
+                    </li>
+                
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+ <script>
+ document.write(`
+   <button class="btn navbar-btn search-button-field search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <span class="search-button__default-text">Search</span>
+    <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+   </button>
+ `);
+ </script>
+        </div>
+      
+      
+        <div class="navbar-item">
+
+<script>
+document.write(`
+  <button class="btn btn-sm navbar-btn theme-switch-button" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="theme-switch nav-link" data-mode="light"><i class="fa-solid fa-sun fa-lg"></i></span>
+    <span class="theme-switch nav-link" data-mode="dark"><i class="fa-solid fa-moon fa-lg"></i></span>
+    <span class="theme-switch nav-link" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg"></i></span>
+  </button>
+`);
+</script></div>
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+ <script>
+ document.write(`
+   <button class="btn navbar-btn search-button-field search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <span class="search-button__default-text">Search</span>
+    <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+   </button>
+ `);
+ </script>
+    </div>
+  
+
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+        
+      
+      <div class="bd-sidebar-primary bd-sidebar hide-on-wide">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          <div class="navbar-item">
+<nav class="navbar-nav">
+  <ul class="bd-navbar-elements navbar-nav">
+    
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../getting_started/index.html">
+                        Getting started
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../user_guide/index.html">
+                        User guide
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../api_reference/index.html">
+                        API reference
+                      </a>
+                    </li>
+                
+  </ul>
+</nav></div>
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<script>
+document.write(`
+  <button class="btn btn-sm navbar-btn theme-switch-button" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="theme-switch nav-link" data-mode="light"><i class="fa-solid fa-sun fa-lg"></i></span>
+    <span class="theme-switch nav-link" data-mode="dark"><i class="fa-solid fa-moon fa-lg"></i></span>
+    <span class="theme-switch nav-link" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg"></i></span>
+  </button>
+`);
+</script></div>
+        
+      </div>
+    
+  </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+  
+  <div id="rtd-footer-container"></div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+
+
+<nav aria-label="Breadcrumb">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="../index.html" class="nav-link">Module code</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page">hicona._cooler</li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <h1>Source code for hicona._cooler</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Main I/O handling object extending Cooler functionality and format.</span>
+
+<span class="sd">Main object to handle .cool/.mcool files in order to perform all the</span>
+<span class="sd">pre-processing required to obtain chromosome level tables.</span>
+<span class="sd">Chromosome-level tables are stored in the ``/hicona_tables`` group and</span>
+<span class="sd">can be retrieved to create filtered networks to analyze.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Generator</span><span class="p">,</span> <span class="n">Iterable</span>
+
+<span class="kn">import</span> <span class="nn">cooler</span>
+<span class="kn">import</span> <span class="nn">h5py</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+
+<span class="kn">from</span> <span class="nn">hicona._core</span> <span class="kn">import</span> <span class="n">Table</span><span class="p">,</span> <span class="n">uris</span>
+<span class="kn">from</span> <span class="nn">hicona._ops</span> <span class="kn">import</span> <span class="n">bed</span><span class="p">,</span> <span class="n">hdf5</span>
+<span class="kn">from</span> <span class="nn">hicona.preprocess</span> <span class="kn">import</span> <span class="n">Flow</span>
+<span class="kn">from</span> <span class="nn">hicona._table</span> <span class="kn">import</span> <span class="n">HiconaTable</span>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;HiconaCooler&quot;</span><span class="p">]</span>
+
+
+<span class="n">_TABLES_ROOT</span> <span class="o">=</span> <span class="s2">&quot;hicona_tables&quot;</span>
+<span class="n">_TABLE_COLUMNS</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;bin1_id&quot;</span><span class="p">:</span> <span class="s2">&quot;i8&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;bin2_id&quot;</span><span class="p">:</span> <span class="s2">&quot;i8&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;count&quot;</span><span class="p">:</span> <span class="s2">&quot;i4&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;norm&quot;</span><span class="p">:</span> <span class="s2">&quot;f8&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;alpha_min&quot;</span><span class="p">:</span> <span class="s2">&quot;f8&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;alpha_max&quot;</span><span class="p">:</span> <span class="s2">&quot;f8&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+
+
+<div class="viewcode-block" id="HiconaCooler">
+<a class="viewcode-back" href="../../api_reference/api/hicona.HiconaCooler.html#hicona.HiconaCooler">[docs]</a>
+<span class="k">class</span> <span class="nc">HiconaCooler</span><span class="p">(</span><span class="n">cooler</span><span class="o">.</span><span class="n">Cooler</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Class to handle I/O, annotation and processing of cooler-like files.</span>
+
+<span class="sd">    Class extending the ``cooler.Cooler`` class to allow for the creation</span>
+<span class="sd">    and retrieval of processed pixel tables. Moreover, it allows to easily add</span>
+<span class="sd">    and remove annotations to/from the ``bins`` table.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    store : str, h5py.File or h5py.Group</span>
+<span class="sd">        Path to a cooler file, URI string, or open handle to the root HDF5</span>
+<span class="sd">        group of a cooler data collection.</span>
+<span class="sd">    kwargs : optional</span>
+<span class="sd">        Options to be passed to ``h5py.File`` upon every access via methods</span>
+<span class="sd">        from the ``cooler.Cooler`` class. These keyword arguments are not</span>
+<span class="sd">        passed when accessing the HDF5 file via functions from ``hicona``.</span>
+<span class="sd">        See ``cooler.Cooler`` class constructor for more details.</span>
+
+<span class="sd">    See Also</span>
+<span class="sd">    --------</span>
+<span class="sd">    cooler.Cooler : Parent class extended by HiconaCooler.</span>
+<span class="sd">    h5py.File : Handle to an HDF5 file object.</span>
+<span class="sd">    h5py.Group : Handle to an HDF5 group object.</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    The class should not break any functionality of the ``cooler.Cooler``</span>
+<span class="sd">    class, though it was not thoroughly tested. Please, report any issue you might find.</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    Creating an ``HiconaCooler`` object from a cool file path.</span>
+
+<span class="sd">    &gt;&gt;&gt; handle = HiconaCooler(&quot;path/to/file.cool&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; handle = HiconaCooler(&quot;path/to/file.mcool::resolutions/10000&quot;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># ////////////////////////////////////////////////////////////////////////</span>
+    <span class="c1"># ////////////////////////// OBJECT DEFINITION ///////////////////////////</span>
+    <span class="c1"># /////// Class constructor, setter, getters and similar functions ///////</span>
+    <span class="c1"># ////////////////////////////////////////////////////////////////////////</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">store</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span> <span class="o">|</span> <span class="n">h5py</span><span class="o">.</span><span class="n">Group</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="c1"># Mask deprecated root parameter from super-class</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">store</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_uris</span> <span class="o">=</span> <span class="n">uris</span><span class="o">.</span><span class="n">Uris</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">store</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_tables_root</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">_TABLES_ROOT</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">tables_root</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return URI of the group in which processed pixel tables are rooted.</span>
+
+<span class="sd">        String representing where to store and look for processed ``pixel``</span>
+<span class="sd">        tables. This is a relative path starting from the position specified</span>
+<span class="sd">        by the ``self.root`` attribute.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        str :</span>
+<span class="sd">            URI of the group where processed pixel tables are stored.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        &gt;&gt;&gt; handle = HiconaCooler(&quot;path/to/file.cool&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; handle.tables_root</span>
+<span class="sd">        &#39;hicona_tables&#39;  # default value</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tables_root</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">bare_bins</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get full bin table without any annotation.</span>
+
+<span class="sd">        Return the ``bins`` table as a ``pandas.DataFrame`` with only</span>
+<span class="sd">        the columns ``chrom``, ``start``, and ``end`` (and no annotation</span>
+<span class="sd">        column).</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        pandas.DataFrame :</span>
+<span class="sd">            DataFrame with only the columns ``chrom``, ``start``, and ``end``.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        &gt;&gt;&gt; handle = HiconaCooler(&quot;path/to/file.cool&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; handle.bare_bins</span>
+<span class="sd">               chrom     start       end</span>
+<span class="sd">        0       chr1         0     10000</span>
+<span class="sd">        1       chr1     10000     20000</span>
+<span class="sd">        2       chr1     20000     30000</span>
+<span class="sd">        3       chr1     30000     40000</span>
+<span class="sd">        4       chr1     40000     50000</span>
+<span class="sd">        ...      ...       ...       ...</span>
+<span class="sd">        308832  chrY  57180000  57190000</span>
+<span class="sd">        308833  chrY  57190000  57200000</span>
+<span class="sd">        308834  chrY  57200000  57210000</span>
+<span class="sd">        308835  chrY  57210000  57220000</span>
+<span class="sd">        308836  chrY  57220000  57227415</span>
+<span class="sd">        &lt;BLANKLINE&gt;</span>
+<span class="sd">        [308837 rows x 3 columns]</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">bins</span><span class="p">()[[</span><span class="s2">&quot;chrom&quot;</span><span class="p">,</span> <span class="s2">&quot;start&quot;</span><span class="p">,</span> <span class="s2">&quot;end&quot;</span><span class="p">]][:]</span>  <span class="c1"># type: ignore</span>
+
+    <span class="c1"># ////////////////////////////////////////////////////////////////////////</span>
+    <span class="c1"># /////////////////////////// PUBLIC TABLE API ///////////////////////////</span>
+    <span class="c1"># // Functions to create, inspect and retrieve sparsified pixel tables ///</span>
+    <span class="c1"># ////////////////////////////////////////////////////////////////////////</span>
+
+    <span class="k">def</span> <span class="nf">_iterate_tables</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Generator</span><span class="p">[</span><span class="n">HiconaTable</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Iterate all saved tables as `HiconaTable` objects.&quot;&quot;&quot;</span>
+
+        <span class="n">tables_uris</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_uris</span><span class="o">.</span><span class="n">add_path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_tables_root</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">tab</span> <span class="ow">in</span> <span class="n">hdf5</span><span class="o">.</span><span class="n">get_keys</span><span class="p">(</span><span class="n">tables_uris</span><span class="p">):</span>
+            <span class="k">yield</span> <span class="n">HiconaTable</span><span class="p">(</span><span class="n">tables_uris</span><span class="o">.</span><span class="n">add_path</span><span class="p">(</span><span class="n">tab</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_init_raw_table</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">method</span><span class="p">:</span> <span class="n">Flow</span><span class="p">,</span>
+        <span class="n">chunk_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">uris</span><span class="o">.</span><span class="n">Uris</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize a new raw table with the given parameters.&quot;&quot;&quot;</span>
+
+        <span class="c1"># Get table uris</span>
+        <span class="n">table_uris</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_uris</span><span class="o">.</span><span class="n">add_path</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">tables_root</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">method</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Initialize table</span>
+        <span class="n">num_pix</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;nnz&quot;</span><span class="p">]</span>
+        <span class="n">hdf5</span><span class="o">.</span><span class="n">init_table</span><span class="p">(</span><span class="n">table_uris</span><span class="p">,</span> <span class="n">num_pix</span><span class="p">,</span> <span class="n">_TABLE_COLUMNS</span><span class="p">)</span>
+
+        <span class="c1"># TODO: This is currently slow</span>
+        <span class="c1"># Copy pixel data to the new table</span>
+        <span class="k">for</span> <span class="n">lower</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">num_pix</span><span class="p">,</span> <span class="n">chunk_size</span><span class="p">):</span>
+            <span class="n">upper</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">lower</span> <span class="o">+</span> <span class="n">chunk_size</span><span class="p">,</span> <span class="n">num_pix</span><span class="p">)</span>
+            <span class="n">chunk</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pixels</span><span class="p">()[</span><span class="n">lower</span><span class="p">:</span><span class="n">upper</span><span class="p">]</span>
+            <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">chunk</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span>  <span class="c1"># For type checker</span>
+            <span class="n">hdf5</span><span class="o">.</span><span class="n">write_chunk</span><span class="p">(</span><span class="n">table_uris</span><span class="p">,</span> <span class="n">chunk</span><span class="p">,</span> <span class="n">lower</span><span class="p">,</span> <span class="n">chunk</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span>
+
+        <span class="c1"># Set table attributes</span>
+        <span class="n">table_attrs</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;flow&quot;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">method</span><span class="o">.</span><span class="n">to_json</span><span class="p">())}</span>
+        <span class="n">hdf5</span><span class="o">.</span><span class="n">set_attrs</span><span class="p">(</span><span class="n">table_uris</span><span class="p">,</span> <span class="n">table_attrs</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">table_uris</span>
+
+<div class="viewcode-block" id="HiconaCooler.create_table">
+<a class="viewcode-back" href="../../api_reference/api/hicona.HiconaCooler.create_table.html#hicona.HiconaCooler.create_table">[docs]</a>
+    <span class="k">def</span> <span class="nf">create_table</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">ops_flow</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Flow</span> <span class="o">=</span> <span class="s2">&quot;hicona&quot;</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">chunk_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10_000_000</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">HiconaTable</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a normalized and sparsified pixels table.</span>
+
+<span class="sd">        Starting from the full ``pixel`` table, create a new ``pixel`` table</span>
+<span class="sd">        by filtering, normalizing and then sparsifying the table (see [1]_).</span>
+<span class="sd">        The exact steps to be performed are specified via a ``Flow`` object.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        ops_flow : str or Flow, optional</span>
+<span class="sd">            Flow of operations to use to filter and normalize the table. If a</span>
+<span class="sd">            string is provided, the default flow for the corresponding method</span>
+<span class="sd">            is used. Default is &#39;hicona&#39;.</span>
+<span class="sd">        chunk_size : int, optional</span>
+<span class="sd">            Number of pixels per chunk when processing the raw table.</span>
+<span class="sd">            Default is &#39;10,000,000&#39;.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        HiconaTable :</span>
+<span class="sd">            The newly created table as a HiconaTable object.</span>
+
+<span class="sd">        See Also</span>
+<span class="sd">        --------</span>
+<span class="sd">        preprocess.Flow : Used to define a preprocessing workflow.</span>
+
+<span class="sd">        References</span>
+<span class="sd">        ----------</span>
+<span class="sd">        .. [1] Serrano et al., &quot;Extracting the multiscale backbone of complex</span>
+<span class="sd">           weighted networks&quot;, PNAS, 2009.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        Create a new table using the default &#39;hicona&#39; method.</span>
+
+<span class="sd">        &gt;&gt;&gt; handle = HiconaCooler(&quot;path/to/file.cool&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; table = handle.create_table()</span>
+<span class="sd">        # Logging of the table creation process</span>
+<span class="sd">        &gt;&gt;&gt; table.dataframe().head()</span>
+<span class="sd">           alpha_max  alpha_min  bin1_id  bin2_id  count  norm</span>
+<span class="sd">        0     0.4219     0.4037        1     2720      1   1.0</span>
+<span class="sd">        1     0.4219     0.3737        1     5476      1   1.0</span>
+<span class="sd">        2     0.4219     0.3814        1     5802      1   1.0</span>
+<span class="sd">        3     0.4219     0.3816        1    18419      1   1.0</span>
+<span class="sd">        4     0.4219     0.4155        3      890      1   1.0</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Convert any default string to the corresponding flow</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ops_flow</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">ops_flow</span> <span class="o">=</span> <span class="n">Flow</span><span class="o">.</span><span class="n">from_default</span><span class="p">(</span><span class="n">ops_flow</span><span class="p">)</span>
+
+        <span class="c1"># Initialize the tables root if it does not exist already.</span>
+        <span class="n">table_root_uris</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_uris</span><span class="o">.</span><span class="n">add_path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tables_root</span><span class="p">)</span>
+        <span class="n">hdf5</span><span class="o">.</span><span class="n">require_group</span><span class="p">(</span><span class="n">table_root_uris</span><span class="p">)</span>
+
+        <span class="c1"># Check there is no table with all matching keywords</span>
+        <span class="k">for</span> <span class="n">table</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_iterate_tables</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">table</span><span class="o">.</span><span class="n">flow</span> <span class="o">==</span> <span class="n">ops_flow</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;E: Table with the same flow already exists.&quot;</span><span class="p">)</span>
+
+        <span class="n">table</span> <span class="o">=</span> <span class="n">Table</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_init_raw_table</span><span class="p">(</span><span class="n">ops_flow</span><span class="p">,</span> <span class="n">chunk_size</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">op</span> <span class="ow">in</span> <span class="n">table</span><span class="o">.</span><span class="n">flow</span><span class="o">.</span><span class="n">ops</span><span class="p">:</span>
+
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Starting to apply: </span><span class="si">{</span><span class="n">op</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+            <span class="n">tab_size</span> <span class="o">=</span> <span class="n">hdf5</span><span class="o">.</span><span class="n">write_table</span><span class="p">(</span><span class="n">table</span><span class="o">.</span><span class="n">uris</span><span class="p">,</span> <span class="n">op</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">table</span><span class="p">))</span>
+            <span class="n">hdf5</span><span class="o">.</span><span class="n">resize_table</span><span class="p">(</span><span class="n">table</span><span class="o">.</span><span class="n">uris</span><span class="p">,</span> <span class="n">tab_size</span><span class="p">)</span>
+            <span class="n">table</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Finished applying: </span><span class="si">{</span><span class="n">op</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Table size: </span><span class="si">{</span><span class="n">tab_size</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">HiconaTable</span><span class="p">(</span><span class="n">table</span><span class="o">.</span><span class="n">uris</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="HiconaCooler.fetch_table">
+<a class="viewcode-back" href="../../api_reference/api/hicona.HiconaCooler.fetch_table.html#hicona.HiconaCooler.fetch_table">[docs]</a>
+    <span class="k">def</span> <span class="nf">fetch_table</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;hicona&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">HiconaTable</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Retrieve a previously created sparsified pixel table.</span>
+
+<span class="sd">        Get a previously sparsified ``pixel`` table as a ``HiconaTable``</span>
+<span class="sd">        object. The list of available tables can be printed using the</span>
+<span class="sd">        ``HiconaCooler.list_tables`` method.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        name : str, optional</span>
+<span class="sd">            Name of the flow used to create the table. Default is &#39;hicona&#39;.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        HiconaTable :</span>
+<span class="sd">            The requested table as a ``HiconaTable`` object.</span>
+
+<span class="sd">        See Also</span>
+<span class="sd">        --------</span>
+<span class="sd">        HiconaTable : Object to handle a sparsified pixel table.</span>
+<span class="sd">        HiconaCooler.list_tables : Print the available pixel tables.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        Retrieve a previously created table using the default &#39;hicona&#39; method.</span>
+
+<span class="sd">        &gt;&gt;&gt; handle = HiconaCooler(&quot;path/to/file.cool&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; table = handle.fetch_table()</span>
+<span class="sd">        &gt;&gt;&gt; table.dataframe().head()</span>
+<span class="sd">              alpha_max  alpha_min  bin1_id  bin2_id  count  norm</span>
+<span class="sd">        0        0.4219     0.4037        1     2720      1   1.0</span>
+<span class="sd">        1        0.4219     0.3737        1     5476      1   1.0</span>
+<span class="sd">        2        0.4219     0.3814        1     5802      1   1.0</span>
+<span class="sd">        3        0.4219     0.3816        1    18419      1   1.0</span>
+<span class="sd">        4        0.4219     0.4155        3      890      1   1.0</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">tables_uris</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_uris</span><span class="o">.</span><span class="n">add_path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_tables_root</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">HiconaTable</span><span class="p">(</span><span class="n">tables_uris</span><span class="o">.</span><span class="n">add_path</span><span class="p">(</span><span class="n">name</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="HiconaCooler.list_tables">
+<a class="viewcode-back" href="../../api_reference/api/hicona.HiconaCooler.list_tables.html#hicona.HiconaCooler.list_tables">[docs]</a>
+    <span class="k">def</span> <span class="nf">list_tables</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Print the names of the available pixel tables.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        Print the names of the available tables.</span>
+
+<span class="sd">        &gt;&gt;&gt; import hicona</span>
+<span class="sd">        &gt;&gt;&gt; handle = hicona.HiconaCooler(&quot;path/to/file.cool&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; handle.list_tables()</span>
+<span class="sd">        Available tables:</span>
+<span class="sd">        - hicona</span>
+<span class="sd">        - ice</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># TODO: Breaks if the tables group does not exists</span>
+
+        <span class="n">out</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+
+        <span class="k">for</span> <span class="n">table</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_iterate_tables</span><span class="p">():</span>
+            <span class="n">out</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;- </span><span class="si">{</span><span class="n">table</span><span class="o">.</span><span class="n">flow</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">out</span><span class="p">:</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="s2">&quot;- No tables available yet.</span><span class="se">\n</span><span class="s2">&quot;</span>
+
+        <span class="n">out</span> <span class="o">=</span> <span class="s2">&quot;Available tables:</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="n">out</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">out</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span></div>
+
+
+    <span class="c1"># ////////////////////////////////////////////////////////////////////////</span>
+    <span class="c1"># ///////////////////////// ANNOTATION FUNCTIONS /////////////////////////</span>
+    <span class="c1"># ////////////////// Add/process bin annotation columns //////////////////</span>
+    <span class="c1"># ////////////////////////////////////////////////////////////////////////</span>
+
+    <span class="k">def</span> <span class="nf">_valid_bin_annotations</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">names</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return only valid bin annotation names as iterable of strings&quot;&quot;&quot;</span>
+
+        <span class="n">names</span> <span class="o">=</span> <span class="n">names</span> <span class="ow">or</span> <span class="p">[]</span>
+        <span class="n">names</span> <span class="o">=</span> <span class="p">[</span><span class="n">names</span><span class="p">]</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">names</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">else</span> <span class="n">names</span>
+        <span class="n">names</span> <span class="o">=</span> <span class="p">[</span><span class="n">n</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">names</span> <span class="k">if</span> <span class="n">n</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">annot_list</span><span class="p">()]</span>
+
+        <span class="k">return</span> <span class="n">names</span>
+
+<div class="viewcode-block" id="HiconaCooler.annot_list">
+<a class="viewcode-back" href="../../api_reference/api/hicona.HiconaCooler.annot_list.html#hicona.HiconaCooler.annot_list">[docs]</a>
+    <span class="k">def</span> <span class="nf">annot_list</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a list of available bin annotation columns.</span>
+
+<span class="sd">        Return a list of all available bin annotation columns (that is, all</span>
+<span class="sd">        columns in the ``bins`` group besides ``chrom``, ``start``, and</span>
+<span class="sd">        ``end``) sorted alphabetically.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        list of str :</span>
+<span class="sd">            List of bin annotation names in alphabetical order.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        &gt;&gt;&gt; handle = HiconaCooler(&quot;path/to/file.cool&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; handle.bins()[:].columns</span>
+<span class="sd">        Index([&#39;chrom&#39;, &#39;start&#39;, &#39;end&#39;, &#39;HMM_ann&#39;, &#39;weight&#39;], dtype=&#39;object&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; handle.annot_list()</span>
+<span class="sd">        [&#39;HMM_ann&#39;, &#39;weight&#39;]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">ann_list</span> <span class="o">=</span> <span class="n">hdf5</span><span class="o">.</span><span class="n">get_keys</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_uris</span><span class="o">.</span><span class="n">add_path</span><span class="p">(</span><span class="s2">&quot;bins&quot;</span><span class="p">))</span>
+        <span class="n">ann_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">ann_list</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;chrom&quot;</span><span class="p">,</span> <span class="s2">&quot;start&quot;</span><span class="p">,</span> <span class="s2">&quot;end&quot;</span><span class="p">]]</span>
+        <span class="n">ann_list</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">ann_list</span></div>
+
+
+<div class="viewcode-block" id="HiconaCooler.add_bin_annot">
+<a class="viewcode-back" href="../../api_reference/api/hicona.HiconaCooler.add_bin_annot.html#hicona.HiconaCooler.add_bin_annot">[docs]</a>
+    <span class="k">def</span> <span class="nf">add_bin_annot</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">bed_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">in_file</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">to_keep</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Add one (or more) bin annotation(s) from a bed-like file.</span>
+
+<span class="sd">        Add one or more annotation columns to the ``bins`` group. One can add:</span>
+
+<span class="sd">        - 0/1 column representing an overlap of the bin in the bed-like file</span>
+<span class="sd">        - any number of annotation columns from the bed-like file</span>
+
+<span class="sd">        A bed-like file is a tab-separated file with the ``chrom``, ``start``,</span>
+<span class="sd">        ``end`` columns followed by any number of other columns.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        bed_path : str</span>
+<span class="sd">            Path to the bed-like file to use for the annotation.</span>
+<span class="sd">        in_file : str, optional</span>
+<span class="sd">            Name of the 0/1 annotation column, containing 1 if the bin has at</span>
+<span class="sd">            least one overlap with any interval in the bed-file, 0 otherwise.</span>
+<span class="sd">            If set to &#39;None&#39;, no such column is created. Default is &#39;None&#39;.</span>
+<span class="sd">        to_keep : str or list of (str, None), optional</span>
+<span class="sd">            Names for the columns of the bed-like file to add to the bins.</span>
+<span class="sd">            Names are assigned from left to right ignoring ``chrom``, ``start``,</span>
+<span class="sd">            ``end``. Any column that receives a name is kept, while any column</span>
+<span class="sd">            without a name is discarded. To skip a column, place a &#39;None&#39; in</span>
+<span class="sd">            its position. Excess names are ignored. Default is &#39;None&#39;.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        .. warning::</span>
+
+<span class="sd">            Adding annotations can drastically increase file size, especially</span>
+<span class="sd">            for non-numerical annotations; limit string-like non categorical</span>
+<span class="sd">            annotations (names, ids, ...).</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        Printing a snippet of the bed using ``pybedtools``.</span>
+
+<span class="sd">        &gt;&gt;&gt; import pybedtools</span>
+<span class="sd">        &gt;&gt;&gt; bed = pybedtools.BedTool(&quot;path/file.bed&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; print(bed.head(3))</span>
+<span class="sd">        chr1       0    200    A  0.6</span>
+<span class="sd">        chr1    2000   4000    A  0.2</span>
+<span class="sd">        chr1   20400  30000    B  0.3</span>
+
+<span class="sd">        Print the head of the ``bins`` table.</span>
+
+<span class="sd">        &gt;&gt;&gt; handle = HiconaCooler(&quot;path/to/file.cool&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; handle.bins()[:].head(3)</span>
+<span class="sd">            chrom   start    end</span>
+<span class="sd">        0   chr1       0   10000</span>
+<span class="sd">        1   chr1   10000   20000</span>
+<span class="sd">        2   chr1   20000   30000</span>
+
+<span class="sd">        Add a 0/1 column indicating overlap with the bed file.</span>
+
+<span class="sd">        &gt;&gt;&gt; handle.add_bin_annot(&quot;path/file.bed&quot;, in_file=&quot;overlap&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; handle.bins()[:].head(3)</span>
+<span class="sd">            chrom   start    end  overlap</span>
+<span class="sd">        0   chr1       0   10000        1</span>
+<span class="sd">        1   chr1   10000   20000        0</span>
+<span class="sd">        2   chr1   20000   30000        1</span>
+
+<span class="sd">        Add only the second annotation column from the bed file (skip first).</span>
+
+<span class="sd">        &gt;&gt;&gt; handle.add_bin_annot(&quot;path/file.bed&quot;, to_keep=[None, &quot;pval&quot;])</span>
+<span class="sd">        &gt;&gt;&gt; handle.bins()[:].head(3)</span>
+<span class="sd">            chrom   start    end  overlap  pval</span>
+<span class="sd">        0   chr1       0   10000        1   0.6</span>
+<span class="sd">        1   chr1   10000   20000        0   NaN</span>
+<span class="sd">        2   chr1   20000   30000        1   0.3</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># TODO: Check behaviour with multiple intersections</span>
+
+        <span class="c1"># Convert to_keep to None if all elements are None</span>
+        <span class="n">to_keep</span> <span class="o">=</span> <span class="p">[</span><span class="n">to_keep</span><span class="p">]</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">to_keep</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">else</span> <span class="n">to_keep</span>
+        <span class="c1"># to_keep = to_keep if any(to_keep) and to_keep else None</span>
+
+        <span class="c1"># Check for no overlap in old and new annotations</span>
+        <span class="k">if</span> <span class="n">in_file</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">annot_list</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;E: &#39;in file&#39; annotation name already exists.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">to_keep</span> <span class="ow">and</span> <span class="nb">any</span><span class="p">(</span><span class="n">ann</span> <span class="ow">in</span> <span class="n">to_keep</span> <span class="k">for</span> <span class="n">ann</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">annot_list</span><span class="p">()):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;E: Overlap with old annotations, stopping.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Create the two bin df and merge on default bed columns</span>
+        <span class="c1"># While reading, replace chrom, start, end of bed file with None.</span>
+        <span class="n">bin_df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bare_bins</span>
+        <span class="n">ann_df</span> <span class="o">=</span> <span class="n">bed</span><span class="o">.</span><span class="n">bed_to_df</span><span class="p">(</span><span class="n">bed_path</span><span class="p">,</span> <span class="n">to_keep</span><span class="p">)</span>
+        <span class="n">ann_df</span> <span class="o">=</span> <span class="n">bed</span><span class="o">.</span><span class="n">intersect_dfs</span><span class="p">(</span><span class="n">bin_df</span><span class="p">,</span> <span class="n">ann_df</span><span class="p">,</span> <span class="n">drop_none</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">loj</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="c1"># Check for overlapping annotations</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">ann_df</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">bin_df</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;E: Overlapping annotations are not supported.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Create OHE column where 1 = &quot;intersection with annotation&quot;</span>
+        <span class="k">if</span> <span class="n">in_file</span><span class="p">:</span>
+            <span class="n">col_vals</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span> <span class="k">if</span> <span class="n">c</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span> <span class="k">else</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">ann_df</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:,</span> <span class="mi">5</span><span class="p">]]</span>
+            <span class="n">ann_df</span><span class="p">[</span><span class="n">in_file</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">col_vals</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
+
+        <span class="c1"># Save new annotation columns</span>
+        <span class="n">ann_df</span> <span class="o">=</span> <span class="n">ann_df</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">labels</span><span class="o">=</span><span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="n">bin_df</span><span class="o">.</span><span class="n">columns</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">hdf5</span><span class="o">.</span><span class="n">save_table</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_uris</span><span class="o">.</span><span class="n">add_path</span><span class="p">(</span><span class="s2">&quot;bins&quot;</span><span class="p">),</span> <span class="n">ann_df</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="HiconaCooler.del_bin_annot">
+<a class="viewcode-back" href="../../api_reference/api/hicona.HiconaCooler.del_bin_annot.html#hicona.HiconaCooler.del_bin_annot">[docs]</a>
+    <span class="k">def</span> <span class="nf">del_bin_annot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">to_del</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Remove one (or more) bin annotation columns.</span>
+
+<span class="sd">        Given one or more bin annotation names, remove those columns from the</span>
+<span class="sd">        ``bins`` table. Non-existent annotations or default columns (``chrom``,</span>
+<span class="sd">        ``start``, ``end``) are skipped without raising warning/errors.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        to_del : str or iterable of str</span>
+<span class="sd">            String or iterable of them representing bin annotations to remove.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        .. warning::</span>
+<span class="sd">            Removed columns still take space, due to HDF5 specifications. To</span>
+<span class="sd">            actually reduce the file size, you might want to repack the file</span>
+<span class="sd">            (see `h5repack`_ tool).</span>
+
+<span class="sd">        .. _h5repack: https://manpages.ubuntu.com/manpages/lunar/man1/h5repack.1.html</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        Print the head of the ``bins`` table.</span>
+
+<span class="sd">        &gt;&gt;&gt; handle = HiconaCooler(&quot;path/to/file.cool&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; handle.bins()[:].head(3)</span>
+<span class="sd">            chrom   start    end  overlap  pval</span>
+<span class="sd">        0   chr1       0   10000        1   0.6</span>
+<span class="sd">        1   chr1   10000   20000        0   NaN</span>
+<span class="sd">        2   chr1   20000   30000        1   0.3</span>
+
+<span class="sd">        Remove the ``overlap`` column.</span>
+
+<span class="sd">        &gt;&gt;&gt; handle.del_bin_annot(&quot;overlap&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; handle.bins()[:].head(3)</span>
+<span class="sd">            chrom   start    end  pval</span>
+<span class="sd">        0   chr1       0   10000   0.6</span>
+<span class="sd">        1   chr1   10000   20000   NaN</span>
+<span class="sd">        2   chr1   20000   30000   0.3</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">to_del</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_valid_bin_annotations</span><span class="p">(</span><span class="n">to_del</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span><span class="n">to_del</span><span class="p">):</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;W: No valid annotation to delete was provided.&quot;</span><span class="p">)</span>
+
+        <span class="n">hdf5</span><span class="o">.</span><span class="n">del_keys</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_uris</span><span class="o">.</span><span class="n">add_path</span><span class="p">(</span><span class="s2">&quot;bins&quot;</span><span class="p">),</span> <span class="n">to_del</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="HiconaCooler.ohe_bin_annot">
+<a class="viewcode-back" href="../../api_reference/api/hicona.HiconaCooler.ohe_bin_annot.html#hicona.HiconaCooler.ohe_bin_annot">[docs]</a>
+    <span class="k">def</span> <span class="nf">ohe_bin_annot</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">to_ohe</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">remove_original</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">remove_nan_mod</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">max_num_mods</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Convert one (or more) bin annotation(s) to one hot encoding form.</span>
+
+<span class="sd">        For each specified bin annotation, perform one-hot encoding, that is,</span>
+<span class="sd">        create a new column for each modality of the annotation, where the</span>
+<span class="sd">        column is 1 if the bin has that modality, 0 otherwise.</span>
+<span class="sd">        Non-existent annotations are skipped without raising warning/errors.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        to_ohe : str or iterable of str</span>
+<span class="sd">            Names of the annotations to perform one-hot encoding on.</span>
+<span class="sd">            Generated columns are named using ``{original name}_{modality}``.</span>
+<span class="sd">        remove_original : bool, optional</span>
+<span class="sd">            Whether to remove the original annotation columns on which ohe is</span>
+<span class="sd">            performed on. Default is &#39;False&#39;.</span>
+<span class="sd">        remove_nan_mod : bool, optional</span>
+<span class="sd">            Whether to remove columns originated from ohe of the NaN modality,</span>
+<span class="sd">            meaning ``{original name}_NaN``, if any. Default is &#39;True&#39;.</span>
+<span class="sd">        max_num_mods : int, optional</span>
+<span class="sd">            Do not perform ohe if the number of modalities is greater than</span>
+<span class="sd">            ``max_num_mods``. Default is &#39;10&#39;.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        ``max_num_mods`` is a safety measure to avoid huge file size increase</span>
+<span class="sd">        due to trying to one hot encode a column with non categorical values.</span>
+
+<span class="sd">        .. warning::</span>
+<span class="sd">            Removed columns still take space, due to HDF5 specifications. To</span>
+<span class="sd">            actually reduce the file size, you might want to repack the file</span>
+<span class="sd">            (see `h5repack`_ tool).</span>
+
+<span class="sd">        .. _h5repack: https://manpages.ubuntu.com/manpages/lunar/man1/h5repack.1.html</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        Print the head of the ``bins`` table.</span>
+
+<span class="sd">        &gt;&gt;&gt; handle = HiconaCooler(&quot;path/to/file.cool&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; handle.bins()[:].head(3)</span>
+<span class="sd">            chrom   start    end  mod</span>
+<span class="sd">        0   chr1       0   10000    A</span>
+<span class="sd">        1   chr1   10000   20000    B</span>
+<span class="sd">        2   chr1   20000   30000    A</span>
+
+<span class="sd">        Perform one-hot encoding on the ``mod`` column.</span>
+
+<span class="sd">        &gt;&gt;&gt; handle.ohe_bin_annot(&quot;mod&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; handle.bins()[:].head(3)</span>
+<span class="sd">            chrom   start    end  mod  mod_A  mod_B</span>
+<span class="sd">        0   chr1       0   10000    A      1      0</span>
+<span class="sd">        1   chr1   10000   20000    B      0      1</span>
+<span class="sd">        2   chr1   20000   30000    A      1      0</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Select and retrieve needed annotation columns</span>
+        <span class="n">to_ohe</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_valid_bin_annotations</span><span class="p">(</span><span class="n">to_ohe</span><span class="p">)</span>
+        <span class="n">ann_df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bins</span><span class="p">()[</span><span class="n">to_ohe</span><span class="p">][:]</span>  <span class="c1"># type: ignore</span>
+        <span class="c1"># NOTE: currently suppressing type due to messy overloading in cooler</span>
+
+        <span class="c1"># If force, skip modalities number check</span>
+        <span class="n">too_many</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">to_ohe</span> <span class="k">if</span> <span class="n">ann_df</span><span class="p">[</span><span class="n">c</span><span class="p">]</span><span class="o">.</span><span class="n">nunique</span><span class="p">()</span> <span class="o">&gt;</span> <span class="n">max_num_mods</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">too_many</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;E: The variable(s) </span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">too_many</span><span class="p">)</span><span class="si">}</span><span class="s2"> has/have more &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;than the default max number of modalities (</span><span class="si">{</span><span class="n">max_num_mods</span><span class="si">}</span><span class="s2">).&quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">This could lead to a huge file size increase. To &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;proceed anyway, rerun with force_annotation=True.&quot;</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Generate ohe df and save to hdf5</span>
+        <span class="n">ohe_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">get_dummies</span><span class="p">(</span><span class="n">ann_df</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="n">to_ohe</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">remove_nan_mod</span><span class="p">:</span>
+            <span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">ohe_df</span> <span class="k">if</span> <span class="ow">not</span> <span class="nb">str</span><span class="p">(</span><span class="n">c</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;_nan&quot;</span><span class="p">)]</span>
+            <span class="n">ohe_df</span> <span class="o">=</span> <span class="n">ohe_df</span><span class="p">[</span><span class="n">columns</span><span class="p">]</span>
+
+        <span class="n">hdf5</span><span class="o">.</span><span class="n">save_table</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_uris</span><span class="o">.</span><span class="n">add_path</span><span class="p">(</span><span class="s2">&quot;bins&quot;</span><span class="p">),</span> <span class="n">ohe_df</span><span class="p">)</span>
+
+        <span class="c1"># Remove original columns if selected</span>
+        <span class="k">if</span> <span class="n">remove_original</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">del_bin_annot</span><span class="p">(</span><span class="n">to_ohe</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="HiconaCooler.hmm_bin_annot">
+<a class="viewcode-back" href="../../api_reference/api/hicona.HiconaCooler.hmm_bin_annot.html#hicona.HiconaCooler.hmm_bin_annot">[docs]</a>
+    <span class="k">def</span> <span class="nf">hmm_bin_annot</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">ann_file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">ann_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;hmm&quot;</span><span class="p">,</span>
+        <span class="n">nan_annot</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;Void&quot;</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Add a chromHMM style annotation to the bins table.</span>
+
+<span class="sd">        A chromHMM-like annotation is a multimodal annotation without</span>
+<span class="sd">        overlaps (one region of the genome cannot have two annotations).</span>
+<span class="sd">        In general, it should also cover the entirety of the genome (though</span>
+<span class="sd">        this is not strictly required).</span>
+
+<span class="sd">        Each bin is annotated with the most enriched annotation, that is, the</span>
+<span class="sd">        annotation with the highest fold change between the observed and</span>
+<span class="sd">        expected fraction of bases with that annotation. The expected fraction</span>
+<span class="sd">        is computed as the fraction of bases with that annotation in the whole</span>
+<span class="sd">        genome. The observed fraction is the fraction of bases with that</span>
+<span class="sd">        annotation in the bin.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        ann_file : str</span>
+<span class="sd">            Path to the bed file containing the chromHMM-like annotation.</span>
+<span class="sd">        ann_name : str, optional</span>
+<span class="sd">            Name of the new annotation column. Default is &#39;hmm&#39;.</span>
+<span class="sd">        nan_annot : str, optional</span>
+<span class="sd">            Name of the modality replacing gaps. Default is &#39;Void&#39;.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        This function was created to add annotations coming from the chromHMM</span>
+<span class="sd">        software [2]_, though it can be used with any similar annotation.</span>
+
+<span class="sd">        References</span>
+<span class="sd">        ----------</span>
+
+<span class="sd">        .. [2] Ernst and Kellis, &quot;Chromatin-state discovery and genome</span>
+<span class="sd">              annotation with ChromHMM&quot;, Nature Protocols, 2017.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+
+<span class="sd">        Print the head of the bins table.</span>
+
+<span class="sd">        &gt;&gt;&gt; handle = HiconaCooler(&quot;path/to/file.cool&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; handle.bins()[:].head(3)</span>
+<span class="sd">            chrom   start    end</span>
+<span class="sd">        0   chr1       0   10000</span>
+<span class="sd">        1   chr1   10000   20000</span>
+<span class="sd">        2   chr1   20000   30000</span>
+
+<span class="sd">        Display the head of the chromHMM-like annotation file.</span>
+
+<span class="sd">        &gt;&gt;&gt; import pybedtools</span>
+<span class="sd">        &gt;&gt;&gt; bed = pybedtools.BedTool(&quot;path/file.bed&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; print(bed.head(3))</span>
+<span class="sd">        chr1   10000  10800   Het</span>
+<span class="sd">        chr1   10800  13000  Void</span>
+<span class="sd">        chr1   13000  13200  Prom</span>
+
+<span class="sd">        Add the chromHMM-like annotation to the bins table.</span>
+
+<span class="sd">        &gt;&gt;&gt; handle.hmm_bin_annot(&quot;path/file.bed&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; handle.bins()[:].head(3)</span>
+<span class="sd">            chrom   start    end   hmm</span>
+<span class="sd">        0   chr1       0   10000  Void</span>
+<span class="sd">        1   chr1   10000   20000   Het</span>
+<span class="sd">        2   chr1   20000   30000  Prom</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">def</span> <span class="nf">get_chrom_bed</span><span class="p">(</span><span class="n">cool</span><span class="p">:</span> <span class="n">cooler</span><span class="o">.</span><span class="n">Cooler</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;Generate a dataframe in bed-like style for the chromosomes.&quot;&quot;&quot;</span>
+
+            <span class="n">chrom_info</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;chrom&quot;</span><span class="p">:</span> <span class="n">cool</span><span class="o">.</span><span class="n">chromnames</span><span class="p">,</span>
+                <span class="s2">&quot;start&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">cool</span><span class="o">.</span><span class="n">chromnames</span><span class="p">),</span>
+                <span class="s2">&quot;end&quot;</span><span class="p">:</span> <span class="n">cool</span><span class="o">.</span><span class="n">chromsizes</span><span class="o">.</span><span class="n">values</span><span class="p">,</span>
+            <span class="p">}</span>
+
+            <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">chrom_info</span><span class="p">)</span>
+
+        <span class="c1"># Compute annotation fractions for both background and query</span>
+        <span class="n">annot_col</span><span class="p">,</span> <span class="n">frac_col</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">ann_name</span><span class="si">}</span><span class="s2">_annot&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">ann_name</span><span class="si">}</span><span class="s2">_frac&quot;</span>
+
+        <span class="n">ann_table</span> <span class="o">=</span> <span class="n">bed</span><span class="o">.</span><span class="n">bed_to_df</span><span class="p">(</span><span class="n">ann_file</span><span class="p">,</span> <span class="p">[</span><span class="n">annot_col</span><span class="p">])</span>
+        <span class="n">bin_table</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bare_bins</span>
+        <span class="n">bkg_table</span> <span class="o">=</span> <span class="n">get_chrom_bed</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+        <span class="n">col_names</span> <span class="o">=</span> <span class="n">annot_col</span><span class="p">,</span> <span class="n">frac_col</span>
+        <span class="n">bin_table</span> <span class="o">=</span> <span class="n">bed</span><span class="o">.</span><span class="n">ann_fraction</span><span class="p">(</span><span class="n">bin_table</span><span class="p">,</span> <span class="n">ann_table</span><span class="p">,</span> <span class="n">col_names</span><span class="p">,</span> <span class="n">nan_annot</span><span class="p">)</span>
+        <span class="n">bkg_table</span> <span class="o">=</span> <span class="n">bed</span><span class="o">.</span><span class="n">ann_fraction</span><span class="p">(</span><span class="n">bkg_table</span><span class="p">,</span> <span class="n">ann_table</span><span class="p">,</span> <span class="n">col_names</span><span class="p">,</span> <span class="n">nan_annot</span><span class="p">)</span>
+
+        <span class="n">out_table</span> <span class="o">=</span> <span class="n">bed</span><span class="o">.</span><span class="n">ann_enriched</span><span class="p">(</span><span class="n">bin_table</span><span class="p">,</span> <span class="n">bkg_table</span><span class="p">,</span> <span class="n">col_names</span><span class="p">)</span>
+        <span class="n">out_table</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">{</span><span class="n">annot_col</span><span class="p">:</span> <span class="n">ann_name</span><span class="p">})</span>
+
+        <span class="n">hdf5</span><span class="o">.</span><span class="n">save_table</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_uris</span><span class="o">.</span><span class="n">add_path</span><span class="p">(</span><span class="s2">&quot;bins&quot;</span><span class="p">),</span> <span class="n">out_table</span><span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer">
+                  
+<div class="prev-next-area">
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <div class="bd-sidebar-secondary bd-toc"></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script src="../../_static/scripts/bootstrap.js?digest=8d27b9dea8ad943066ae"></script>
+<script src="../../_static/scripts/pydata-sphinx-theme.js?digest=8d27b9dea8ad943066ae"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2024, Leonardo Morelli, Stefano Cretti.
+      <br/>
+    
+  </p>
+</div>
+      
+        <div class="footer-item">
+
+  <p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 7.3.7.
+    <br/>
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+<p class="theme-version">
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.15.2.
+</p></div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>
