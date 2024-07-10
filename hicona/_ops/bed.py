@@ -80,7 +80,7 @@ def intersect_dfs(df_a, df_b, inters_names=None, drop_none=True, **kwargs):
     return inters
 
 
-def ann_fraction(query, ref, colnames, nan_annot=None):
+def ann_fraction(query, ref, colnames, nan_annot="NaN"):
     """Get fraction of bases with given annotation in an interval."""
 
     anno_col, frac_col = colnames
@@ -90,21 +90,31 @@ def ann_fraction(query, ref, colnames, nan_annot=None):
     bin_size = inters["end"] - inters["start"]
     inters[frac_col] = inters[frac_col] / bin_size
 
-    # NOTE: HMM annotation should cover the chromosomes entirely,
-    # though currently there is a variable sized gap (usually 10000
-    # bp) at the beginning of almost all chromosomes. Currently fixing
-    # manually the gap by assigning some annoatation value.
-    # TODO: Fix issue above
-    if nan_annot:
-        indexer = inters[anno_col].isna()
-        inters.loc[indexer, anno_col] = nan_annot
-        inters.loc[indexer, frac_col] = 1
+    # NOTE: To my knowledge, chromHMM should cover the entire genome, which
+    # does not happen all the time somehow. Hence the following code.
+
+    # If an interval does not have any intersection, it will have a row with
+    # NaN annotation and 0 base overlap. Replace overlap fraction to 1.
+    inters.loc[inters[anno_col].isna(), frac_col] = 1
+    inters[anno_col].replace(np.NaN, nan_annot, inplace=True)
+
+    # If only partial overlap, need to fill the rest with NaN annotation
+    # So create a dataset with missing rows and add it to the original
+    partial = inters.groupby(["chrom", "start", "end"])["HMM_frac"].sum()
+    partial = partial[partial < 1].reset_index()
+    partial["HMM_frac"] = 1 - partial["HMM_frac"]
+    partial[anno_col] = nan_annot
+    inters = pd.concat([inters, partial], ignore_index=True)
 
     # Sum the fractions for two identical annotations in the interval
     grouping_cols = [c for c in inters.columns if c != frac_col]
     inters = inters.groupby(grouping_cols, as_index=False).sum()
-    # NOTE: Each bin fraction should be 1, but that is not the case
-    # Is it cause chromHMM is for non-coding regions?
+
+    # Assert that fractions sum to one, keeping in mind floating point errors
+    grouped = inters.groupby(["chrom", "start", "end"])[frac_col].sum()
+    max_shift = (grouped - 1).abs().max()
+    tolerance = 1e-12
+    assert max_shift < tolerance
 
     return inters
 
