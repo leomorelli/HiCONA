@@ -381,8 +381,8 @@ document.write(`
 <span class="k">class</span> <span class="nc">Flow</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Class to organize filtering and normalization steps for a table.</span>
 
-<span class="sd">    This class is used to specify an ordered list of filtering and</span>
-<span class="sd">    normalization steps, which can be used to create or fetch a pixel table.</span>
+<span class="sd">    This class is used to specify an ordered list of filtering, normalization</span>
+<span class="sd">    and sparsification steps, which can be used to create or fetch a pixel table.</span>
 
 <span class="sd">    The object can be initialized using its class constructor or one of the</span>
 <span class="sd">    class methods. Unless a custom ``Flow`` is required, usually the objects</span>
@@ -657,8 +657,8 @@ document.write(`
     <span class="k">def</span> <span class="nf">ops_add</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">operation</span><span class="p">:</span> <span class="s2">&quot;Operation&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Flow&quot;</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Add a new operation to the operations flow.</span>
 
-<span class="sd">        Given an instance of a class that inherits from either ``FiltOperation`` or</span>
-<span class="sd">        ``NormOperation``, add it as the last operation in the flow.</span>
+<span class="sd">        Given an instance of a class that inherits from either ``FiltOperation``,</span>
+<span class="sd">        ``NormOperation`` or ``SparOperation``, add it as the last operation in the flow.</span>
 
 <span class="sd">        .. warning::</span>
 <span class="sd">            Currently the method only supports adding default functions. Custom</span>

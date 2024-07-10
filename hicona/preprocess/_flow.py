@@ -48,8 +48,8 @@ def _fetch_funs(
 class Flow:
     """Class to organize filtering and normalization steps for a table.
 
-    This class is used to specify an ordered list of filtering and
-    normalization steps, which can be used to create or fetch a pixel table.
+    This class is used to specify an ordered list of filtering, normalization
+    and sparsification steps, which can be used to create or fetch a pixel table.
 
     The object can be initialized using its class constructor or one of the
     class methods. Unless a custom ``Flow`` is required, usually the objects
@@ -307,8 +307,8 @@ class Flow:
     def ops_add(self, operation: "Operation") -> "Flow":
         """Add a new operation to the operations flow.
 
-        Given an instance of a class that inherits from either ``FiltOperation`` or
-        ``NormOperation``, add it as the last operation in the flow.
+        Given an instance of a class that inherits from either ``FiltOperation``,
+        ``NormOperation`` or ``SparOperation``, add it as the last operation in the flow.
 
         .. warning::
             Currently the method only supports adding default functions. Custom

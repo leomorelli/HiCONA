@@ -16,10 +16,19 @@ __all__ = ["SparWeighted"]
 
 
 class SparWeighted(SparOperation):
-    """Apply node weight based sparsification to a table.
+    """Compute pixel table sparsification scores in a weighted matter.
 
-    Sparsify a table based on the node weights. The sparsification is based on
-    the alpha values computed according to Serrano et al. 2009."""
+    Compute the sparsification scores for a pixel table based on node weights.
+    The alpha values are computed according to `Serrano et al. 2009`.
+
+    Parameters
+    ----------
+    apply_col : str
+        The column name of the node weights.
+    bonferroni : bool, optional
+        Whether to apply Bonferroni correction to the alpha values (multiply
+        by the number of neighbors of the node). Default is True.
+    """
 
     def __init__(
         self,
@@ -33,7 +42,6 @@ class SparWeighted(SparOperation):
     def run(self, table: "Table") -> "PdChunks":
 
         node_stats = chunked.get_node_stats(table.chunks(), self._apply_col)
-        node_stats.to_csv("node_stats.csv")
 
         # NOTE: implemented this way to simplify breaking into parallel later
         for i, chunk in enumerate(table.chunks()):

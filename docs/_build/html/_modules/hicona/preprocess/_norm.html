@@ -343,21 +343,21 @@ document.write(`
     <span class="kn">from</span> <span class="nn">hicona._dtypes</span> <span class="kn">import</span> <span class="n">PdChunks</span>
 
 
-<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;NormNone&quot;</span><span class="p">,</span> <span class="s2">&quot;NormBinwise&quot;</span><span class="p">,</span> <span class="s2">&quot;NormGenomicDist&quot;</span><span class="p">]</span>
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;NormBinwise&quot;</span><span class="p">,</span> <span class="s2">&quot;NormGenomicDist&quot;</span><span class="p">]</span>
 
 
-<span class="k">class</span> <span class="nc">NormNone</span><span class="p">(</span><span class="n">NormOperation</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Apply no normalization to a table.</span>
+<span class="c1"># class NormNone(NormOperation):</span>
+<span class="c1">#     &quot;&quot;&quot;Apply no normalization to a table.</span>
 
-<span class="sd">    Do not apply any normalization to the table, just return the original</span>
-<span class="sd">    count values as the normalized values. This is used to copy the raw</span>
-<span class="sd">    values to the normalized column when no normalization was applied.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="c1">#     Do not apply any normalization to the table, just return the original</span>
+<span class="c1">#     count values as the normalized values. This is used to copy the raw</span>
+<span class="c1">#     values to the normalized column when no normalization was applied.</span>
+<span class="c1">#     &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">table</span><span class="p">:</span> <span class="s2">&quot;Table&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;PdChunks&quot;</span><span class="p">:</span>
-        <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">table</span><span class="o">.</span><span class="n">chunks</span><span class="p">():</span>
-            <span class="n">chunk</span><span class="p">[</span><span class="s2">&quot;norm&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">chunk</span><span class="p">[</span><span class="s2">&quot;count&quot;</span><span class="p">]</span>
-            <span class="k">yield</span> <span class="n">chunk</span><span class="p">[[</span><span class="s2">&quot;bin1_id&quot;</span><span class="p">,</span> <span class="s2">&quot;bin2_id&quot;</span><span class="p">,</span> <span class="s2">&quot;count&quot;</span><span class="p">,</span> <span class="s2">&quot;norm&quot;</span><span class="p">]]</span>
+<span class="c1">#     def run(self, table: &quot;Table&quot;) -&gt; &quot;PdChunks&quot;:</span>
+<span class="c1">#         for chunk in table.chunks():</span>
+<span class="c1">#             chunk[&quot;norm&quot;] = chunk[&quot;count&quot;]</span>
+<span class="c1">#             yield chunk[[&quot;bin1_id&quot;, &quot;bin2_id&quot;, &quot;count&quot;, &quot;norm&quot;]]</span>
 
 
 <div class="viewcode-block" id="NormBinwise">
@@ -366,7 +366,7 @@ document.write(`
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Apply a binwise normalization to a table.</span>
 
 <span class="sd">    The normalization factors to use for normalization must be preemtively</span>
-<span class="sd">    added to the cooler as a column in the bin table.</span>
+<span class="sd">    added to the cooler file as a column in the bin table.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -383,7 +383,7 @@ document.write(`
 
 <span class="sd">    Notes</span>
 <span class="sd">    -----</span>
-<span class="sd">    This function mimics matrix balancing normalization found in cooler.</span>
+<span class="sd">    This function mimics matrix balancing normalization found in :mod:`cooler`.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>

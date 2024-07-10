@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>hicona.preprocess.FiltColumnQuant &#8212; HiCONA alpha documentation</title>
+    <title>hicona.preprocess.SparWeighted &#8212; HiCONA alpha documentation</title>
   
   
   
@@ -43,11 +43,11 @@
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
     <script src="../../_static/copybutton.js?v=f281be69"></script>
     <script src="../../_static/design-tabs.js?v=36754332"></script>
-    <script>DOCUMENTATION_OPTIONS.pagename = 'api_reference/api/hicona.preprocess.FiltColumnQuant';</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'api_reference/api/hicona.preprocess.SparWeighted';</script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
-    <link rel="next" title="hicona.preprocess.FiltColumnValue" href="hicona.preprocess.FiltColumnValue.html" />
-    <link rel="prev" title="hicona.preprocess.FiltGenomicDist" href="hicona.preprocess.FiltGenomicDist.html" />
+    <link rel="next" title="Analysis" href="../analysis.html" />
+    <link rel="prev" title="hicona.preprocess.NormGenomicDist" href="hicona.preprocess.NormGenomicDist.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   </head>
@@ -338,13 +338,13 @@ document.write(`
 <li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.ops_add.html">hicona.preprocess.Flow.ops_add</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.Flow.ops_reset.html">hicona.preprocess.Flow.ops_reset</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.FiltGenomicDist.html">hicona.preprocess.FiltGenomicDist</a></li>
-<li class="toctree-l2 current active"><a class="current reference internal" href="#">hicona.preprocess.FiltColumnQuant</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.FiltColumnQuant.html">hicona.preprocess.FiltColumnQuant</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.FiltColumnValue.html">hicona.preprocess.FiltColumnValue</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.FiltInterChroms.html">hicona.preprocess.FiltInterChroms</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.FiltSelfLooping.html">hicona.preprocess.FiltSelfLooping</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.NormBinwise.html">hicona.preprocess.NormBinwise</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.NormGenomicDist.html">hicona.preprocess.NormGenomicDist</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.SparWeighted.html">hicona.preprocess.SparWeighted</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">hicona.preprocess.SparWeighted</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../analysis.html">Analysis</a><input class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-5"><i class="fa-solid fa-chevron-down"></i></label><ul>
@@ -417,29 +417,21 @@ document.write(`
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="hicona-preprocess-filtcolumnquant">
-<h1>hicona.preprocess.FiltColumnQuant<a class="headerlink" href="#hicona-preprocess-filtcolumnquant" title="Link to this heading">#</a></h1>
+  <section id="hicona-preprocess-sparweighted">
+<h1>hicona.preprocess.SparWeighted<a class="headerlink" href="#hicona-preprocess-sparweighted" title="Link to this heading">#</a></h1>
 <dl class="py class">
-<dt class="sig sig-object py" id="hicona.preprocess.FiltColumnQuant">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">hicona.preprocess.</span></span><span class="sig-name descname"><span class="pre">FiltColumnQuant</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hicona/preprocess/_filt.html#FiltColumnQuant"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.preprocess.FiltColumnQuant" title="Link to this definition">#</a></dt>
-<dd><p>Remove pixels with column value outside a certain quantile range.</p>
-<p>Filter out pixels where the value of the specified column is outside a
-certain quantile threshold range (extrema are excluded).
-For each threshold, the corresponding value is computed, then all pixels
-with that value are removed. This means that if the bottom 10% pixels
-share the same value, asking to remove the bottom 1% will remove more all
-10%. This is done to avoid arbitrary tie breaks.</p>
+<dt class="sig sig-object py" id="hicona.preprocess.SparWeighted">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">hicona.preprocess.</span></span><span class="sig-name descname"><span class="pre">SparWeighted</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hicona/preprocess/_spar.html#SparWeighted"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.preprocess.SparWeighted" title="Link to this definition">#</a></dt>
+<dd><p>Compute pixel table sparsification scores in a weighted matter.</p>
+<p>Compute the sparsification scores for a pixel table based on node weights.
+The alpha values are computed according to <cite>Serrano et al. 2009</cite>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><dl class="simple">
-<dt><strong>apply_col</strong><span class="classifier">str</span></dt><dd><p>The column to apply the quantile filter to.</p>
+<dt><strong>apply_col</strong><span class="classifier">str</span></dt><dd><p>The column name of the node weights.</p>
 </dd>
-<dt><strong>lower_quant</strong><span class="classifier">float or None, optional</span></dt><dd><p>Remove pixels whose column value is not greater than this quantile.</p>
-</dd>
-<dt><strong>upper_quant</strong><span class="classifier">float or None, optional</span></dt><dd><p>Remove pixels whose column value is not smaller than this quantile.</p>
-</dd>
-<dt><strong>chrom_wise</strong><span class="classifier">bool, optional</span></dt><dd><p>If True, compute quantiles for each pair of chromosomes separately.
-Default is True.</p>
+<dt><strong>bonferroni</strong><span class="classifier">bool, optional</span></dt><dd><p>Whether to apply Bonferroni correction to the alpha values (multiply
+by the number of neighbors of the node). Default is True.</p>
 </dd>
 </dl>
 </dd>
@@ -481,20 +473,20 @@ Default is True.</p>
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="hicona.preprocess.FiltGenomicDist.html"
+       href="hicona.preprocess.NormGenomicDist.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">hicona.preprocess.FiltGenomicDist</p>
+        <p class="prev-next-title">hicona.preprocess.NormGenomicDist</p>
       </div>
     </a>
     <a class="right-next"
-       href="hicona.preprocess.FiltColumnValue.html"
+       href="../analysis.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">hicona.preprocess.FiltColumnValue</p>
+        <p class="prev-next-title">Analysis</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -516,14 +508,14 @@ Default is True.</p>
   </div>
   <nav class="bd-toc-nav page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#hicona.preprocess.FiltColumnQuant"><code class="docutils literal notranslate"><span class="pre">FiltColumnQuant</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#hicona.preprocess.SparWeighted"><code class="docutils literal notranslate"><span class="pre">SparWeighted</span></code></a></li>
 </ul>
   </nav></div>
 
   <div class="sidebar-secondary-item">
 
   <div class="tocsection sourcelink">
-    <a href="../../_sources/api_reference/api/hicona.preprocess.FiltColumnQuant.rst.txt">
+    <a href="../../_sources/api_reference/api/hicona.preprocess.SparWeighted.rst.txt">
       <i class="fa-solid fa-file-lines"></i> Show Source
     </a>
   </div>

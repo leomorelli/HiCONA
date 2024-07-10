@@ -345,7 +345,7 @@ document.write(`
 <span class="kn">import</span> <span class="nn">h5py</span>
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
 
-<span class="kn">from</span> <span class="nn">hicona._core</span> <span class="kn">import</span> <span class="n">Table</span><span class="p">,</span> <span class="n">sparsification</span><span class="p">,</span> <span class="n">uris</span>
+<span class="kn">from</span> <span class="nn">hicona._core</span> <span class="kn">import</span> <span class="n">Table</span><span class="p">,</span> <span class="n">uris</span>
 <span class="kn">from</span> <span class="nn">hicona._ops</span> <span class="kn">import</span> <span class="n">bed</span><span class="p">,</span> <span class="n">hdf5</span>
 <span class="kn">from</span> <span class="nn">hicona.preprocess</span> <span class="kn">import</span> <span class="n">Flow</span>
 <span class="kn">from</span> <span class="nn">hicona._table</span> <span class="kn">import</span> <span class="n">HiconaTable</span>
@@ -578,9 +578,19 @@ document.write(`
             <span class="k">if</span> <span class="n">table</span><span class="o">.</span><span class="n">flow</span> <span class="o">==</span> <span class="n">ops_flow</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;E: Table with the same flow already exists.&quot;</span><span class="p">)</span>
 
-        <span class="n">table_uris</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_init_raw_table</span><span class="p">(</span><span class="n">ops_flow</span><span class="p">,</span> <span class="n">chunk_size</span><span class="p">)</span>
-        <span class="n">processor</span> <span class="o">=</span> <span class="n">sparsification</span><span class="o">.</span><span class="n">TableProcessor</span><span class="p">(</span><span class="n">Table</span><span class="p">(</span><span class="n">table_uris</span><span class="p">))</span>
-        <span class="k">return</span> <span class="n">processor</span><span class="o">.</span><span class="n">create_table</span><span class="p">()</span></div>
+        <span class="n">table</span> <span class="o">=</span> <span class="n">Table</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_init_raw_table</span><span class="p">(</span><span class="n">ops_flow</span><span class="p">,</span> <span class="n">chunk_size</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">op</span> <span class="ow">in</span> <span class="n">table</span><span class="o">.</span><span class="n">flow</span><span class="o">.</span><span class="n">ops</span><span class="p">:</span>
+
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Starting to apply: </span><span class="si">{</span><span class="n">op</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+            <span class="n">tab_size</span> <span class="o">=</span> <span class="n">hdf5</span><span class="o">.</span><span class="n">write_table</span><span class="p">(</span><span class="n">table</span><span class="o">.</span><span class="n">uris</span><span class="p">,</span> <span class="n">op</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">table</span><span class="p">))</span>
+            <span class="n">hdf5</span><span class="o">.</span><span class="n">resize_table</span><span class="p">(</span><span class="n">table</span><span class="o">.</span><span class="n">uris</span><span class="p">,</span> <span class="n">tab_size</span><span class="p">)</span>
+            <span class="n">table</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Finished applying: </span><span class="si">{</span><span class="n">op</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Table size: </span><span class="si">{</span><span class="n">tab_size</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">HiconaTable</span><span class="p">(</span><span class="n">table</span><span class="o">.</span><span class="n">uris</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="HiconaCooler.fetch_table">
@@ -644,7 +654,7 @@ document.write(`
 
 <span class="sd">        &quot;&quot;&quot;</span>
 
-        <span class="c1"># TODO: Breaks if the group does not exists</span>
+        <span class="c1"># TODO: Breaks if the tables group does not exists</span>
 
         <span class="n">out</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
 

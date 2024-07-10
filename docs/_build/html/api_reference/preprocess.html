@@ -344,6 +344,7 @@ document.write(`
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.FiltSelfLooping.html">hicona.preprocess.FiltSelfLooping</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.NormBinwise.html">hicona.preprocess.NormBinwise</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.NormGenomicDist.html">hicona.preprocess.NormGenomicDist</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hicona.preprocess.SparWeighted.html">hicona.preprocess.SparWeighted</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="analysis.html">Analysis</a><input class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-5"><i class="fa-solid fa-chevron-down"></i></label><ul>
@@ -416,14 +417,16 @@ document.write(`
   <section id="preprocessing">
 <span id="api-preprocess"></span><h1>Preprocessing<a class="headerlink" href="#preprocessing" title="Link to this heading">#</a></h1>
 <p>The preprocessing module provides a set of functionalities to customize the
-default preprocessing from the package. It mainly provides a <a class="reference internal" href="api/hicona.preprocess.Flow.html#hicona.preprocess.Flow" title="hicona.preprocess.Flow"><code class="xref py py-class docutils literal notranslate"><span class="pre">Flow</span></code></a> class
+default preprocessing from the package, that is, preparing the pixel table for
+the actual network analysis. It mainly provides a <a class="reference internal" href="api/hicona.preprocess.Flow.html#hicona.preprocess.Flow" title="hicona.preprocess.Flow"><code class="xref py py-class docutils literal notranslate"><span class="pre">Flow</span></code></a> class
 and a set of preprocessing operations which can be added to it.</p>
-<p>The <a class="reference internal" href="api/hicona.preprocess.Flow.html#hicona.preprocess.Flow" title="hicona.preprocess.Flow"><code class="xref py py-class docutils literal notranslate"><span class="pre">Flow</span></code></a> class can be used to specify the filtering and normalization operations
-to be applied to the data (in an order sensitive manner); it can be created from
-scratch or by modifying a default one. Moreover these objects can be saved and loaded
-for a later use.</p>
-<p>The package provides some filtering and normalization operations, namely those that are
-more likely to be used. Support for custom operation is currently being worked on.</p>
+<p>The <a class="reference internal" href="api/hicona.preprocess.Flow.html#hicona.preprocess.Flow" title="hicona.preprocess.Flow"><code class="xref py py-class docutils literal notranslate"><span class="pre">Flow</span></code></a> class can be used to specify the filtering, normalization and
+sparsification operations to be applied to the data (in an order sensitive manner);
+it can be created from scratch or by modifying a default one. Moreover these
+objects can be saved and loaded for a later use.</p>
+<p>The package provides some filtering, normalization and sparsification operations,
+namely those which are more likely to be used. Support for custom operation is
+currently being worked on.</p>
 <section id="flow-object">
 <h2>Flow object<a class="headerlink" href="#flow-object" title="Link to this heading">#</a></h2>
 <table class="autosummary longtable table autosummary">
@@ -433,8 +436,8 @@ more likely to be used. Support for custom operation is currently being worked o
 </tr>
 </tbody>
 </table>
-<section id="i-o-methods">
-<h3>I/O methods<a class="headerlink" href="#i-o-methods" title="Link to this heading">#</a></h3>
+<section id="flow-i-o-methods">
+<h3>Flow I/O methods<a class="headerlink" href="#flow-i-o-methods" title="Link to this heading">#</a></h3>
 <table class="autosummary longtable table autosummary">
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="api/hicona.preprocess.Flow.from_default.html#hicona.preprocess.Flow.from_default" title="hicona.preprocess.Flow.from_default"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Flow.from_default</span></code></a>(default_name)</p></td>
@@ -458,8 +461,8 @@ more likely to be used. Support for custom operation is currently being worked o
 </tbody>
 </table>
 </section>
-<section id="operations">
-<h3>Operations<a class="headerlink" href="#operations" title="Link to this heading">#</a></h3>
+<section id="flow-operations-handling">
+<h3>Flow operations handling<a class="headerlink" href="#flow-operations-handling" title="Link to this heading">#</a></h3>
 <table class="autosummary longtable table autosummary">
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="api/hicona.preprocess.Flow.ops_add.html#hicona.preprocess.Flow.ops_add" title="hicona.preprocess.Flow.ops_add"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Flow.ops_add</span></code></a>(operation)</p></td>
@@ -503,6 +506,16 @@ more likely to be used. Support for custom operation is currently being worked o
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="api/hicona.preprocess.NormGenomicDist.html#hicona.preprocess.NormGenomicDist" title="hicona.preprocess.NormGenomicDist"><code class="xref py py-obj docutils literal notranslate"><span class="pre">NormGenomicDist</span></code></a>(**kwargs)</p></td>
 <td><p>Apply default HiCONA normalization to a table (genomic distance).</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="sparsification-operations">
+<h2>Sparsification operations<a class="headerlink" href="#sparsification-operations" title="Link to this heading">#</a></h2>
+<table class="autosummary longtable table autosummary">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="api/hicona.preprocess.SparWeighted.html#hicona.preprocess.SparWeighted" title="hicona.preprocess.SparWeighted"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SparWeighted</span></code></a>(**kwargs)</p></td>
+<td><p>Apply node weight based sparsification to a table.</p></td>
 </tr>
 </tbody>
 </table>
@@ -556,12 +569,13 @@ more likely to be used. Support for custom operation is currently being worked o
   <nav class="bd-toc-nav page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#flow-object">Flow object</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#i-o-methods">I/O methods</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#operations">Operations</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#flow-i-o-methods">Flow I/O methods</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#flow-operations-handling">Flow operations handling</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#filtering-operations">Filtering operations</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#normalization-operations">Normalization operations</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#sparsification-operations">Sparsification operations</a></li>
 </ul>
   </nav></div>
 

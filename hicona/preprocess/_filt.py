@@ -216,7 +216,7 @@ class FiltColumnValue(FiltOperation):
 class FiltInterChroms(FiltOperation):
     """Remove inter-chromosomal pixels from the table.
 
-    Remove pixels whose bin1_id and bin2_id are on different chromosomes.
+    Remove pixels whose ``bin1_id`` and ``bin2_id`` are on different chromosomes.
 
     """
 
@@ -230,7 +230,7 @@ class FiltInterChroms(FiltOperation):
 class FiltSelfLooping(FiltOperation):
     """Remove self-looping pixels from the table.
 
-    Remove pixels whose bin1_id and bin2_id are the same.
+    Remove pixels whose ``bin1_id`` and ``bin2_id`` are the same.
 
     """
 

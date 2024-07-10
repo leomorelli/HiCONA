@@ -33,7 +33,7 @@ class NormBinwise(NormOperation):
     """Apply a binwise normalization to a table.
 
     The normalization factors to use for normalization must be preemtively
-    added to the cooler as a column in the bin table.
+    added to the cooler file as a column in the bin table.
 
     Parameters
     ----------
@@ -50,7 +50,7 @@ class NormBinwise(NormOperation):
 
     Notes
     -----
-    This function mimics matrix balancing normalization found in cooler.
+    This function mimics matrix balancing normalization found in :mod:`cooler`.
     """
 
     def __init__(

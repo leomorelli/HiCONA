@@ -344,6 +344,7 @@ document.write(`
 <li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.FiltSelfLooping.html">hicona.preprocess.FiltSelfLooping</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.NormBinwise.html">hicona.preprocess.NormBinwise</a></li>
 <li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.NormGenomicDist.html">hicona.preprocess.NormGenomicDist</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hicona.preprocess.SparWeighted.html">hicona.preprocess.SparWeighted</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../analysis.html">Analysis</a><input class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-5"><i class="fa-solid fa-chevron-down"></i></label><ul>
@@ -422,8 +423,8 @@ document.write(`
 <dt class="sig sig-object py" id="hicona.preprocess.Flow.ops_add">
 <span class="sig-prename descclassname"><span class="pre">Flow.</span></span><span class="sig-name descname"><span class="pre">ops_add</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">operation</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/hicona/preprocess/_flow.html#Flow.ops_add"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#hicona.preprocess.Flow.ops_add" title="Link to this definition">#</a></dt>
 <dd><p>Add a new operation to the operations flow.</p>
-<p>Given an instance of a class that inherits from either <code class="docutils literal notranslate"><span class="pre">FiltOperation</span></code> or
-<code class="docutils literal notranslate"><span class="pre">NormOperation</span></code>, add it as the last operation in the flow.</p>
+<p>Given an instance of a class that inherits from either <code class="docutils literal notranslate"><span class="pre">FiltOperation</span></code>,
+<code class="docutils literal notranslate"><span class="pre">NormOperation</span></code> or <code class="docutils literal notranslate"><span class="pre">SparOperation</span></code>, add it as the last operation in the flow.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p>Currently the method only supports adding default functions. Custom
