@@ -148,7 +148,10 @@ class HiconaCooler(cooler.Cooler):
 
         tables_uris = self._uris.add_path(self._tables_root)
         for tab in hdf5.get_keys(tables_uris):
-            yield HiconaTable(tables_uris.add_path(tab))
+            try:
+                yield HiconaTable(tables_uris.add_path(tab))
+            except KeyError:
+                print(f"W: table {tab} is corrupted, skipping.")
 
     def _init_raw_table(
         self,
