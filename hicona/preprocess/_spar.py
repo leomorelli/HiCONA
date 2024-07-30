@@ -15,8 +15,27 @@ if TYPE_CHECKING:
 __all__ = ["SparWeighted"]
 
 
+def _general_sparsify(table: "Table", mode: str, col: str, **kwargs) -> "PdChunks":
+    """General sparsification function for pixel table chunks."""
+
+    # NOTE: implemented this way to simplify breaking into parallel later
+
+    for i, chunk in enumerate(table.chunks()):
+
+        print(f"Starting to sparsify chunk {i}.")
+        start = time.time()
+
+        spar_chunk = sparsification.sparsify_chunk(chunk, mode, col, **kwargs)
+
+        end = time.time()
+        print(f"Finished sparsifying chunk {i}.")
+        print(f"Took {end - start} seconds.")
+
+        yield spar_chunk
+
+
 class SparWeighted(SparOperation):
-    """Compute pixel table sparsification scores in a weighted matter.
+    """Compute pixel table sparsification scores using edge weight.
 
     Compute the sparsification scores for a pixel table based on node weights.
     The alpha values are computed according to `Serrano et al. 2009`.
@@ -42,19 +61,18 @@ class SparWeighted(SparOperation):
     def run(self, table: "Table") -> "PdChunks":
 
         node_stats = chunked.get_node_stats(table.chunks(), self._apply_col)
+        chunks = _general_sparsify(
+            table,
+            "weighted",
+            self._apply_col,
+            stats=node_stats,
+            bonferroni=self._bonferroni,
+        )
 
-        # NOTE: implemented this way to simplify breaking into parallel later
-        for i, chunk in enumerate(table.chunks()):
+        return chunks
 
-            print(f"Starting to sparsify chunk {i}.")
-            start = time.time()
 
-            spar_chunk = sparsification.sparsify_chunk(
-                chunk, node_stats, self._bonferroni
-            )
 
-            end = time.time()
-            print(f"Finished sparsifying chunk {i}.")
-            print(f"Took {end - start} seconds.")
 
-            yield spar_chunk
+
+

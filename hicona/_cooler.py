@@ -8,6 +8,7 @@ can be retrieved to create filtered networks to analyze.
 """
 
 import json
+import time
 from typing import Generator, Iterable
 
 import cooler
@@ -250,13 +251,14 @@ class HiconaCooler(cooler.Cooler):
         for op in table.flow.ops:
 
             print(f"Starting to apply: {op.name}")
+            start = time.time()
 
             tab_size = hdf5.write_table(table.uris, op.run(table))
             hdf5.resize_table(table.uris, tab_size)
             table.reset_index()
 
-            print(f"Finished applying: {op.name}")
-            print(f"Table size: {tab_size}")
+            end = time.time()
+            print(f"Took {end - start} seconds.")
 
         return HiconaTable(table.uris)
 
