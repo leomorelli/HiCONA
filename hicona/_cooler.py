@@ -14,7 +14,9 @@ from typing import Generator, Iterable
 import cooler
 import h5py
 import pandas as pd
+import polars as pl
 
+from hicona._dtypes import GenericDf
 from hicona._core import Table, uris
 from hicona._ops import bed, hdf5
 from hicona.preprocess import Flow
@@ -105,7 +107,7 @@ class HiconaCooler(cooler.Cooler):
         return self._tables_root
 
     @property
-    def bare_bins(self) -> pd.DataFrame:
+    def bare_bins(self) -> GenericDf:
         """Get full bin table without any annotation.
 
         Return the ``bins`` table as a ``pandas.DataFrame`` with only
@@ -137,7 +139,7 @@ class HiconaCooler(cooler.Cooler):
         [308837 rows x 3 columns]
 
         """
-        return self.bins()[["chrom", "start", "end"]][:]  # type: ignore
+        return pl.from_pandas(self.bins()[["chrom", "start", "end"]][:])  # type: ignore
 
     # ////////////////////////////////////////////////////////////////////////
     # /////////////////////////// PUBLIC TABLE API ///////////////////////////
@@ -172,8 +174,7 @@ class HiconaCooler(cooler.Cooler):
         # Copy pixel data to the new table
         for lower in range(0, num_pix, chunk_size):
             upper = min(lower + chunk_size, num_pix)
-            chunk = self.pixels()[lower:upper]
-            assert isinstance(chunk, pd.DataFrame)  # For type checker
+            chunk = pl.from_pandas(self.pixels()[lower:upper])  # type: ignore
             hdf5.write_chunk(table_uris, chunk, lower, chunk.columns)
 
         # Set table attributes
@@ -254,6 +255,7 @@ class HiconaCooler(cooler.Cooler):
             start = time.time()
 
             tab_size = hdf5.write_table(table.uris, op.run(table))
+            print(tab_size)
             hdf5.resize_table(table.uris, tab_size)
             table.reset_index()
 
@@ -480,7 +482,7 @@ class HiconaCooler(cooler.Cooler):
 
         # Save new annotation columns
         ann_df = ann_df.drop(labels=[None] + list(bin_df.columns), axis=1)
-        hdf5.save_table(self._uris.add_path("bins"), ann_df)
+        hdf5.save_table(self._uris.add_path("bins"), pl.from_pandas(ann_df))
 
     def del_bin_annot(self, to_del: str | Iterable[str]) -> None:
         """Remove one (or more) bin annotation columns.
@@ -616,7 +618,7 @@ class HiconaCooler(cooler.Cooler):
             columns = [c for c in ohe_df if not str(c).lower().endswith("_nan")]
             ohe_df = ohe_df[columns]
 
-        hdf5.save_table(self._uris.add_path("bins"), ohe_df)
+        hdf5.save_table(self._uris.add_path("bins"), pl.from_pandas(ohe_df))
 
         # Remove original columns if selected
         if remove_original:
@@ -719,4 +721,4 @@ class HiconaCooler(cooler.Cooler):
         out_table = bed.ann_enriched(bin_table, bkg_table, col_names)
         out_table.rename(columns={annot_col: ann_name})
 
-        hdf5.save_table(self._uris.add_path("bins"), out_table)
+        hdf5.save_table(self._uris.add_path("bins"), pl.from_pandas(out_table))

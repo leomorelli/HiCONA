@@ -1,21 +1,23 @@
 """Module containing the Table class and related utilities."""
 
 import json
+import math
 from pathlib import Path
 from typing import Iterable
 
 import cooler
-import pandas as pd
+import numpy as np
+import polars as pl
 
-from hicona._core import uris
-from hicona._dtypes import PdChunks, OptionalAxes
+from hicona._core import uris, annotate, genomic
+from hicona._dtypes import DfChunks
 from hicona._ops import hdf5
-from hicona._core import genomic
 from hicona.preprocess import Flow
-from hicona.analysis import _plotting as plotting  # TODO: Make better
 
 
 FULL_TABLE = "full_table"
+
+__all__ = ["Table", "TableIntervals"]
 
 
 class TableIntervals:
@@ -45,61 +47,56 @@ class TableIntervals:
     def __init__(
         self,
         table: "Table",
-        indexes: list[pd.Index] | None = None,
-        interval_str: str | None = None,
+        index: pl.Series | None = None,
+        interval: str | None = None,
     ):
 
-        if bool(indexes) != bool(interval_str):
-            raise ValueError(
-                "Both indexes and interval_str must be provided or neither."
-            )
+        both_provided = index is not None and interval is not None
+        none_provided = index is None and interval is None
+        if not (both_provided or none_provided):
+            raise ValueError("Both index and interval must be provided or neither.")
 
-        self._table = table
-        self._indexes = indexes or self._initial_index()
-        self._interval_str = interval_str or FULL_TABLE
-        self._size: int = 0  # Random initialization value
+        if index is None:
+            table_size = hdf5.get_table_size(table.uris)
+            index = pl.Series("index", np.repeat(True, table_size))
 
-        self.update_size()
+        self._table: "Table" = table
+        self._interval: str = interval or FULL_TABLE
+        self._index: pl.Series = index
+        self._size: int = round(self._index.sum())
 
     def __str__(self) -> str:
-        return self._interval_str
+        return self._interval
 
     def __or__(self, other: "TableIntervals") -> "TableIntervals":
-
-        iterator = zip(self._indexes, other.get_indexes())
-        new_intervals = [i.join(j, how="outer") for i, j in iterator]
-        new_repr = f"({self._interval_str} | {other._interval_str})"
-
-        return TableIntervals(self._table, new_intervals, new_repr)
+        index = self._index | other.index
+        interval = f"({self} | {other})"
+        return TableIntervals(self._table, index, interval)
 
     def __and__(self, other: "TableIntervals") -> "TableIntervals":
+        index = self._index & other.index
+        interval = f"({self} & {other})"
+        return TableIntervals(self._table, index, interval)
 
-        iterator = zip(self._indexes, other.get_indexes())
-        new_intervals = [i.join(j, how="inner") for i, j in iterator]
-        new_repr = f"({self._interval_str} & {other._interval_str})"
-
-        return TableIntervals(self._table, new_intervals, new_repr)
-
-    def _initial_index(self) -> list[pd.Index]:
-        """Return an index of the complete table split into chunks."""
-
-        table_size = hdf5.get_table_size(self._table.uris)
-        chunk_size = self._table.chunk_size
-
-        num_full_chunks, partial_chunk_size = divmod(table_size, chunk_size)
-        full_chunk_ind = pd.Index(range(0, chunk_size), dtype="int32")
-        part_chunk_ind = pd.Index(range(0, partial_chunk_size), dtype="int32")
-
-        return [full_chunk_ind] * num_full_chunks + [part_chunk_ind]
+    @property
+    def index(self) -> pl.Series:
+        """Return the indexes for each chunk."""
+        return self._index
 
     @property
     def size(self) -> int:
         """Return the size of the complete table or the subset."""
         return self._size
 
-    def update_size(self) -> None:
-        """Update the size of the complete table or the subset."""
-        self._size = sum(len(c) for c in self._indexes)
+    @property
+    def interval(self) -> str:
+        """Return the string representation of the intervals."""
+        return self._interval
+
+    def index_parts(self, size: int) -> Iterable[pl.Series]:
+        """Return the indexes for each chunk."""
+        for num in range(0, math.ceil(self.index.len() / size)):
+            yield self.index.slice(size * num, size)
 
     def subset(self, region: str, both: bool = True) -> "TableIntervals":
         """Subset a full genomic table to a region of interest."""
@@ -107,24 +104,19 @@ class TableIntervals:
         # NOTE: currently not allowing the subset of subsets because it
         #       is not clear how to handle the interval_str in that case.
         #       Might be implemented in the future if needed.
-        if self._interval_str != FULL_TABLE:
+        if self._interval != FULL_TABLE:
             raise ValueError("Cannot subset a subset. Use boolean operators instead.")
 
-        new_repr = f"{region}({'+' if both else '-'})"
+        interval = f"{region}({'+' if both else '-'})"
 
         gen_region = genomic.GenomicRegion(region)
         gen_region.snap_to_bin(self._table.bin_size)
-        query_str = gen_region.to_query(both)
 
         pd_chunks = self._table.chunks(annotated=True)
-        new_indexes = [c.query(query_str).index for c in pd_chunks]
+        exp = gen_region.to_query(both)
+        new_indexes = [c.with_columns(exp.alias("index"))["index"] for c in pd_chunks]
 
-        return TableIntervals(self._table, new_indexes, new_repr)
-
-    def get_indexes(self) -> Iterable[pd.Index]:
-        """Return the indexes of the table or the subset."""
-        for index in self._indexes:
-            yield index
+        return TableIntervals(self._table, pl.concat(new_indexes), interval)
 
 
 class Table:
@@ -160,6 +152,10 @@ class Table:
         self._bin_size = bin_size or get_bin_size(uri_path)
         self._chunk_size = chunk_size
         self._intervals = intervals or TableIntervals(self)
+
+    def reset_index(self) -> None:
+        """Reset the index of the table to the full table."""
+        self._intervals = TableIntervals(self)
 
     @property
     def bin_size(self) -> int:
@@ -264,8 +260,8 @@ class Table:
         self,
         columns: Iterable[str] | None = None,
         annotated: bool = False,
-        query: str | None = None,
-    ) -> PdChunks:
+        query: pl.Expr | str | None = None,
+    ) -> DfChunks:
         """Return an iterable of table chunks (as pandas.DataFrames).
 
         Read table chunks from memory only when needed and return them as
@@ -358,17 +354,19 @@ class Table:
         """
 
         def prepare_chunk(
-            chunk: pd.DataFrame,
+            chunk: pl.DataFrame,
             bins=None,
             columns=None,
             query=None,
-        ) -> pd.DataFrame:
+        ) -> pl.DataFrame:
             """Prepare the chunk for output with annotation of filtering."""
 
+            # TODO: Understand funky annotate import (module/function)
+            # TODO: Add back support for pandas query strings
             if bins is not None:
-                chunk = cooler.annotate(chunk, bins)
+                chunk = annotate.annotate(chunk, bins)  # pylint: disable=no-member
             if query is not None:
-                chunk = chunk.query(query)
+                chunk = chunk.filter(query)
             if columns is not None:
                 chunk = chunk[columns]
 
@@ -379,10 +377,10 @@ class Table:
         bins = cool.bins()[:] if annotated else None
 
         # Growing list to concat to create the full chunk
-        chunk_parts: list[pd.DataFrame] = []
+        chunk_parts: list[pl.DataFrame] = []
 
         # Iterate all indexes
-        indexes = self._intervals.get_indexes()
+        indexes = self._intervals.index_parts(self.chunk_size)
         for num, index in enumerate(indexes):
 
             # Skip chunk if no pixels from it need to be kept
@@ -391,34 +389,32 @@ class Table:
 
             # Fetch and index the chunk
             bounds = slice(num * self.chunk_size, (num + 1) * self.chunk_size)
-            chunk = hdf5.fetch_chunk(self.uris, bounds)
-            chunk = chunk.iloc[index]
+            chunk = hdf5.fetch_chunk(self.uris, bounds).filter(index)
 
             # Add kept pixels to the growing list
             chunk_parts.append(chunk)
 
             # Yield the chunk if it is complete
             # Save extra pixels for the next chunk
-            new_chunks_size = sum(len(c) for c in chunk_parts)
+            new_chunks_size = sum(c.height for c in chunk_parts)
             if new_chunks_size >= self.chunk_size:
 
-                out_chunk = pd.concat(chunk_parts)
-
-                chunk_parts = [out_chunk.iloc[self.chunk_size :]]
-                out_chunk = out_chunk.iloc[: self.chunk_size]
+                out_chunk = pl.concat(chunk_parts)
+                chunk_parts = [out_chunk.slice(self.chunk_size)]
+                out_chunk = out_chunk.slice(0, self.chunk_size)
 
                 yield prepare_chunk(out_chunk, bins, columns, query)
 
         # Yield the remaining pixels as an incomplete chunk
         if len(chunk_parts) > 0:
-            yield prepare_chunk(pd.concat(chunk_parts), bins, columns, query)
+            yield prepare_chunk(pl.concat(chunk_parts), bins, columns, query)
 
     def dataframe(
         self,
         columns: Iterable[str] | None = None,
         annotated: bool = False,
-        query: str | None = None,
-    ) -> pd.DataFrame:
+        query: pl.Expr | str | None = None,
+    ) -> pl.DataFrame:
         """Return all table chunks in a single pandas DataFrame.
 
         Obtain the full table by concatenating all chunks into a single
@@ -529,18 +525,4 @@ class Table:
         """
 
         iterator = self.chunks(columns, annotated, query)
-        return pd.concat(iterator).reset_index(drop=True)
-
-    def reset_index(self) -> None:
-        """Refresh indexes to pixel position in the full table.
-
-        Update the indexes to the pixels to consider from the full table in
-        memory. This is used to refresh the object when the table changes on
-        disk. In general, should not be needed by the user.
-        """
-
-        self._intervals = TableIntervals(self)
-        # TODO: check because this might not work as expected
-        # due to the way the table is resized in the hdf5 file
-
-        # TODO: Maybe recreate the table from scratch and remove this method
+        return pl.concat(iterator)

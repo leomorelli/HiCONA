@@ -340,7 +340,7 @@ document.write(`
 
 <span class="k">if</span> <span class="n">_TYPE_CHECKING</span><span class="p">:</span>
     <span class="kn">from</span> <span class="nn">hicona._core</span> <span class="kn">import</span> <span class="n">Table</span>
-    <span class="kn">from</span> <span class="nn">hicona._dtypes</span> <span class="kn">import</span> <span class="n">PdChunks</span>
+    <span class="kn">from</span> <span class="nn">hicona._dtypes</span> <span class="kn">import</span> <span class="n">DfChunks</span>
 
 
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;NormBinwise&quot;</span><span class="p">,</span> <span class="s2">&quot;NormGenomicDist&quot;</span><span class="p">]</span>
@@ -354,7 +354,7 @@ document.write(`
 <span class="c1">#     values to the normalized column when no normalization was applied.</span>
 <span class="c1">#     &quot;&quot;&quot;</span>
 
-<span class="c1">#     def run(self, table: &quot;Table&quot;) -&gt; &quot;PdChunks&quot;:</span>
+<span class="c1">#     def run(self, table: &quot;Table&quot;) -&gt; &quot;DfChunks&quot;:</span>
 <span class="c1">#         for chunk in table.chunks():</span>
 <span class="c1">#             chunk[&quot;norm&quot;] = chunk[&quot;count&quot;]</span>
 <span class="c1">#             yield chunk[[&quot;bin1_id&quot;, &quot;bin2_id&quot;, &quot;count&quot;, &quot;norm&quot;]]</span>
@@ -399,7 +399,7 @@ document.write(`
         <span class="bp">self</span><span class="o">.</span><span class="n">_divisive</span> <span class="o">=</span> <span class="n">divisive</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_drop_nas</span> <span class="o">=</span> <span class="n">drop_nas</span>
 
-    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">table</span><span class="p">:</span> <span class="s2">&quot;Table&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;PdChunks&quot;</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">table</span><span class="p">:</span> <span class="s2">&quot;Table&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;DfChunks&quot;</span><span class="p">:</span>
 
         <span class="n">col1</span><span class="p">,</span> <span class="n">col2</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_ann_name</span><span class="si">}</span><span class="s2">1&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_ann_name</span><span class="si">}</span><span class="s2">2&quot;</span>
 
@@ -435,7 +435,7 @@ document.write(`
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">apply_col</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_apply_col</span> <span class="o">=</span> <span class="n">apply_col</span>
 
-    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">table</span><span class="p">:</span> <span class="s2">&quot;Table&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;PdChunks&quot;</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">table</span><span class="p">:</span> <span class="s2">&quot;Table&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;DfChunks&quot;</span><span class="p">:</span>
 
         <span class="k">def</span> <span class="nf">distance_iter</span><span class="p">(</span><span class="n">table_obj</span><span class="p">):</span>
 <span class="w">            </span><span class="sd">&quot;&quot;&quot;Iter chunks with genomic distance. Add inter-chromosomal check.&quot;&quot;&quot;</span>

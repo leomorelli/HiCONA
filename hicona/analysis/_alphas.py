@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
+import polars as pl
 
 from hicona._dtypes import AlphaModType, OptionalAxes
 from hicona._numeric import rounding
@@ -101,7 +102,7 @@ class AlphaGrid:
         edges: int = 0
 
         for chunk in self._table.chunks():
-            chunk = chunk.query(f"{self._alpha_mod} <= {threshold}")
+            chunk = chunk.filter(pl.col(self._alpha_mod) <= threshold)
 
             nodes |= set(chunk["bin1_id"]) | set(chunk["bin2_id"])
             edges += len(chunk)

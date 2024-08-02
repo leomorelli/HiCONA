@@ -3,13 +3,14 @@
 from typing import Any, Iterable, Literal, TypeVar, Union, TYPE_CHECKING
 
 import matplotlib.axes as ax
+import polars as pl
 import pandas as pd
 
 if TYPE_CHECKING:
     from hicona.preprocess import FiltOperation, NormOperation, SparOperation
 
 # Type alias for an iterable (usually a generator) of pandas DataFrames.
-PdChunks = Iterable[pd.DataFrame]
+DfChunks = Iterable[pl.DataFrame]
 
 # Type alias for generic type annotation.
 T = TypeVar("T")
@@ -28,3 +29,5 @@ JsonDict = dict[str, dict[str, Any]]
 
 
 Operation = Union["FiltOperation", "NormOperation", "SparOperation"]
+
+GenericDf = Union[pl.DataFrame, pd.DataFrame]

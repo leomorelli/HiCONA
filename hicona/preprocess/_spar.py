@@ -9,13 +9,13 @@ from hicona.preprocess._abcs import SparOperation
 
 if TYPE_CHECKING:
     from hicona._core import Table
-    from hicona._dtypes import PdChunks
+    from hicona._dtypes import DfChunks
 
 
-__all__ = ["SparWeighted"]
+__all__ = ["SparWeighted"]  # , "SparLocalDegree"]
 
 
-def _general_sparsify(table: "Table", mode: str, col: str, **kwargs) -> "PdChunks":
+def _general_sparsify(table: "Table", mode: str, col: str, **kwargs) -> "DfChunks":
     """General sparsification function for pixel table chunks."""
 
     # NOTE: implemented this way to simplify breaking into parallel later
@@ -58,7 +58,7 @@ class SparWeighted(SparOperation):
         self._apply_col = apply_col
         self._bonferroni = bonferroni
 
-    def run(self, table: "Table") -> "PdChunks":
+    def run(self, table: "Table") -> "DfChunks":
 
         node_stats = chunked.get_node_stats(table.chunks(), self._apply_col)
         chunks = _general_sparsify(
@@ -72,7 +72,31 @@ class SparWeighted(SparOperation):
         return chunks
 
 
+# class SparLocalDegree(SparOperation):
+#     """Compute pixel table sparsification scores using local degree.
 
+#     Compute the sparsification scores for a pixel table based on local node
+#     degree. The alpha values are computed according to `Hamann et al. 2016`.
 
+#     Parameters
+#     ----------
+#     apply_col : str
+#         The column name of the node weights.
+#     """
 
+#     def __init__(self, *, apply_col: str):
+#         self._apply_col = apply_col
 
+#     def run(self, table: "Table") -> "DfChunks":
+
+#         stats = chunked.get_node_count_freq(table.chunks(), self._apply_col)
+#         print(stats)
+
+#         chunks = _general_sparsify(
+#             table,
+#             "local_deg",
+#             self._apply_col,
+#             stats=stats,
+#         )
+
+#         return chunks

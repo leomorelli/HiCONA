@@ -1,65 +1,103 @@
 """Default functions for pixel table sparsification."""
 
-from functools import partial
-
-import numpy as np
-import pandas as pd
 import scipy as sp
+import polars as pl
 
 from hicona._numeric import rounding
 
 
 def _score_weighted(
-    chunk: pd.DataFrame,
+    chunk: pl.DataFrame,
     counts_col: str,
-    stats: pd.DataFrame,
+    stats: pl.DataFrame,
     bonferroni: bool,
-) -> pd.DataFrame:
+) -> pl.DataFrame:
     """Return the weighted sparsification scores for a chunk."""
 
-    def _get_alpha(row: pd.Series, bonferroni: bool) -> float:
+    def _get_alpha(weight: float, degree: int) -> float:
         """Compute alpha value according to Serrano et al. 2009."""
 
-        weight, deg = row["norm_weight"], row["degree"]
-        res, _ = sp.integrate.quad(lambda x: (1 - x) ** (deg - 2), 0, weight)
-        alpha = 1 - (deg - 1) * res
-        alpha = min(1, alpha * deg) if bonferroni else alpha
-
+        res, _ = sp.integrate.quad(lambda x: (1 - x) ** (degree - 2), 0, weight)
+        alpha = 1 - (degree - 1) * res
         return rounding.round_half_up(alpha, 4)
 
-    scores: dict[str, pd.Series] = {}
+    scores: pl.DataFrame = pl.DataFrame()
 
     for col in ["bin1_id", "bin2_id"]:
 
         # Add degree and norm_weight columns to the chunk
-        dataf = chunk.merge(stats, how="left", left_on=col, right_index=True)
-        dataf["norm_weight"] = dataf[counts_col] / dataf.weight
+        dataf = chunk.join(
+            stats, how="left", left_on=col, right_on="bin_id"
+        ).with_columns((pl.col(counts_col) / pl.col("weight")).alias("norm_weight"))
 
-        dedup = dataf[["degree", "norm_weight"]].drop_duplicates()
-        dedup["alpha"] = 1.0  # .0 needed to initialize as float
-        mask = dedup.degree != 1
+        # Compute alpha values for each degree and norm_weight
+        alphas = (
+            dataf.select(["degree", "norm_weight"])
+            .filter(pl.col("degree") != 1)
+            .unique()
+            .with_columns(
+                pl.struct(["degree", "norm_weight"])
+                .map_elements(lambda x: _get_alpha(x["norm_weight"], x["degree"]))
+                .alias("alpha")
+            )
+        )
 
-        spar_func = partial(_get_alpha, bonferroni=bonferroni)
-        dedup.loc[mask, "alpha"] = dedup.loc[mask].apply(spar_func, axis=1)
+        # TODO: Add back bonferroni correction (maybe)
+        if bonferroni:
+            raise NotImplementedError("Bonferroni correction not yet implemented.")
 
-        # Merge the alpha values back into the chunk
-        dataf = dataf.merge(dedup, how="left", on=["degree", "norm_weight"])
-        scores[col] = dataf.alpha
+        dataf = dataf.join(
+            alphas, how="left", on=["degree", "norm_weight"]
+        ).with_columns(pl.col("alpha").fill_null(1.0))
 
-    return pd.DataFrame(scores)
+        scores = scores.with_columns(dataf["alpha"].alias(col))
+
+    scores = scores.with_columns(
+        pl.min_horizontal("bin1_id", "bin2_id").alias("score_min"),
+        pl.max_horizontal("bin1_id", "bin2_id").alias("score_max"),
+    ).select(["score_min", "score_max"])
+
+    return scores
 
 
-    chunk: pd.DataFrame,
-    stats: pd.DataFrame,
+# def _score_local_deg(
+#     chunk: pd.DataFrame,
+#     counts_col: str,
+#     stats: pd.DataFrame,
+# ) -> pd.DataFrame:
 
+#     def compute_scores(df):
 
+#         data = df.copy()
+#         data["score"] = 1.0
 
+#         index = data["degree"] > 1
+#         redux = data.loc[index, :].copy()
+#         redux["score"] = 1 - (np.log(redux["rank"]) / np.log(redux["degree"]))
+#         data.loc[index, "score"] = redux["score"]
 
+#         return data
+
+#     scores: dict[str, pd.Series] = {}
+#     scores_df = compute_scores(stats)
+
+#     for col in ["bin1_id", "bin2_id"]:
+
+#         merge = chunk.merge(
+#             scores_df,
+#             how="left",
+#             left_on=[col, counts_col],
+#             right_on=["bin_id", "count"],
+#         )
+
+#         scores[col] = merge["score"]
+
+#     return pd.DataFrame(scores)
 
 
 def sparsify_chunk(
-    chunk: pd.DataFrame, mode: str, column: str, **kwargs
-) -> pd.DataFrame:
+    chunk: pl.DataFrame, mode: str, column: str, **kwargs
+) -> pl.DataFrame:
     """Return the sparsified scores for a chunk."""
 
     spar_functions = {"weighted": _score_weighted}  # "local_deg": _score_local_deg}
@@ -71,6 +109,6 @@ def sparsify_chunk(
 
     # Compute the scores and sort them into min and max columns
     scores = func(chunk, column, **kwargs)
-    scores = pd.DataFrame({cols[0]: scores.min(axis=1), cols[1]: scores.max(axis=1)})
+    scores = pl.DataFrame({cols[0]: scores.min(axis=1), cols[1]: scores.max(axis=1)})
 
     return scores

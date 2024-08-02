@@ -4,9 +4,10 @@ from typing import Any, Iterable
 
 import h5py
 import pandas as pd
+import polars as pl
 
 from hicona._core import uris
-from hicona._dtypes import PdChunks
+from hicona._dtypes import DfChunks
 from hicona._ops import dataf
 
 
@@ -41,7 +42,7 @@ def fetch_chunk(
     uris_path: uris.Uris,
     bounds: slice,
     keys: Iterable[str] | None = None,
-) -> pd.DataFrame:
+) -> pl.DataFrame:
     """Retrieve a subset of the table as a pandas dataframe."""
 
     store, path = uris_path.hdf5_uris()
@@ -50,12 +51,12 @@ def fetch_chunk(
         keys = list(grp.keys()) if keys is None else keys
         table = pd.DataFrame({f: _get_dataset(grp, f)[bounds] for f in keys})
 
-    return table
+    return pl.DataFrame(table)
 
 
 def write_chunk(
     uris_path: uris.Uris,
-    chunk: pd.DataFrame,
+    chunk: pl.DataFrame,
     lower: int,
     keys: Iterable[str] | None = None,
 ) -> None:
@@ -95,7 +96,7 @@ def init_table(uris_path: uris.Uris, size: int, col_mapping: dict[str, str]) -> 
 
 def write_table(
     uris_path: uris.Uris,
-    iterator: PdChunks,
+    iterator: DfChunks,
     keys: Iterable[str] | None = None,
 ) -> int:
     """Write chunk applied to iterator of chunks of the same table."""
@@ -108,10 +109,11 @@ def write_table(
     return tab_size
 
 
-def save_table(uris_path: uris.Uris, table: pd.DataFrame) -> None:
+def save_table(uris_path: uris.Uris, table: pl.DataFrame) -> None:
     """Convenience shorthand to initialize and place table at once."""
 
-    init_table(uris_path, len(table), dataf.get_dataf_mapping(table))
+    col_mapping = {k: str(v) for k, v in zip(table.columns, table.dtypes)}
+    init_table(uris_path, len(table), col_mapping)
     write_chunk(uris_path, table, 0)
 
 

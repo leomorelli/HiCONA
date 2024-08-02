@@ -6,7 +6,7 @@ from typing import Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from hicona._core import Table
-    from hicona._dtypes import PdChunks, KwargsDict
+    from hicona._dtypes import DfChunks, KwargsDict
 
 
 class DocStringInheritor(abc.ABCMeta):
@@ -33,7 +33,7 @@ class OperationABC(metaclass=DocStringInheritor):
     """Abstract Base Class for any filtering or normalization operation."""
 
     @abc.abstractmethod
-    def run(self, table: "Table") -> "PdChunks":
+    def run(self, table: "Table") -> "DfChunks":
         """Process the table and return processed table chunks.
 
         Parameters

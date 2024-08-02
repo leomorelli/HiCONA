@@ -82,7 +82,7 @@ class HiconaGraph(gt.Graph):
         self._update_ids_table(data_df["bin2_id"])
 
         # Add edges to the graph and edge properties
-        edge_list, eprops = self._to_edge_list(data_df)
+        edge_list, eprops = self._to_edge_list(data_df.to_pandas())  # TODO: migrate
         self.add_edge_list(edge_list, eprops=eprops)
         # TODO: Maybe remove bin1_id and bin2_id from the edge properties?
 

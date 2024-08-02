@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
+import polars as pl
 import scipy as sp
 
 from hicona._dtypes import AlphaModType, OptionalAxes

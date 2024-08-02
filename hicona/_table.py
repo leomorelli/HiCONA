@@ -6,7 +6,7 @@ Object used to retrieve and analyze processed pixel tables.
 
 import collections
 
-import pandas as pd
+import polars as pl
 
 from hicona._core import base_table, uris
 from hicona._dtypes import AlphaModType
@@ -275,7 +275,7 @@ class HiconaTable(base_table.Table):
 
         return AnnotDynamics(self, annot, as_quantiles, alpha_mod)
 
-    def get_distribution(self, colname: str) -> pd.DataFrame:
+    def get_distribution(self, colname: str) -> pl.DataFrame:
         """Return the distribution for the column as a pandas DataFrame.
 
         Obtain the value distribution for the specified column in the table.
@@ -315,7 +315,8 @@ class HiconaTable(base_table.Table):
 
         counter = collections.Counter()
         for chunk in self.chunks():
-            counter.update(chunk[colname].tolist())
+            counter.update(chunk[colname].to_list())
 
-        distr = pd.DataFrame(counter.items(), columns=["value", "count"])
-        return distr.sort_values("value")
+        return pl.DataFrame({"value": counter.keys(), "count": counter.values()}).sort(
+            "value"
+        )

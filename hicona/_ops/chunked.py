@@ -1,99 +1,112 @@
 """Functions which modify and return iterables of pixel table chunks."""
 
-import pandas as pd
+import polars as pl
 
-from hicona._dtypes import PdChunks, T
-
+from hicona._dtypes import DfChunks, T
 
 DEFAULT_COL = "bin1_id"
 
 
-def change_breaks(
-    iterator: PdChunks,
-    split_on: list,
-    to_keep_cols: list[str],
-) -> PdChunks:
-    """Return a generator of intervals based on the split_on columns.
+def chunked_groupby(
+    iterator: DfChunks,
+    split_on: list[str],
+) -> DfChunks:
+    """Groupby operation on an Iterable of chunks.
 
-    Rather then using the iterator with regular chunks, divide the chunks
-    based on where the value of one of the split columns changes. Basically
-    it is a groupby operation, but faster and more memory efficient when the
-    groups are ordered. The main use it to split for pairs of chromosomes.
+    Given an iterable of chunks (generally of fixed size), return a new
+    iterable of chunks where the chunks are the result of a groupby operation
+    spanning across the chunks. It is assumed that the chunks are collectively
+    sorted by the columns in `split_on`.
     """
 
-    curr_interval: list[pd.DataFrame] = []
-    prev_values: list = [None] * len(split_on)
+    pixels: pl.DataFrame = pl.DataFrame()
 
-    for chunk in iterator:
+    for new_pixels in iterator:
+        pixels = pl.concat([pixels, new_pixels])
 
-        split_cols = chunk[split_on]
-        value_cols = chunk[to_keep_cols + split_on]
+        *chunks, (_, pixels) = pixels.group_by(split_on, maintain_order=True)
+        for chunk in chunks:
+            yield chunk[1]
 
-        breaks = pd.Series([False] * len(chunk))
-        for col, val in zip(split_cols.columns, prev_values):
-            val = val or split_cols[col].iloc[0]
-            col = split_cols[col]
-            breaks = breaks | (col != col.shift(fill_value=val))
-        breaks = list(breaks[breaks].index)
-
-        for b in breaks:
-            curr_interval.append(value_cols.loc[: b - 1])
-            value_cols = value_cols.loc[b:]
-
-            interval = pd.concat(curr_interval)
-            curr_interval = []
-
-            yield interval
-
-        curr_interval.append(value_cols)
-
-    interval = pd.concat(curr_interval)
-    yield interval
+    for chunk in pixels.group_by(split_on, maintain_order=True):
+        yield chunk[1]
 
 
-def add_bin_diff(iterator: PdChunks) -> PdChunks:
-    """Add a column with the difference between bin2 and bin1."""
-
-    for chunk in iterator:
-        chunk["diff"] = chunk["bin2_id"] - chunk["bin1_id"]
-        yield chunk
-
-
-def add_gen_dist(iterator: PdChunks, bin_size: int) -> PdChunks:
-    """Add a column with the genomic distance between bin2 and bin1."""
-
-    for chunk in iterator:
-        chunk["dist"] = (chunk["bin2_id"] - chunk["bin1_id"]) * bin_size
-        yield chunk
-
-
-def get_node_stats(chunks: PdChunks, weight_col: str) -> pd.DataFrame:
+def get_node_stats(chunks: DfChunks, weight_col: str) -> pl.DataFrame:
     """Compute sum of weights and degree for each node/bin."""
 
-    weights = pd.Series()
-    degrees = pd.Series()
+    stats = []
 
     for chunk in chunks:
         for bin_col in ["bin1_id", "bin2_id"]:
             # Compute metrics on chunk
-            grouped = chunk.groupby(bin_col)
-            chunk_weights = grouped.sum()[weight_col]
-            chunk_degrees = grouped.count()[weight_col]
+            grouped = (
+                chunk.select(bin_col, weight_col)
+                .group_by(bin_col)
+                .agg(
+                    [
+                        pl.col(weight_col).sum().alias("weight"),
+                        pl.count(bin_col).alias("degree"),
+                    ]
+                )
+                .rename({bin_col: "bin_id"})
+            )
 
-            # Increase counters
-            weights = weights.add(chunk_weights, fill_value=0)
-            degrees = degrees.add(chunk_degrees, fill_value=0)
+            stats.append(grouped)
 
-    return pd.DataFrame({"weight": weights, "degree": degrees})
+    return pl.concat(stats).group_by("bin_id").sum()
+
+
+# def get_node_count_freq(chunks: DfChunks, weight_col: str) -> pd.DataFrame:
+#     """Return sorted edge weights for each node in the network.
+
+#     Returns a dictionary where the keys are the node IDs and the values are
+#     lists of the edge weights connected to that node. The lists are sorted in
+#     descending order.
+#     """
+
+#     node_weights = None
+#     for chunk in chunks:
+#         bin_cols = ["bin1_id", "bin2_id"]
+#         for step in [1, -1]:
+#             group_col, count_col = bin_cols[::step]
+#             counts = chunk.rename(columns={group_col: "bin_id", count_col: "freq"})
+#             counts = counts.groupby(["bin_id", weight_col]).count()
+#             counts = counts[["freq"]]
+
+#             if node_weights is None:
+#                 node_weights = counts
+#             else:
+#                 node_weights = node_weights.add(counts, fill_value=0)
+
+#     assert node_weights is not None
+
+#     node_weights["freq"] = node_weights["freq"].astype(int)
+#     node_weights.reset_index(inplace=True)
+#     node_weights.sort_values(by=["bin_id", weight_col], inplace=True)
+
+#     def calc_ranks(df):
+#         df["rank"] = df["freq"].cumsum().shift(fill_value=0) + 1
+#         return df
+
+#     node_weights = node_weights.groupby("bin_id").apply(calc_ranks)
+#     node_weights.reset_index(drop=True, inplace=True)
+
+#     node_weights["degree"] = node_weights.groupby(["bin_id"])["freq"].transform("sum")
+#     node_weights.drop(columns=["freq"], inplace=True)
+
+#     assert isinstance(node_weights, pd.DataFrame)
+
+#     return node_weights
 
 
 def chunked_quants(
-    iterator: PdChunks,
+    iterator: DfChunks,
     column: str,
     quants: float | list[float],
     split_on: None | str | list[str] = None,
     group_by: None | str | list[str] = None,
-) -> pd.DataFrame:
+) -> DfChunks:
     """Compute quantiles on an Iterable of chunks.
 
     Compute quantiles for a table provided as an iterator of chunks. The
@@ -115,26 +128,14 @@ def chunked_quants(
     split_on = to_list(split_on)
     group_by = to_list(group_by)
 
-    results: list[pd.DataFrame] = []
-    intervals = change_breaks(iterator, split_on, [column] + group_by)
+    intervals = chunked_groupby(iterator, split_on) if split_on else iterator
+    expressions = [pl.col(column).quantile(q, "linear").alias(str(q)) for q in quantile]
+
     for interval in intervals:
 
-        # NOTE: np.ndarray does not implement __len__ so it is not array-like
-        # according to  pandas. Using list even though typing raises an alert.
         if group_by:
-            qvals = interval.groupby(group_by)[column].quantile(quantile)  # type: ignore
-            col_fix = {"level_1": "quant"}
+            yield pl.concat(
+                [c.with_columns(*expressions) for _, c in interval.groupby(group_by)]
+            ).sort(["bin1_id", "bin2_id"])
         else:
-            qvals = interval[column].quantile(quantile)
-            col_fix = {"index": "quant"}
-
-        quants_df = qvals.reset_index()
-        quants_df.rename(columns=col_fix, inplace=True)
-
-        if split_on:
-            for col in split_on:
-                quants_df[col] = interval[col].iloc[0]
-
-        results.append(quants_df)
-
-    return pd.concat(results)
+            yield interval.with_columns(*expressions)

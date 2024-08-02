@@ -2,31 +2,25 @@
 
 from typing import TYPE_CHECKING as _TYPE_CHECKING
 
-import numpy as np
+import polars as pl
 
 from hicona._ops import chunked
 from hicona.preprocess._abcs import NormOperation
 
 if _TYPE_CHECKING:
     from hicona._core import Table
-    from hicona._dtypes import PdChunks
+    from hicona._dtypes import DfChunks
 
 
 __all__ = ["NormBinwise", "NormGenomicDist"]
 
 
-# class NormNone(NormOperation):
-#     """Apply no normalization to a table.
-
-#     Do not apply any normalization to the table, just return the original
-#     count values as the normalized values. This is used to copy the raw
-#     values to the normalized column when no normalization was applied.
-#     """
-
-#     def run(self, table: "Table") -> "PdChunks":
-#         for chunk in table.chunks():
-#             chunk["norm"] = chunk["count"]
-#             yield chunk[["bin1_id", "bin2_id", "count", "norm"]]
+# TODO: remove and merge with the one in _norm.py
+def _is_base_column(df: pl.DataFrame) -> list[pl.Expr]:
+    """Return an expression to select base columns from the chunk."""
+    base_cols = ["bin1_id", "bin2_id", "count", "norm"]
+    keep_cols = [pl.col(c) for c in base_cols if c in df.columns]
+    return keep_cols
 
 
 class NormBinwise(NormOperation):
@@ -66,20 +60,19 @@ class NormBinwise(NormOperation):
         self._divisive = divisive
         self._drop_nas = drop_nas
 
-    def run(self, table: "Table") -> "PdChunks":
+    def run(self, table: "Table") -> "DfChunks":
 
         col1, col2 = f"{self._ann_name}1", f"{self._ann_name}2"
 
         for chunk in table.chunks(annotated=True):
+
             if self._divisive:
-                chunk[col1] = 1 / chunk[col1]
-                chunk[col2] = 1 / chunk[col2]
-            chunk["norm"] = chunk[self._apply_col] * chunk[col1] * chunk[col2]
+                chunk = chunk.with_columns(1 / pl.col(col1), 1 / pl.col(col2))
 
-            if self._drop_nas:
-                chunk.dropna(inplace=True)
+            exp = (pl.col(self._apply_col) * pl.col(col1) * pl.col(col2)).alias("norm")
+            exp = exp.drop_nulls() if self._drop_nas else exp
 
-            yield chunk[["bin1_id", "bin2_id", "count", "norm"]]
+            yield chunk.with_columns(exp).select(_is_base_column(chunk))
 
 
 class NormGenomicDist(NormOperation):
@@ -99,33 +92,30 @@ class NormGenomicDist(NormOperation):
     def __init__(self, *, apply_col: str):
         self._apply_col = apply_col
 
-    def run(self, table: "Table") -> "PdChunks":
+    def run(self, table: "Table") -> "DfChunks":
 
-        def distance_iter(table_obj):
+        # TODO: maybe add check for inter chromosomal
+
+        def iter_with_dist(table_obj: "Table"):
             """Iter chunks with genomic distance. Add inter-chromosomal check."""
 
             chunks = table_obj.chunks(annotated=True)
             bin_size = table_obj.bin_size
 
-            for chunk in chunked.add_gen_dist(chunks, bin_size):
+            for chunk in chunks:
+                yield chunk.with_columns(
+                    ((pl.col("bin2_id") - pl.col("bin1_id")) * bin_size).alias("dist")
+                )
 
-                # Check that inter-chromosomal pixels where removed
-                if any(chunk["chrom1"] != chunk["chrom2"]):
-                    raise ValueError("Inter-chromosomal pixels must be removed.")
-
-                yield chunk
-
-        norm_curve = chunked.chunked_quants(
-            distance_iter(table),
+        chunks = chunked.chunked_quants(
+            iter_with_dist(table),
             column=self._apply_col,
             quants=0.5,
             split_on=["chrom1", "chrom2"],
             group_by="dist",
         )
-        norm_curve.rename(columns={self._apply_col: "dist_norm"}, inplace=True)
 
-        for chunk in distance_iter(table):
-            chunk = chunk.merge(norm_curve, how="left", on=["chrom1", "dist"])
-            chunk["norm"] = np.log2(chunk[self._apply_col] / chunk["dist_norm"] + 1)
-
-            yield chunk[["bin1_id", "bin2_id", "count", "norm"]]
+        for chunk in chunks:
+            yield chunk.with_columns(
+                (pl.col(self._apply_col) / pl.col("0.5") + 1).log().alias("norm")
+            ).select(_is_base_column(chunk))
