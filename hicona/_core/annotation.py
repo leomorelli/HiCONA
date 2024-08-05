@@ -47,6 +47,9 @@ def annotate(pixels: GenericDf, bins: GenericDf) -> GenericDf:
     # Convert to polars DataFrames if necessary
     pixels = pixels if isinstance(pixels, pl.DataFrame) else pl.DataFrame(pixels)
     if isinstance(bins, pd.DataFrame):
+        bins = pl.DataFrame(bins)
+
+    if "bin_id" not in bins.columns:
         bins = (
             pl.DataFrame(bins)
             .with_row_index("bin_id")
