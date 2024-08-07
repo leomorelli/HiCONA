@@ -14,3 +14,4 @@ from ._graph import HiconaGraph  # TODO: Make optional
 from ._table import HiconaTable
 from . import analysis
 from . import preprocess
+from ._core import subsample
