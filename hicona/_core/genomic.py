@@ -44,16 +44,22 @@ class GenomicRegion:
     def to_query(self, both: bool = False) -> pl.Expr:
         """Return region in query format."""
 
-        bin_exp = [
-            (
-                (pl.col(f"chrom{bin_id}") == self._chrom)
-                & (pl.col(f"start{bin_id}") >= self._start)
-                & (pl.col(f"end{bin_id}") <= self._end)
-            )
-            for bin_id in (1, 2)
-        ]
+        def get_bin_exp(
+            bin_id: int, chrom: str, start: int | None, end: int | None
+        ) -> pl.Expr:
 
-        return bin_exp[0] & bin_exp[1] if both else bin_exp[0] | bin_exp[1]
+            expr = pl.col(f"chrom{bin_id}") == chrom
+            if start is not None:
+                expr &= pl.col(f"start{bin_id}") >= start
+            if end is not None:
+                expr &= pl.col(f"end{bin_id}") <= end
+
+            return expr
+
+        bin1_exp = get_bin_exp(1, self._chrom, self._start, self._end)
+        bin2_exp = get_bin_exp(2, self._chrom, self._start, self._end)
+
+        return bin1_exp & bin2_exp if both else bin1_exp | bin2_exp
 
     def snap_to_bin(self, bin_size: int) -> None:
         """Snap start and end to bin boundaries."""
