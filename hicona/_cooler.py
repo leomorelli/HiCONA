@@ -16,25 +16,15 @@ import h5py
 import pandas as pd
 import polars as pl
 
-from hicona._dtypes import GenericDf
+from hicona._constants import TABLES_ROOT, TABLE_COLUMNS
 from hicona._core import Table, uris
+from hicona._dtypes import GenericDf
 from hicona._ops import bed, hdf5
 from hicona.preprocess import Flow
 from hicona._table import HiconaTable
 
 
 __all__ = ["HiconaCooler"]
-
-
-_TABLES_ROOT = "hicona_tables"
-_TABLE_COLUMNS = {
-    "bin1_id": "i8",
-    "bin2_id": "i8",
-    "count": "i4",
-    "norm": "f8",
-    "alpha_min": "f8",
-    "alpha_max": "f8",
-}
 
 
 class HiconaCooler(cooler.Cooler):
@@ -83,7 +73,7 @@ class HiconaCooler(cooler.Cooler):
         # Mask deprecated root parameter from super-class
         super().__init__(store, **kwargs)
         self._uris = uris.Uris(self.store, self.root)
-        self._tables_root: str = _TABLES_ROOT
+        self._tables_root: str = TABLES_ROOT
 
     @property
     def tables_root(self) -> str:
@@ -168,7 +158,7 @@ class HiconaCooler(cooler.Cooler):
 
         # Initialize table
         num_pix = self.info["nnz"]
-        hdf5.init_table(table_uris, num_pix, _TABLE_COLUMNS)
+        hdf5.init_table(table_uris, num_pix, TABLE_COLUMNS)
 
         # TODO: This is currently slow
         # Copy pixel data to the new table
