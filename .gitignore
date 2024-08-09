@@ -17,6 +17,8 @@ test.py
 
 # Ignore misc
 statistical_test
+old_implementation
+analysis_scripts
 
 # Ignore vscode files
 .vscode/

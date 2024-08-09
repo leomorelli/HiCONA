@@ -1,6 +1,6 @@
 """Module with custom data types for the hicona package type annotation."""
 
-from typing import Any, Iterable, Literal, TypeVar, Union, TYPE_CHECKING
+from typing import Any, Iterator, Literal, TypeVar, Union, TYPE_CHECKING
 
 import matplotlib.axes as ax
 import polars as pl
@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from hicona.preprocess import FiltOperation, NormOperation, SparOperation
 
 # Type alias for an iterable (usually a generator) of pandas DataFrames.
-DfChunks = Iterable[pl.DataFrame]
+DfChunks = Iterator[pl.DataFrame]
 
 # Type alias for generic type annotation.
 T = TypeVar("T")

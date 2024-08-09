@@ -31,7 +31,7 @@ class HiconaTable(base_table.Table):
     def __init__(
         self,
         uris_path: uris.Uris,
-        intervals: base_table.TableIntervals | None = None,
+        intervals: base_table.TableIndex | None = None,
     ):
         """Initialize the HiconaTable object.
 
@@ -91,7 +91,7 @@ class HiconaTable(base_table.Table):
         >>> tab_c.region
         'chr1 10000 200000(+) | chr2 10000 200000(-)'  # Union of the regions
         """
-        return str(self._intervals)
+        return str(self._index)
 
     def subset(self, region: str, both: bool = True) -> "HiconaTable":
         """Return a subset of the table based on pixel genomic regions.
@@ -143,7 +143,7 @@ class HiconaTable(base_table.Table):
         428400
         """
 
-        new_intervals = self._intervals.subset(region, both)
+        new_intervals = self._index.subset(region, both)
         return HiconaTable(self.uris, new_intervals)
 
     def _same_source_check(self, other: "HiconaTable") -> None:
@@ -158,13 +158,13 @@ class HiconaTable(base_table.Table):
     def __or__(self, other: "HiconaTable") -> "HiconaTable":
 
         self._same_source_check(other)
-        new_intervals = self._intervals | other._intervals
+        new_intervals = self._index | other._index
         return HiconaTable(self.uris, new_intervals)
 
     def __and__(self, other: "HiconaTable") -> "HiconaTable":
 
         self._same_source_check(other)
-        new_intervals = self._intervals & other._intervals
+        new_intervals = self._index & other._index
         return HiconaTable(self.uris, new_intervals)
 
     def get_alpha_grid(

@@ -9,7 +9,7 @@ import cooler
 import numpy as np
 import polars as pl
 
-from hicona._core import uris, annotate, genomic
+from hicona._core import uris, annotation, genomic
 from hicona._dtypes import DfChunks
 from hicona._ops import hdf5
 from hicona.preprocess import Flow
@@ -17,10 +17,10 @@ from hicona.preprocess import Flow
 
 FULL_TABLE = "full_table"
 
-__all__ = ["Table", "TableIntervals"]
+__all__ = ["Table", "TableIndex"]
 
 
-class TableIntervals:
+class TableIndex:
     """Class to handle chunk fetching from pixel tables.
 
     Chunk fetching is handled by storing indexes for each fixed size chunk.
@@ -63,42 +63,33 @@ class TableIntervals:
         self._table: "Table" = table
         self._interval: str = interval or FULL_TABLE
         self._index: pl.Series = index
-        self._size: int = round(self._index.sum())
+        self._size: int = int(self._index.sum())
 
     def __str__(self) -> str:
         return self._interval
 
-    def __or__(self, other: "TableIntervals") -> "TableIntervals":
-        index = self._index | other.index
+    def __or__(self, other: "TableIndex") -> "TableIndex":
+        index = self._index | other[:]
         interval = f"({self} | {other})"
-        return TableIntervals(self._table, index, interval)
+        return TableIndex(self._table, index, interval)
 
-    def __and__(self, other: "TableIntervals") -> "TableIntervals":
-        index = self._index & other.index
+    def __and__(self, other: "TableIndex") -> "TableIndex":
+        index = self._index & other[:]
         interval = f"({self} & {other})"
-        return TableIntervals(self._table, index, interval)
+        return TableIndex(self._table, index, interval)
 
-    @property
-    def index(self) -> pl.Series:
-        """Return the indexes for each chunk."""
-        return self._index
+    def __getitem__(self, key) -> pl.Series:
+        return self._index[key]
 
-    @property
-    def size(self) -> int:
-        """Return the size of the complete table or the subset."""
-        return self._size
+    def __len__(self) -> int:
+        return self._index.len()
 
     @property
     def interval(self) -> str:
         """Return the string representation of the intervals."""
         return self._interval
 
-    def index_parts(self, size: int) -> Iterable[pl.Series]:
-        """Return the indexes for each chunk."""
-        for num in range(0, math.ceil(self.index.len() / size)):
-            yield self.index.slice(size * num, size)
-
-    def subset(self, region: str, both: bool = True) -> "TableIntervals":
+    def subset(self, region: str, both: bool = True) -> "TableIndex":
         """Subset a full genomic table to a region of interest."""
 
         # NOTE: currently not allowing the subset of subsets because it
@@ -116,7 +107,7 @@ class TableIntervals:
         exp = gen_region.to_query(both)
         new_indexes = [c.with_columns(exp.alias("index"))["index"] for c in pd_chunks]
 
-        return TableIntervals(self._table, pl.concat(new_indexes), interval)
+        return TableIndex(self._table, pl.concat(new_indexes), interval)
 
 
 class Table:
@@ -125,7 +116,7 @@ class Table:
     def __init__(
         self,
         uri_path: uris.Uris,
-        intervals: TableIntervals | None = None,
+        intervals: TableIndex | None = None,
         bin_size: int | None = None,
         chunk_size: int = 10_000_000,
     ):
@@ -151,11 +142,11 @@ class Table:
         self._flow = reconstruct_flow(uri_path)
         self._bin_size = bin_size or get_bin_size(uri_path)
         self._chunk_size = chunk_size
-        self._intervals = intervals or TableIntervals(self)
+        self._index = intervals or TableIndex(self)
 
     def reset_index(self) -> None:
         """Reset the index of the table to the full table."""
-        self._intervals = TableIntervals(self)
+        self._index = TableIndex(self)
 
     @property
     def bin_size(self) -> int:
@@ -254,13 +245,13 @@ class Table:
         >>> table.size
         656880
         """
-        return self._intervals.size
+        return int(self._index[:].sum())
 
     def chunks(
         self,
         columns: Iterable[str] | None = None,
         annotated: bool = False,
-        query: pl.Expr | str | None = None,
+        query: pl.Expr | None = None,
     ) -> DfChunks:
         """Return an iterable of table chunks (as pandas.DataFrames).
 
@@ -355,65 +346,52 @@ class Table:
 
         def prepare_chunk(
             chunk: pl.DataFrame,
-            bins=None,
-            columns=None,
-            query=None,
+            columns: Iterable[str] | None,
+            bins: pl.DataFrame | None,
+            query: pl.Expr | None,
         ) -> pl.DataFrame:
             """Prepare the chunk for output with annotation of filtering."""
 
-            # TODO: Understand funky annotate import (module/function)
             # TODO: Add back support for pandas query strings
             if bins is not None:
-                chunk = annotate.annotate(chunk, bins)  # pylint: disable=no-member
+                chunk = annotation.annotate(chunk, bins)
             if query is not None:
                 chunk = chunk.filter(query)
             if columns is not None:
-                chunk = chunk[columns]
+                chunk = chunk.select(columns)
 
             return chunk
 
         # Fetch bins if needed for annotation
         cool = cooler.Cooler(self.uris.cooler_uri())
-        bins = cool.bins()[:] if annotated else None
+        bins = pl.DataFrame(cool.bins()[:]) if annotated else None
+        prep_kwargs = {"columns": columns, "bins": bins, "query": query}
 
-        # Growing list to concat to create the full chunk
-        chunk_parts: list[pl.DataFrame] = []
+        buffer: pl.DataFrame = pl.DataFrame()
+        index_pos: int = 0
 
-        # Iterate all indexes
-        indexes = self._intervals.index_parts(self.chunk_size)
-        for num, index in enumerate(indexes):
+        while index_pos < len(self._index):
 
-            # Skip chunk if no pixels from it need to be kept
-            if len(index) == 0:
-                continue
+            # Add next chunk to the buffer
+            bounds = slice(index_pos, index_pos + self._chunk_size)
+            index_chunk = self._index[bounds]
+            pixel_chunk = hdf5.fetch_chunk(self._uris, bounds)
 
-            # Fetch and index the chunk
-            bounds = slice(num * self.chunk_size, (num + 1) * self.chunk_size)
-            chunk = hdf5.fetch_chunk(self.uris, bounds).filter(index)
+            buffer = pl.concat([buffer, pixel_chunk.filter(index_chunk)])
+            index_pos += self._chunk_size
 
-            # Add kept pixels to the growing list
-            chunk_parts.append(chunk)
+            if buffer.height >= self._chunk_size:
+                yield prepare_chunk(buffer.slice(0, self._chunk_size), **prep_kwargs)
+                buffer = buffer.slice(self._chunk_size)
 
-            # Yield the chunk if it is complete
-            # Save extra pixels for the next chunk
-            new_chunks_size = sum(c.height for c in chunk_parts)
-            if new_chunks_size >= self.chunk_size:
-
-                out_chunk = pl.concat(chunk_parts)
-                chunk_parts = [out_chunk.slice(self.chunk_size)]
-                out_chunk = out_chunk.slice(0, self.chunk_size)
-
-                yield prepare_chunk(out_chunk, bins, columns, query)
-
-        # Yield the remaining pixels as an incomplete chunk
-        if len(chunk_parts) > 0:
-            yield prepare_chunk(pl.concat(chunk_parts), bins, columns, query)
+        if buffer.height > 0:
+            yield prepare_chunk(buffer, **prep_kwargs)
 
     def dataframe(
         self,
         columns: Iterable[str] | None = None,
         annotated: bool = False,
-        query: pl.Expr | str | None = None,
+        query: pl.Expr | None = None,
     ) -> pl.DataFrame:
         """Return all table chunks in a single pandas DataFrame.
 
