@@ -1,7 +1,11 @@
 """Default functions for pixel table sparsification."""
 
+import os
+import pathlib
+
 import scipy as sp
 import polars as pl
+import numpy as np
 
 from hicona._numeric import rounding
 
@@ -37,7 +41,10 @@ def _score_weighted(
             .unique()
             .with_columns(
                 pl.struct(["degree", "norm_weight"])
-                .map_elements(lambda x: _get_alpha(x["norm_weight"], x["degree"]))
+                .map_elements(
+                    lambda x: _get_alpha(x["norm_weight"], x["degree"]),
+                    return_dtype=pl.Float64,
+                )
                 .alias("alpha")
             )
         )
@@ -60,55 +67,111 @@ def _score_weighted(
     return scores
 
 
-# def _score_local_deg(
-#     chunk: pd.DataFrame,
-#     counts_col: str,
-#     stats: pd.DataFrame,
-# ) -> pd.DataFrame:
-
-#     def compute_scores(df):
-
-#         data = df.copy()
-#         data["score"] = 1.0
-
-#         index = data["degree"] > 1
-#         redux = data.loc[index, :].copy()
-#         redux["score"] = 1 - (np.log(redux["rank"]) / np.log(redux["degree"]))
-#         data.loc[index, "score"] = redux["score"]
-
-#         return data
-
-#     scores: dict[str, pd.Series] = {}
-#     scores_df = compute_scores(stats)
-
-#     for col in ["bin1_id", "bin2_id"]:
-
-#         merge = chunk.merge(
-#             scores_df,
-#             how="left",
-#             left_on=[col, counts_col],
-#             right_on=["bin_id", "count"],
-#         )
-
-#         scores[col] = merge["score"]
-
-#     return pd.DataFrame(scores)
-
-
-def sparsify_chunk(
-    chunk: pl.DataFrame, mode: str, column: str, **kwargs
+def _score_local_deg(
+    chunk: pl.DataFrame,
+    ranking: pathlib.Path,
+    degrees: pl.DataFrame,
 ) -> pl.DataFrame:
+    """Return the local degree sparsification scores for a chunk."""
+
+    scores: pl.DataFrame = pl.DataFrame()
+
+    # Add degrees to the chunk as well as empty score columns
+    for col in [1, 2]:
+        chunk = (
+            chunk.join(degrees, how="left", left_on=f"bin{col}_id", right_on="bin_id")
+            .rename({"degree": f"bin{col}_degree"})
+            .with_columns(pl.lit(0).alias(f"bin{col}_rank"))
+        )
+
+    # Limits of the columns of each chunk, used to choose when the merge is necessary
+    # since merging is expensive and with sorted dataframes we can avoid it partially.
+    # TODO: Make more readable and probably move to a separate function
+    # TODO: Could also probably be improved by taking first and last elements.
+    limits: dict[str, int] = {
+        "bin1_lower": int(chunk["bin1_id"].min()),  # type: ignore
+        "bin1_upper": int(chunk["bin1_id"].max()),  # type: ignore
+        "bin2_lower": int(chunk["bin2_id"].min()),  # type: ignore
+        "bin2_upper": int(chunk["bin2_id"].max()),  # type: ignore
+    }
+
+    # Annotate with all ranling chunks that overlap with the pixel chunk
+    for rank_path in os.listdir(ranking):
+
+        # Only use single-file parquet files (avoid intermediate chunks)
+        if not rank_path.endswith(".parquet"):
+            continue
+
+        # Retrieve min and max bin id in the chunk
+        rank_min, rank_max = map(int, rank_path.split(".")[0].split("-"))
+
+        # If there is no overlap between the pixel chunk and the ranking chunk, skip
+        if rank_max < limits["bin1_lower"] or rank_min > limits["bin2_upper"]:
+            continue
+
+        # Do it on both bin1 and bin2 columns
+        # TODO: make this more readable
+        for bin_col, deg_col in [(1, 2), (2, 1)]:
+
+            # If there is no overlap between the column and the ranking chunk, skip
+            if (
+                rank_max < limits[f"bin{bin_col}_lower"]
+                or rank_min > limits[f"bin{bin_col}_upper"]
+            ):
+                continue
+
+            # Update the bin rank column with the ranking information if present
+            chunk = (
+                chunk.join(
+                    pl.read_parquet(ranking / rank_path),
+                    how="left",
+                    left_on=[f"bin{bin_col}_id", f"bin{deg_col}_degree"],
+                    right_on=["bin_id", "degree"],
+                )
+                .with_columns(
+                    pl.when(pl.col("rank") > 0)
+                    .then(pl.col("rank"))
+                    .otherwise(pl.col(f"bin{deg_col}_rank"))
+                    .alias(f"bin{deg_col}_rank")
+                )
+                .drop("rank")
+            )
+
+    # Actually compute the scores
+    for bin_col, deg_col in [(1, 2), (2, 1)]:
+        chunk = chunk.with_columns(
+            pl.when(pl.col(f"bin{deg_col}_degree") > 1)
+            .then(
+                pl.lit(1)
+                - np.log(pl.col(f"bin{bin_col}_rank"))
+                / np.log(pl.col(f"bin{deg_col}_degree"))
+            )
+            .otherwise(1)
+            .alias(f"bin{bin_col}_score")
+        )
+
+    # Sort the scores into min and max columns
+    scores = chunk.with_columns(
+        pl.min_horizontal("bin1_score", "bin2_score").alias("score_min"),
+        pl.max_horizontal("bin1_score", "bin2_score").alias("score_max"),
+    ).select(["score_min", "score_max"])
+
+    return scores
+
+
+def sparsify_chunk(chunk: pl.DataFrame, mode: str, **kwargs) -> pl.DataFrame:
     """Return the sparsified scores for a chunk."""
 
-    spar_functions = {"weighted": _score_weighted}  # "local_deg": _score_local_deg}
+    spar_functions = {"weighted": _score_weighted, "local_deg": _score_local_deg}
     func = spar_functions.get(mode)
-    cols = ["alpha_min", "alpha_max"]
 
     if not func:
         raise ValueError(f"Sparsification mode must be one of {list(spar_functions)}.")
 
     # Compute the scores and sort them into min and max columns
-    scores = func(chunk, column, **kwargs)
-    scores = pl.DataFrame({cols[0]: scores.min(axis=1), cols[1]: scores.max(axis=1)})
+    scores = func(chunk, **kwargs)
+
+    # TODO: remove rename once migrated from "alpha" to "score".
+    scores = scores.rename({"score_min": "alpha_min", "score_max": "alpha_max"})
 
     return scores

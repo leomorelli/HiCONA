@@ -1,10 +1,10 @@
 """Functions which modify and return iterables of pixel table chunks."""
 
+import pathlib
+
 import polars as pl
 
 from hicona._dtypes import DfChunks, T
-
-DEFAULT_COL = "bin1_id"
 
 
 def chunked_groupby(
@@ -37,6 +37,8 @@ def get_node_stats(chunks: DfChunks, weight_col: str) -> pl.DataFrame:
 
     stats = []
 
+    # TODO: Make stat choices modular to fetch only needed stats
+
     for chunk in chunks:
         for bin_col in ["bin1_id", "bin2_id"]:
             # Compute metrics on chunk
@@ -57,47 +59,118 @@ def get_node_stats(chunks: DfChunks, weight_col: str) -> pl.DataFrame:
     return pl.concat(stats).group_by("bin_id").sum()
 
 
-# def get_node_count_freq(chunks: DfChunks, weight_col: str) -> pd.DataFrame:
-#     """Return sorted edge weights for each node in the network.
+def get_degree_ranking(
+    chunks: DfChunks,
+    degrees: pl.DataFrame,
+    id_breaks: list[tuple[int, int]],
+    path: pathlib.Path,
+) -> pathlib.Path:
+    """Compute the neighbor degree rankings for each node.
 
-#     Returns a dictionary where the keys are the node IDs and the values are
-#     lists of the edge weights connected to that node. The lists are sorted in
-#     descending order.
-#     """
+    The neighbor degree ranking can be explained as follows: given a node,
+    all neighbors of that node are assigned a rank which is equal to the
+    number of neighbors of that node which have a higher degree then the
+    considered neighbor (plus one).
 
-#     node_weights = None
-#     for chunk in chunks:
-#         bin_cols = ["bin1_id", "bin2_id"]
-#         for step in [1, -1]:
-#             group_col, count_col = bin_cols[::step]
-#             counts = chunk.rename(columns={group_col: "bin_id", count_col: "freq"})
-#             counts = counts.groupby(["bin_id", weight_col]).count()
-#             counts = counts[["freq"]]
+    Since the method allows for ties, rather than returning the rank of
+    each neighbor of each node, for each node it returns the rank of
+    each neighbor degree.
 
-#             if node_weights is None:
-#                 node_weights = counts
-#             else:
-#                 node_weights = node_weights.add(counts, fill_value=0)
+    Since the ranking table can be as large as the original pixel table,
+    the computation is split into chunks to avoid memory overload and
+    the results are saved to parquet files.
+    """
 
-#     assert node_weights is not None
+    def create_parquet_folders(
+        tmp_path: pathlib.Path, id_breaks: list[tuple[int, int]]
+    ) -> pathlib.Path:
+        """Create the folders in which to create the temporary parquets."""
 
-#     node_weights["freq"] = node_weights["freq"].astype(int)
-#     node_weights.reset_index(inplace=True)
-#     node_weights.sort_values(by=["bin_id", weight_col], inplace=True)
+        for lower, upper in id_breaks:
+            (tmp_path / f"{lower}-{upper}").mkdir(parents=True)
 
-#     def calc_ranks(df):
-#         df["rank"] = df["freq"].cumsum().shift(fill_value=0) + 1
-#         return df
+        return tmp_path
 
-#     node_weights = node_weights.groupby("bin_id").apply(calc_ranks)
-#     node_weights.reset_index(drop=True, inplace=True)
+    def create_chunk_parquets(
+        chunks: DfChunks,
+        degrees: pl.DataFrame,
+        id_breaks: list[tuple[int, int]],
+        tmp_path: pathlib.Path,
+    ):
+        """Compute the rankings for each node and save to split parquets.
 
-#     node_weights["degree"] = node_weights.groupby(["bin_id"])["freq"].transform("sum")
-#     node_weights.drop(columns=["freq"], inplace=True)
+        The process is a bit convoluted but it is necessary to avoid memory
+        overload since, at worst, the ranking table can be as large as the
+        original pixel table.
+        """
 
-#     assert isinstance(node_weights, pd.DataFrame)
+        # For each pixel chunk, compute how many times each node is
+        # connected to a node of a certain degree. (Repeat on both columns).
+        # Split the results in folders according to the node id.
+        for i, chunk in enumerate(chunks):
 
-#     return node_weights
+            bin_cols = ["bin1_id", "bin2_id"]
+            parts: list[pl.DataFrame] = []
+            for step in [1, -1]:
+                group_col, count_col = bin_cols[::step]
+
+                parts.append(
+                    chunk.join(degrees, left_on=group_col, right_on="bin_id")
+                    .group_by([count_col, "degree"])
+                    .count()
+                    .select(pl.col(count_col).alias("bin_id"), "degree", "count")
+                )
+
+            chunk = pl.concat(parts)
+
+            for lower, upper in id_breaks:
+                chunk.filter(
+                    (pl.col("bin_id") >= lower) & (pl.col("bin_id") < upper)
+                ).write_parquet(tmp_path / f"{lower}-{upper}" / f"{i}.parquet")
+
+        # NOTE: Somewhere below here, there is a step which makes memory usage
+        # spike in a non-linear way when increasing number of nodes per chunk.
+
+        # For each folder, e.i. interval of node ids, aggregate the counts and
+        # compute the rankings for each node.
+        for lower, upper in id_breaks:
+            break_fold = tmp_path / f"{lower}-{upper}"
+
+            # Collect all files within the folder and aggregate the counts
+            # (a node can be connected to a degree n node in multiple chunks)
+            parquet_df = (
+                pl.scan_parquet(break_fold / "*")
+                .group_by(["bin_id", "degree"])
+                .agg(pl.sum("count"))
+                .sort(by=["bin_id", "degree"], descending=[False, True])
+                .collect()
+            )
+
+            # For each node, convert the neighbor degrees counts to a ranking,
+            # starting from 1. Save the results to a new parquet.
+            (
+                parquet_df.with_columns(
+                    parquet_df.group_by("bin_id", maintain_order=True)
+                    .agg(
+                        pl.col("count")
+                        .shift(1)
+                        .cum_sum()
+                        .fill_null(0)
+                        .add(1)
+                        .alias("rank")
+                    )
+                    .explode(pl.col("rank"))
+                )
+                .drop("count")
+                .write_parquet(str(break_fold) + ".parquet")
+            )
+
+    tmp_path = create_parquet_folders(path, id_breaks)
+    print("Starting node ranking computation...")
+    create_chunk_parquets(chunks, degrees, id_breaks, tmp_path)
+    print("Node ranking computation finished.")
+
+    return tmp_path
 
 
 def chunked_quants(
@@ -135,7 +208,7 @@ def chunked_quants(
 
         if group_by:
             yield pl.concat(
-                [c.with_columns(*expressions) for _, c in interval.groupby(group_by)]
+                [c.with_columns(*expressions) for _, c in interval.group_by(group_by)]
             ).sort(["bin1_id", "bin2_id"])
         else:
             yield interval.with_columns(*expressions)

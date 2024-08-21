@@ -1,5 +1,8 @@
 """Default functions for pixel table sparsification."""
 
+import pathlib
+import shutil
+import tempfile
 import time
 from typing import TYPE_CHECKING
 
@@ -12,10 +15,10 @@ if TYPE_CHECKING:
     from hicona._dtypes import DfChunks
 
 
-__all__ = ["SparWeighted"]  # , "SparLocalDegree"]
+__all__ = ["SparWeighted", "SparLocalDegree"]
 
 
-def _general_sparsify(table: "Table", mode: str, col: str, **kwargs) -> "DfChunks":
+def _general_sparsify(table: "Table", mode: str, **kwargs) -> "DfChunks":
     """General sparsification function for pixel table chunks."""
 
     # NOTE: implemented this way to simplify breaking into parallel later
@@ -24,9 +27,7 @@ def _general_sparsify(table: "Table", mode: str, col: str, **kwargs) -> "DfChunk
 
         print(f"Starting to sparsify chunk {i}.")
         start = time.time()
-
-        spar_chunk = sparsification.sparsify_chunk(chunk, mode, col, **kwargs)
-
+        spar_chunk = sparsification.sparsify_chunk(chunk, mode, **kwargs)
         end = time.time()
         print(f"Finished sparsifying chunk {i}.")
         print(f"Took {end - start} seconds.")
@@ -64,7 +65,7 @@ class SparWeighted(SparOperation):
         chunks = _general_sparsify(
             table,
             "weighted",
-            self._apply_col,
+            counts_col=self._apply_col,
             stats=node_stats,
             bonferroni=self._bonferroni,
         )
@@ -72,31 +73,57 @@ class SparWeighted(SparOperation):
         return chunks
 
 
-# class SparLocalDegree(SparOperation):
-#     """Compute pixel table sparsification scores using local degree.
+class SparLocalDegree(SparOperation):
+    """Compute pixel table sparsification scores using local degree.
 
-#     Compute the sparsification scores for a pixel table based on local node
-#     degree. The alpha values are computed according to `Hamann et al. 2016`.
+    Compute the sparsification scores for a pixel table based on local node
+    degree. The algorithm is mostly the same as described in `Hamann et al.
+    2016`, though ties are allowed in the ranking (rather than arbitrarily
+    broken). This makes the algorithm deterministic and reproducible.
 
-#     Parameters
-#     ----------
-#     apply_col : str
-#         The column name of the node weights.
-#     """
+    Parameters
+    ----------
+    node_chunk : int, optional
+        The number of nodes to process at once. Default is 10_000.
 
-#     def __init__(self, *, apply_col: str):
-#         self._apply_col = apply_col
+    Notes
+    -----
+    Currently complexity does not scale linearly with the number of nodes,
+    therefore it is difficult to estimate memory usage depending on
+    chunk size. Heuristically, 10,000 nodes per chunk should run in 6 GB RAM,
+    while 30,000 nodes per chunk should run in 16 GB RAM. This may vary
+    depending on the network structure.
 
-#     def run(self, table: "Table") -> "DfChunks":
+    """
 
-#         stats = chunked.get_node_count_freq(table.chunks(), self._apply_col)
-#         print(stats)
+    def __init__(self, *, node_chunk: int = 10_000):
+        self._node_chunk = node_chunk
+        self._tmp_dir: pathlib.Path | None = None
 
-#         chunks = _general_sparsify(
-#             table,
-#             "local_deg",
-#             self._apply_col,
-#             stats=stats,
-#         )
+    def run(self, table: "Table") -> "DfChunks":
 
-#         return chunks
+        self._tmp_dir = pathlib.Path(tempfile.mkdtemp(prefix="hicona-"))
+
+        # Retrieve node degrees and ranking to pass to sparsification function
+        # Breaks are used to split the nodes into chunks to avoid RAM overload
+        # TODO: Remove drop when get_node_stats is modularized
+
+        max_id = max(c.get_column("bin2_id").max() for c in table.chunks())  # type: ignore
+        values = range(0, max_id + 1, self._node_chunk)
+        breaks = [(i, i + self._node_chunk) for i in values]
+
+        degrees = chunked.get_node_stats(table.chunks(), "count").drop("weight")
+        ranking = chunked.get_degree_ranking(
+            table.chunks(), degrees, breaks, self._tmp_dir
+        )
+
+        degrees.write_csv("degrees.csv")  # TODO: remove
+        shutil.copytree(self._tmp_dir, "ranking")
+
+        chunks = _general_sparsify(table, "local_deg", degrees=degrees, ranking=ranking)
+
+        return chunks
+
+    def cleanup(self) -> None:
+        if isinstance(self._tmp_dir, pathlib.Path):
+            shutil.rmtree(self._tmp_dir)
