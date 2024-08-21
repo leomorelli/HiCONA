@@ -48,6 +48,14 @@ class OperationABC(metaclass=DocStringInheritor):
         """
 
     @abc.abstractmethod
+    def cleanup(self) -> None:
+        """Used after run to remove tmp files and such if needed.
+
+        Cleanup must be performed separately to run to allow for run to return
+        an iterator of chunks, else cleanup would happen after the first one.
+        """
+
+    @abc.abstractmethod
     def __init__(self, **kwargs):
         """Initialize the operation with the given parameters."""
         self._kwargs: KwargsDict = kwargs  # Never called, but needed to avoid errors.
@@ -93,6 +101,9 @@ class NormOperation(OperationABC):  # pylint: disable=abstract-method
     def __init__(self):
         pass
 
+    def cleanup(self) -> None:
+        pass
+
 
 class FiltOperation(OperationABC):  # pylint: disable=abstract-method
     """Abstract class for any filtering operation.
@@ -109,6 +120,9 @@ class FiltOperation(OperationABC):  # pylint: disable=abstract-method
     def __init__(self):
         pass
 
+    def cleanup(self) -> None:
+        pass
+
 
 class SparOperation(OperationABC):  # pylint: disable=abstract-method
     """Abstract class for any sparsification operation.
@@ -123,4 +137,7 @@ class SparOperation(OperationABC):  # pylint: disable=abstract-method
     """
 
     def __init__(self):
+        pass
+
+    def cleanup(self) -> None:
         pass

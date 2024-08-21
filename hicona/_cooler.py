@@ -241,16 +241,18 @@ class HiconaCooler(cooler.Cooler):
         table = Table(self._init_raw_table(ops_flow, chunk_size))
         for op in table.flow.ops:
 
-            print(f"Starting to apply: {op.name}")
-            start = time.time()
+            try:
+                print(f"Starting to apply: {op.name}")
+                start = time.time()
 
-            tab_size = hdf5.write_table(table.uris, op.run(table))
-            print(tab_size)
-            hdf5.resize_table(table.uris, tab_size)
-            table.reset_index()
+                tab_size = hdf5.write_table(table.uris, op.run(table))
+                hdf5.resize_table(table.uris, tab_size)
+                table.reset_index()
 
-            end = time.time()
-            print(f"Took {end - start} seconds.")
+                end = time.time()
+                print(f"Took {end - start} seconds.")
+            finally:
+                op.cleanup()
 
         return HiconaTable(table.uris)
 
