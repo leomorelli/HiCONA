@@ -688,7 +688,7 @@ class HiconaCooler(cooler.Cooler):
         2   chr1   20000   30000  Prom
         """
 
-        def get_chrom_bed(cool: cooler.Cooler) -> pd.DataFrame:
+        def get_chrom_bed(cool: cooler.Cooler) -> pl.DataFrame:
             """Generate a dataframe in bed-like style for the chromosomes."""
 
             chrom_info = {
@@ -697,20 +697,26 @@ class HiconaCooler(cooler.Cooler):
                 "end": cool.chromsizes.values,
             }
 
-            return pd.DataFrame(chrom_info)
+            return pl.DataFrame(chrom_info)
 
         # Compute annotation fractions for both background and query
-        annot_col, frac_col = f"{ann_name}_annot", f"{ann_name}_frac"
+        anno_col, frac_col = f"{ann_name}_annot", f"{ann_name}_frac"
+        ann_table = bed.bed_to_df(ann_file, (anno_col,))
 
-        ann_table = bed.bed_to_df(ann_file, [annot_col])
-        bin_table = self.bare_bins
-        bkg_table = get_chrom_bed(self)
+        annotation_kwargs = {
+            "annotation": ann_table,
+            "anno_col": anno_col,
+            "frac_col": frac_col,
+            "nan_annot": nan_annot,
+        }
 
-        col_names = annot_col, frac_col
-        bin_table = bed.ann_fraction(bin_table, ann_table, col_names, nan_annot)
-        bkg_table = bed.ann_fraction(bkg_table, ann_table, col_names, nan_annot)
+        bin_table = bed.ann_fraction(pl.DataFrame(self.bare_bins), **annotation_kwargs)
+        bkg_table = bed.ann_fraction(get_chrom_bed(self), **annotation_kwargs)
 
-        out_table = bed.ann_enriched(bin_table, bkg_table, col_names)
-        out_table.rename(columns={annot_col: ann_name})
+        out_table = (
+            bed.ann_enriched(bin_table, bkg_table, anno_col, frac_col)
+            .select(anno_col)
+            .rename({anno_col: ann_name})
+        )
 
-        hdf5.save_table(self._uris.add_path("bins"), pl.from_pandas(out_table))
+        hdf5.save_table(self._uris.add_path("bins"), out_table)
