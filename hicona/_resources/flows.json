@@ -1,11 +1,11 @@
 {
     "hicona": {
 		"0": {
-			"name": "FiltSelfLooping", 
+			"name": "FiltInterChroms",
 			"kwargs": {}
 		},
 		"1": {
-			"name": "FiltInterChroms",
+			"name": "FiltSelfLooping", 
 			"kwargs": {}
 		},
 		"2": {

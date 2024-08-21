@@ -8,30 +8,23 @@ can be retrieved to create filtered networks to analyze.
 """
 
 import json
+import time
 from typing import Generator, Iterable
 
 import cooler
 import h5py
 import pandas as pd
+import polars as pl
 
+from hicona._constants import TABLES_ROOT, TABLE_COLUMNS
 from hicona._core import Table, uris
+from hicona._dtypes import GenericDf
 from hicona._ops import bed, hdf5
 from hicona.preprocess import Flow
 from hicona._table import HiconaTable
 
 
 __all__ = ["HiconaCooler"]
-
-
-_TABLES_ROOT = "hicona_tables"
-_TABLE_COLUMNS = {
-    "bin1_id": "i8",
-    "bin2_id": "i8",
-    "count": "i4",
-    "norm": "f8",
-    "alpha_min": "f8",
-    "alpha_max": "f8",
-}
 
 
 class HiconaCooler(cooler.Cooler):
@@ -80,7 +73,7 @@ class HiconaCooler(cooler.Cooler):
         # Mask deprecated root parameter from super-class
         super().__init__(store, **kwargs)
         self._uris = uris.Uris(self.store, self.root)
-        self._tables_root: str = _TABLES_ROOT
+        self._tables_root: str = TABLES_ROOT
 
     @property
     def tables_root(self) -> str:
@@ -104,7 +97,7 @@ class HiconaCooler(cooler.Cooler):
         return self._tables_root
 
     @property
-    def bare_bins(self) -> pd.DataFrame:
+    def bare_bins(self) -> GenericDf:
         """Get full bin table without any annotation.
 
         Return the ``bins`` table as a ``pandas.DataFrame`` with only
@@ -136,7 +129,7 @@ class HiconaCooler(cooler.Cooler):
         [308837 rows x 3 columns]
 
         """
-        return self.bins()[["chrom", "start", "end"]][:]  # type: ignore
+        return pl.from_pandas(self.bins()[["chrom", "start", "end"]][:])  # type: ignore
 
     # ////////////////////////////////////////////////////////////////////////
     # /////////////////////////// PUBLIC TABLE API ///////////////////////////
@@ -148,7 +141,10 @@ class HiconaCooler(cooler.Cooler):
 
         tables_uris = self._uris.add_path(self._tables_root)
         for tab in hdf5.get_keys(tables_uris):
-            yield HiconaTable(tables_uris.add_path(tab))
+            try:
+                yield HiconaTable(tables_uris.add_path(tab))
+            except KeyError:
+                print(f"W: table {tab} is corrupted, skipping.")
 
     def _init_raw_table(
         self,
@@ -162,14 +158,13 @@ class HiconaCooler(cooler.Cooler):
 
         # Initialize table
         num_pix = self.info["nnz"]
-        hdf5.init_table(table_uris, num_pix, _TABLE_COLUMNS)
+        hdf5.init_table(table_uris, num_pix, TABLE_COLUMNS)
 
         # TODO: This is currently slow
         # Copy pixel data to the new table
         for lower in range(0, num_pix, chunk_size):
             upper = min(lower + chunk_size, num_pix)
-            chunk = self.pixels()[lower:upper]
-            assert isinstance(chunk, pd.DataFrame)  # For type checker
+            chunk = pl.from_pandas(self.pixels()[lower:upper])  # type: ignore
             hdf5.write_chunk(table_uris, chunk, lower, chunk.columns)
 
         # Set table attributes
@@ -246,14 +241,18 @@ class HiconaCooler(cooler.Cooler):
         table = Table(self._init_raw_table(ops_flow, chunk_size))
         for op in table.flow.ops:
 
-            print(f"Starting to apply: {op.name}")
+            try:
+                print(f"Starting to apply: {op.name}")
+                start = time.time()
 
-            tab_size = hdf5.write_table(table.uris, op.run(table))
-            hdf5.resize_table(table.uris, tab_size)
-            table.reset_index()
+                tab_size = hdf5.write_table(table.uris, op.run(table))
+                hdf5.resize_table(table.uris, tab_size)
+                table.reset_index()
 
-            print(f"Finished applying: {op.name}")
-            print(f"Table size: {tab_size}")
+                end = time.time()
+                print(f"Took {end - start} seconds.")
+            finally:
+                op.cleanup()
 
         return HiconaTable(table.uris)
 
@@ -475,7 +474,7 @@ class HiconaCooler(cooler.Cooler):
 
         # Save new annotation columns
         ann_df = ann_df.drop(labels=[None] + list(bin_df.columns), axis=1)
-        hdf5.save_table(self._uris.add_path("bins"), ann_df)
+        hdf5.save_table(self._uris.add_path("bins"), pl.from_pandas(ann_df))
 
     def del_bin_annot(self, to_del: str | Iterable[str]) -> None:
         """Remove one (or more) bin annotation columns.
@@ -611,7 +610,7 @@ class HiconaCooler(cooler.Cooler):
             columns = [c for c in ohe_df if not str(c).lower().endswith("_nan")]
             ohe_df = ohe_df[columns]
 
-        hdf5.save_table(self._uris.add_path("bins"), ohe_df)
+        hdf5.save_table(self._uris.add_path("bins"), pl.from_pandas(ohe_df))
 
         # Remove original columns if selected
         if remove_original:
@@ -689,7 +688,7 @@ class HiconaCooler(cooler.Cooler):
         2   chr1   20000   30000  Prom
         """
 
-        def get_chrom_bed(cool: cooler.Cooler) -> pd.DataFrame:
+        def get_chrom_bed(cool: cooler.Cooler) -> pl.DataFrame:
             """Generate a dataframe in bed-like style for the chromosomes."""
 
             chrom_info = {
@@ -698,20 +697,26 @@ class HiconaCooler(cooler.Cooler):
                 "end": cool.chromsizes.values,
             }
 
-            return pd.DataFrame(chrom_info)
+            return pl.DataFrame(chrom_info)
 
         # Compute annotation fractions for both background and query
-        annot_col, frac_col = f"{ann_name}_annot", f"{ann_name}_frac"
+        anno_col, frac_col = f"{ann_name}_annot", f"{ann_name}_frac"
+        ann_table = bed.bed_to_df(ann_file, (anno_col,))
 
-        ann_table = bed.bed_to_df(ann_file, [annot_col])
-        bin_table = self.bare_bins
-        bkg_table = get_chrom_bed(self)
+        annotation_kwargs = {
+            "annotation": ann_table,
+            "anno_col": anno_col,
+            "frac_col": frac_col,
+            "nan_annot": nan_annot,
+        }
 
-        col_names = annot_col, frac_col
-        bin_table = bed.ann_fraction(bin_table, ann_table, col_names, nan_annot)
-        bkg_table = bed.ann_fraction(bkg_table, ann_table, col_names, nan_annot)
+        bin_table = bed.ann_fraction(pl.DataFrame(self.bare_bins), **annotation_kwargs)
+        bkg_table = bed.ann_fraction(get_chrom_bed(self), **annotation_kwargs)
 
-        out_table = bed.ann_enriched(bin_table, bkg_table, col_names)
-        out_table.rename(columns={annot_col: ann_name})
+        out_table = (
+            bed.ann_enriched(bin_table, bkg_table, anno_col, frac_col)
+            .select(anno_col)
+            .rename({anno_col: ann_name})
+        )
 
         hdf5.save_table(self._uris.add_path("bins"), out_table)

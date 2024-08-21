@@ -6,7 +6,7 @@ from typing import Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from hicona._core import Table
-    from hicona._dtypes import PdChunks, KwargsDict
+    from hicona._dtypes import DfChunks, KwargsDict
 
 
 class DocStringInheritor(abc.ABCMeta):
@@ -33,7 +33,7 @@ class OperationABC(metaclass=DocStringInheritor):
     """Abstract Base Class for any filtering or normalization operation."""
 
     @abc.abstractmethod
-    def run(self, table: "Table") -> "PdChunks":
+    def run(self, table: "Table") -> "DfChunks":
         """Process the table and return processed table chunks.
 
         Parameters
@@ -45,6 +45,14 @@ class OperationABC(metaclass=DocStringInheritor):
         -------
         Generator of pandas.DataFrame
             A generator of filtered pixel chunks.
+        """
+
+    @abc.abstractmethod
+    def cleanup(self) -> None:
+        """Used after run to remove tmp files and such if needed.
+
+        Cleanup must be performed separately to run to allow for run to return
+        an iterator of chunks, else cleanup would happen after the first one.
         """
 
     @abc.abstractmethod
@@ -93,6 +101,9 @@ class NormOperation(OperationABC):  # pylint: disable=abstract-method
     def __init__(self):
         pass
 
+    def cleanup(self) -> None:
+        pass
+
 
 class FiltOperation(OperationABC):  # pylint: disable=abstract-method
     """Abstract class for any filtering operation.
@@ -109,6 +120,9 @@ class FiltOperation(OperationABC):  # pylint: disable=abstract-method
     def __init__(self):
         pass
 
+    def cleanup(self) -> None:
+        pass
+
 
 class SparOperation(OperationABC):  # pylint: disable=abstract-method
     """Abstract class for any sparsification operation.
@@ -123,4 +137,7 @@ class SparOperation(OperationABC):  # pylint: disable=abstract-method
     """
 
     def __init__(self):
+        pass
+
+    def cleanup(self) -> None:
         pass

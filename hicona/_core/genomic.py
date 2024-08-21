@@ -2,6 +2,8 @@
 
 import re
 
+import polars as pl
+
 from hicona._resources import regexes
 
 
@@ -39,17 +41,25 @@ class GenomicRegion:
             return self._chrom
         return f"{self._chrom}:{self._start + 1}-{self._end}"
 
-    def to_query(self, both: bool = False) -> str:
+    def to_query(self, both: bool = False) -> pl.Expr:
         """Return region in query format."""
 
-        operator = "and" if both else "or"
+        def get_bin_exp(
+            bin_id: int, chrom: str, start: int | None, end: int | None
+        ) -> pl.Expr:
 
-        temp = f"chrom[N] == '{self._chrom}'"
-        if self._start or self._end:
-            temp += f" and start[N] >= {self._start} and end[N] <= {self._end}"
+            expr = pl.col(f"chrom{bin_id}") == chrom
+            if start is not None:
+                expr &= pl.col(f"start{bin_id}") >= start
+            if end is not None:
+                expr &= pl.col(f"end{bin_id}") <= end
 
-        temps = [temp.replace("[N]", str(num)) for num in (1, 2)]
-        return f"({temps[0]}) {operator} ({temps[1]})"
+            return expr
+
+        bin1_exp = get_bin_exp(1, self._chrom, self._start, self._end)
+        bin2_exp = get_bin_exp(2, self._chrom, self._start, self._end)
+
+        return bin1_exp & bin2_exp if both else bin1_exp | bin2_exp
 
     def snap_to_bin(self, bin_size: int) -> None:
         """Snap start and end to bin boundaries."""

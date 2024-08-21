@@ -340,7 +340,7 @@ document.write(`
 
 <span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
     <span class="kn">from</span> <span class="nn">hicona._core</span> <span class="kn">import</span> <span class="n">Table</span>
-    <span class="kn">from</span> <span class="nn">hicona._dtypes</span> <span class="kn">import</span> <span class="n">PdChunks</span>
+    <span class="kn">from</span> <span class="nn">hicona._dtypes</span> <span class="kn">import</span> <span class="n">DfChunks</span>
 
 
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;SparWeighted&quot;</span><span class="p">]</span>
@@ -372,7 +372,7 @@ document.write(`
         <span class="bp">self</span><span class="o">.</span><span class="n">_apply_col</span> <span class="o">=</span> <span class="n">apply_col</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_bonferroni</span> <span class="o">=</span> <span class="n">bonferroni</span>
 
-    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">table</span><span class="p">:</span> <span class="s2">&quot;Table&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;PdChunks&quot;</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">table</span><span class="p">:</span> <span class="s2">&quot;Table&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;DfChunks&quot;</span><span class="p">:</span>
 
         <span class="n">node_stats</span> <span class="o">=</span> <span class="n">chunked</span><span class="o">.</span><span class="n">get_node_stats</span><span class="p">(</span><span class="n">table</span><span class="o">.</span><span class="n">chunks</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_apply_col</span><span class="p">)</span>
         <span class="n">node_stats</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="s2">&quot;node_stats.csv&quot;</span><span class="p">)</span>

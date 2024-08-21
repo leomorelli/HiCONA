@@ -4,8 +4,10 @@ import matplotlib.colors as clr
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import polars as pl
 import seaborn as sns
 from scipy.cluster.hierarchy import dendrogram, linkage
+from scipy.sparse import coo_matrix
 
 
 __all__ = ["plot_alpha_grid"]
@@ -16,8 +18,11 @@ CM = 1 / 2.54  # cm to inches
 
 
 def fine_grain_df(dataf):
+    """Placeholder"""
 
-    grain = max([str(c).split(".")[1] if "." in str(c) else 0 for c in dataf.columns])
+    grain = max(
+        int(str(c).split(".")[1]) if "." in str(c) else 0 for c in dataf.columns
+    )
     fine_df = np.ndarray((len(dataf), 10 * grain), dtype=float)
     print(fine_df.shape)
 
@@ -290,10 +295,10 @@ def plot_dynamics_interval(
 
 
 def plot_comparison(
-    distr_a: pd.DataFrame,
-    distr_b: pd.DataFrame,
-    points: pd.DataFrame,
-    highlight: pd.DataFrame,
+    distr_a: pl.DataFrame,
+    distr_b: pl.DataFrame,
+    points: pl.DataFrame,
+    highlight: pl.DataFrame,
     names: tuple[str, str],
     img_path: str | None = None,
     show: bool = False,
@@ -391,5 +396,40 @@ def plot_comparison(
     axes[1, 1].set_xlabel(names[0], fontsize=label_size)
     size_b = int(distr_b["count"].sum())
     axes[1, 1].text(0.80, cap_val, f"N = {size_b}", fontsize=11)
+
+    return _plot_output(axes, img_path, show)
+
+
+def plot_table_heatmap(
+    table: pd.DataFrame,
+    intensity_col: str,
+    img_path: str | None = None,
+    show: bool = False,
+    **kwargs,
+):
+    """Placeholder."""
+
+    _, axes = plt.subplots(1, 2, width_ratios=[1, 0.05])
+
+    table = table.copy()
+    table_min = min(min(table["bin1_id"]), min(table["bin2_id"]))
+    table["bin1_id"] -= table_min
+    table["bin2_id"] -= table_min
+    table_max = max(max(table["bin1_id"]), max(table["bin2_id"]))
+    print(table_min)
+
+    print(table_max)
+
+    data = coo_matrix(
+        (table[intensity_col], (table["bin1_id"], table["bin2_id"])),
+        (table_max + 1, table_max + 1),
+    ).toarray()
+    # table = table.pivot(index="bin1_id", columns="bin2_id", values=intensity_col)
+    print(data)
+    print(data.shape)
+
+    print(axes)
+
+    sns.heatmap(data, ax=axes[0], cbar_ax=axes[1], square=True)
 
     return _plot_output(axes, img_path, show)

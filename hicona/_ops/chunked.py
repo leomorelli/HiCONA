@@ -1,99 +1,185 @@
 """Functions which modify and return iterables of pixel table chunks."""
 
-import pandas as pd
+import pathlib
 
-from hicona._dtypes import PdChunks, T
+import polars as pl
+
+from hicona._dtypes import DfChunks, T
 
 
-DEFAULT_COL = "bin1_id"
+def chunked_groupby(
+    iterator: DfChunks,
+    split_on: list[str],
+) -> DfChunks:
+    """Groupby operation on an Iterable of chunks.
 
-
-def change_breaks(
-    iterator: PdChunks,
-    split_on: list,
-    to_keep_cols: list[str],
-) -> PdChunks:
-    """Return a generator of intervals based on the split_on columns.
-
-    Rather then using the iterator with regular chunks, divide the chunks
-    based on where the value of one of the split columns changes. Basically
-    it is a groupby operation, but faster and more memory efficient when the
-    groups are ordered. The main use it to split for pairs of chromosomes.
+    Given an iterable of chunks (generally of fixed size), return a new
+    iterable of chunks where the chunks are the result of a groupby operation
+    spanning across the chunks. It is assumed that the chunks are collectively
+    sorted by the columns in `split_on`.
     """
 
-    curr_interval: list[pd.DataFrame] = []
-    prev_values: list = [None] * len(split_on)
+    pixels: pl.DataFrame = pl.DataFrame()
 
-    for chunk in iterator:
+    for new_pixels in iterator:
+        pixels = pl.concat([pixels, new_pixels])
 
-        split_cols = chunk[split_on]
-        value_cols = chunk[to_keep_cols + split_on]
+        *chunks, (_, pixels) = pixels.group_by(split_on, maintain_order=True)
+        for chunk in chunks:
+            yield chunk[1]
 
-        breaks = pd.Series([False] * len(chunk))
-        for col, val in zip(split_cols.columns, prev_values):
-            val = val or split_cols[col].iloc[0]
-            col = split_cols[col]
-            breaks = breaks | (col != col.shift(fill_value=val))
-        breaks = list(breaks[breaks].index)
-
-        for b in breaks:
-            curr_interval.append(value_cols.loc[: b - 1])
-            value_cols = value_cols.loc[b:]
-
-            interval = pd.concat(curr_interval)
-            curr_interval = []
-
-            yield interval
-
-        curr_interval.append(value_cols)
-
-    interval = pd.concat(curr_interval)
-    yield interval
+    for chunk in pixels.group_by(split_on, maintain_order=True):
+        yield chunk[1]
 
 
-def add_bin_diff(iterator: PdChunks) -> PdChunks:
-    """Add a column with the difference between bin2 and bin1."""
-
-    for chunk in iterator:
-        chunk["diff"] = chunk["bin2_id"] - chunk["bin1_id"]
-        yield chunk
-
-
-def add_gen_dist(iterator: PdChunks, bin_size: int) -> PdChunks:
-    """Add a column with the genomic distance between bin2 and bin1."""
-
-    for chunk in iterator:
-        chunk["dist"] = (chunk["bin2_id"] - chunk["bin1_id"]) * bin_size
-        yield chunk
-
-
-def get_node_stats(chunks: PdChunks, weight_col: str) -> pd.DataFrame:
+def get_node_stats(chunks: DfChunks, weight_col: str) -> pl.DataFrame:
     """Compute sum of weights and degree for each node/bin."""
 
-    weights = pd.Series()
-    degrees = pd.Series()
+    stats = []
+
+    # TODO: Make stat choices modular to fetch only needed stats
 
     for chunk in chunks:
         for bin_col in ["bin1_id", "bin2_id"]:
             # Compute metrics on chunk
-            grouped = chunk.groupby(bin_col)
-            chunk_weights = grouped.sum()[weight_col]
-            chunk_degrees = grouped.count()[weight_col]
+            grouped = (
+                chunk.select(bin_col, weight_col)
+                .group_by(bin_col)
+                .agg(
+                    [
+                        pl.col(weight_col).sum().alias("weight"),
+                        pl.count(bin_col).alias("degree"),
+                    ]
+                )
+                .rename({bin_col: "bin_id"})
+            )
 
-            # Increase counters
-            weights = weights.add(chunk_weights, fill_value=0)
-            degrees = degrees.add(chunk_degrees, fill_value=0)
+            stats.append(grouped)
 
-    return pd.DataFrame({"weight": weights, "degree": degrees})
+    return pl.concat(stats).group_by("bin_id").sum()
+
+
+def get_degree_ranking(
+    chunks: DfChunks,
+    degrees: pl.DataFrame,
+    id_breaks: list[tuple[int, int]],
+    path: pathlib.Path,
+) -> pathlib.Path:
+    """Compute the neighbor degree rankings for each node.
+
+    The neighbor degree ranking can be explained as follows: given a node,
+    all neighbors of that node are assigned a rank which is equal to the
+    number of neighbors of that node which have a higher degree then the
+    considered neighbor (plus one).
+
+    Since the method allows for ties, rather than returning the rank of
+    each neighbor of each node, for each node it returns the rank of
+    each neighbor degree.
+
+    Since the ranking table can be as large as the original pixel table,
+    the computation is split into chunks to avoid memory overload and
+    the results are saved to parquet files.
+    """
+
+    def create_parquet_folders(
+        tmp_path: pathlib.Path, id_breaks: list[tuple[int, int]]
+    ) -> pathlib.Path:
+        """Create the folders in which to create the temporary parquets."""
+
+        for lower, upper in id_breaks:
+            (tmp_path / f"{lower}-{upper}").mkdir(parents=True)
+
+        return tmp_path
+
+    def create_chunk_parquets(
+        chunks: DfChunks,
+        degrees: pl.DataFrame,
+        id_breaks: list[tuple[int, int]],
+        tmp_path: pathlib.Path,
+    ):
+        """Compute the rankings for each node and save to split parquets.
+
+        The process is a bit convoluted but it is necessary to avoid memory
+        overload since, at worst, the ranking table can be as large as the
+        original pixel table.
+        """
+
+        # For each pixel chunk, compute how many times each node is
+        # connected to a node of a certain degree. (Repeat on both columns).
+        # Split the results in folders according to the node id.
+        for i, chunk in enumerate(chunks):
+
+            bin_cols = ["bin1_id", "bin2_id"]
+            parts: list[pl.DataFrame] = []
+            for step in [1, -1]:
+                group_col, count_col = bin_cols[::step]
+
+                parts.append(
+                    chunk.join(degrees, left_on=group_col, right_on="bin_id")
+                    .group_by([count_col, "degree"])
+                    .count()
+                    .select(pl.col(count_col).alias("bin_id"), "degree", "count")
+                )
+
+            chunk = pl.concat(parts)
+
+            for lower, upper in id_breaks:
+                chunk.filter(
+                    (pl.col("bin_id") >= lower) & (pl.col("bin_id") < upper)
+                ).write_parquet(tmp_path / f"{lower}-{upper}" / f"{i}.parquet")
+
+        # NOTE: Somewhere below here, there is a step which makes memory usage
+        # spike in a non-linear way when increasing number of nodes per chunk.
+
+        # For each folder, e.i. interval of node ids, aggregate the counts and
+        # compute the rankings for each node.
+        for lower, upper in id_breaks:
+            break_fold = tmp_path / f"{lower}-{upper}"
+
+            # Collect all files within the folder and aggregate the counts
+            # (a node can be connected to a degree n node in multiple chunks)
+            parquet_df = (
+                pl.scan_parquet(break_fold / "*")
+                .group_by(["bin_id", "degree"])
+                .agg(pl.sum("count"))
+                .sort(by=["bin_id", "degree"], descending=[False, True])
+                .collect()
+            )
+
+            # For each node, convert the neighbor degrees counts to a ranking,
+            # starting from 1. Save the results to a new parquet.
+            (
+                parquet_df.with_columns(
+                    parquet_df.group_by("bin_id", maintain_order=True)
+                    .agg(
+                        pl.col("count")
+                        .shift(1)
+                        .cum_sum()
+                        .fill_null(0)
+                        .add(1)
+                        .alias("rank")
+                    )
+                    .explode(pl.col("rank"))
+                )
+                .drop("count")
+                .write_parquet(str(break_fold) + ".parquet")
+            )
+
+    tmp_path = create_parquet_folders(path, id_breaks)
+    print("Starting node ranking computation...")
+    create_chunk_parquets(chunks, degrees, id_breaks, tmp_path)
+    print("Node ranking computation finished.")
+
+    return tmp_path
 
 
 def chunked_quants(
-    iterator: PdChunks,
+    iterator: DfChunks,
     column: str,
     quants: float | list[float],
     split_on: None | str | list[str] = None,
     group_by: None | str | list[str] = None,
-) -> pd.DataFrame:
+) -> DfChunks:
     """Compute quantiles on an Iterable of chunks.
 
     Compute quantiles for a table provided as an iterator of chunks. The
@@ -115,26 +201,14 @@ def chunked_quants(
     split_on = to_list(split_on)
     group_by = to_list(group_by)
 
-    results: list[pd.DataFrame] = []
-    intervals = change_breaks(iterator, split_on, [column] + group_by)
+    intervals = chunked_groupby(iterator, split_on) if split_on else iterator
+    expressions = [pl.col(column).quantile(q, "linear").alias(str(q)) for q in quantile]
+
     for interval in intervals:
 
-        # NOTE: np.ndarray does not implement __len__ so it is not array-like
-        # according to  pandas. Using list even though typing raises an alert.
         if group_by:
-            qvals = interval.groupby(group_by)[column].quantile(quantile)  # type: ignore
-            col_fix = {"level_1": "quant"}
+            yield pl.concat(
+                [c.with_columns(*expressions) for _, c in interval.group_by(group_by)]
+            ).sort(["bin1_id", "bin2_id"])
         else:
-            qvals = interval[column].quantile(quantile)
-            col_fix = {"index": "quant"}
-
-        quants_df = qvals.reset_index()
-        quants_df.rename(columns=col_fix, inplace=True)
-
-        if split_on:
-            for col in split_on:
-                quants_df[col] = interval[col].iloc[0]
-
-        results.append(quants_df)
-
-    return pd.concat(results)
+            yield interval.with_columns(*expressions)

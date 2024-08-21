@@ -3,6 +3,7 @@
 import numpy as np
 import pandas as pd
 import scipy as sp
+import polars as pl
 
 # TODO: somehow add category modality
 
@@ -28,28 +29,6 @@ def from_df_to_sarrays(data: pd.DataFrame):
         new_col[:] = data[col_name].values
 
         yield (col_name, new_col, dtype)
-
-
-def get_dataf_mapping(dataf: pd.DataFrame) -> dict:
-    """Placeholder"""
-
-    # Fetch dtype for each column name
-    mapping = dict(zip(dataf.columns, dataf.dtypes))
-
-    # If dtype is object, convert to |SX where X is the max str length.
-    # This is because hdf5 does not support object or generic string types.
-    for k, v in mapping.items():
-        if v == "object":
-            conv_col = dataf[k].convert_dtypes()
-            if conv_col.dtype == "string[python]":
-                conv_col.fillna("nan", inplace=True)
-                max_str_len = conv_col.map(len).max()
-                mapping[k] = f"|S{max_str_len}"
-
-            else:  # Cannot be converted to string
-                raise TypeError("Object type annotations are not supported.")
-
-    return mapping
 
 
 def pd_to_h5_dtype(pd_dtype: str):
