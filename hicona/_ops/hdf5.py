@@ -8,7 +8,6 @@ import polars as pl
 
 from hicona._core import uris
 from hicona._dtypes import DfChunks
-from hicona._ops import dataf
 
 
 # NOTE: during key selection, `is None` is used rather than `or` to avoid
@@ -79,7 +78,7 @@ def write_chunk(
 # ////////////////////////////////////////////////////////////////////////////
 
 
-def init_table(uris_path: uris.Uris, size: int, col_mapping: dict[str, str]) -> None:
+def init_table(uris_path: uris.Uris, size: int, col_mapping: dict) -> None:
     """Initialize dataframe columns as 1D arrays."""
 
     store, path = uris_path.hdf5_uris()
@@ -112,8 +111,11 @@ def write_table(
 def save_table(uris_path: uris.Uris, table: pl.DataFrame) -> None:
     """Convenience shorthand to initialize and place table at once."""
 
-    col_mapping = {k: str(v) for k, v in zip(table.columns, table.dtypes)}
-    init_table(uris_path, len(table), col_mapping)
+    mapping = {
+        k: v if v != "object" else f"|S{table[k].str.lengths().max()}"
+        for k, v in dict(table.to_pandas().dtypes).items()
+    }
+    init_table(uris_path, len(table), mapping)
     write_chunk(uris_path, table, 0)
 
 
