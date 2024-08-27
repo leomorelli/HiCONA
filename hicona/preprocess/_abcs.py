@@ -4,6 +4,9 @@ import abc
 import copy
 from typing import Any, TYPE_CHECKING
 
+
+from hicona._constants import TABLE_COLUMNS
+
 if TYPE_CHECKING:
     from hicona._core import Table
     from hicona._dtypes import DfChunks, KwargsDict
@@ -32,8 +35,25 @@ class DocStringInheritor(abc.ABCMeta):
 class OperationABC(metaclass=DocStringInheritor):
     """Abstract Base Class for any filtering or normalization operation."""
 
-    @abc.abstractmethod
     def run(self, table: "Table") -> "DfChunks":
+        """Run the operation and return the processed table chunks.
+
+        This method is used to create a common interface for all operations.
+        It returns the pixel chunks generator created by the ``process`` method
+        (with columns formatted for consistency) and performs cleanup after the
+        operation is done.
+        """
+
+        # TODO: add more informative error message for ColumnNotFound
+
+        try:
+            for chunk in self.process(table):
+                yield chunk.select(TABLE_COLUMNS.keys())
+        finally:
+            self.cleanup()  # TODO: check it works as expected
+
+    @abc.abstractmethod
+    def process(self, table: "Table") -> "DfChunks":
         """Process the table and return processed table chunks.
 
         Parameters
@@ -86,12 +106,12 @@ class OperationABC(metaclass=DocStringInheritor):
         return instance
 
 
-class NormOperation(OperationABC):  # pylint: disable=abstract-method
+class NormOperation(OperationABC):
     """Abstract class for any normalization operation.
 
     Any custom normalization operation should inherit from this class and
-    override the `run` method with the function of interest. The run method
-    should not take any parameters aside from the `Table` instance.
+    override the ``process`` method with the function of interest. The run
+    method should not take any parameters aside from the `Table` instance.
 
     If any parameter needs to be passed, override the class constructor.
     All parameters in the class constructor should be provided as keyword
@@ -101,16 +121,20 @@ class NormOperation(OperationABC):  # pylint: disable=abstract-method
     def __init__(self):
         pass
 
+    @abc.abstractmethod
+    def process(self, table: "Table") -> "DfChunks":
+        pass
+
     def cleanup(self) -> None:
         pass
 
 
-class FiltOperation(OperationABC):  # pylint: disable=abstract-method
+class FiltOperation(OperationABC):
     """Abstract class for any filtering operation.
 
     Any custom filtering operation should inherit from this class and
-    override the `run` method with the function of interest. The run method
-    should not take any parameters aside from the `Table` instance.
+    override the ``process` method with the function of interest. The run
+    method should not take any parameters aside from the `Table` instance.
 
     If any parameter needs to be passed, override the class constructor.
     All parameters in the class constructor should be provided as keyword
@@ -118,18 +142,22 @@ class FiltOperation(OperationABC):  # pylint: disable=abstract-method
     """
 
     def __init__(self):
+        pass
+
+    @abc.abstractmethod
+    def process(self, table: "Table") -> "DfChunks":
         pass
 
     def cleanup(self) -> None:
         pass
 
 
-class SparOperation(OperationABC):  # pylint: disable=abstract-method
+class SparOperation(OperationABC):
     """Abstract class for any sparsification operation.
 
     Any custom sparsification operation should inherit from this class and
-    override the `run` method with the function of interest. The run method
-    should not take any parameters aside from the `Table` instance.
+    override the ``process`` method with the function of interest. The run
+    method should not take any parameters aside from the `Table` instance.
 
     If any parameter needs to be passed, override the class constructor.
     All parameters in the class constructor should be provided as keyword
@@ -137,6 +165,10 @@ class SparOperation(OperationABC):  # pylint: disable=abstract-method
     """
 
     def __init__(self):
+        pass
+
+    @abc.abstractmethod
+    def process(self, table: "Table") -> "DfChunks":
         pass
 
     def cleanup(self) -> None:

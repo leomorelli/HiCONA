@@ -166,9 +166,7 @@ def get_degree_ranking(
             )
 
     tmp_path = create_parquet_folders(path, id_breaks)
-    print("Starting node ranking computation...")
     create_chunk_parquets(chunks, degrees, id_breaks, tmp_path)
-    print("Node ranking computation finished.")
 
     return tmp_path
 

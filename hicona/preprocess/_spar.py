@@ -3,11 +3,10 @@
 import pathlib
 import shutil
 import tempfile
-import time
 from typing import TYPE_CHECKING
 
 from hicona._core import sparsification
-from hicona._ops import chunked
+from hicona._ops import chunked, dataf, logging
 from hicona.preprocess._abcs import SparOperation
 
 if TYPE_CHECKING:
@@ -18,19 +17,16 @@ if TYPE_CHECKING:
 __all__ = ["SparWeighted", "SparLocalDegree"]
 
 
-def _general_sparsify(table: "Table", mode: str, **kwargs) -> "DfChunks":
+def _general_sparsify(table: "Table", mode: str, logger, **kwargs) -> "DfChunks":
     """General sparsification function for pixel table chunks."""
 
     # NOTE: implemented this way to simplify breaking into parallel later
+    # TODO: replace logging with progress bar maybe (but how to know number of chunks?)
 
     for i, chunk in enumerate(table.chunks()):
 
-        print(f"Starting to sparsify chunk {i}.")
-        start = time.time()
+        logger.info("Working on chunk %s.", i)
         spar_chunk = sparsification.sparsify_chunk(chunk, mode, **kwargs)
-        end = time.time()
-        print(f"Finished sparsifying chunk {i}.")
-        print(f"Took {end - start} seconds.")
 
         yield spar_chunk
 
@@ -59,12 +55,17 @@ class SparWeighted(SparOperation):
         self._apply_col = apply_col
         self._bonferroni = bonferroni
 
-    def run(self, table: "Table") -> "DfChunks":
+    def process(self, table: "Table") -> "DfChunks":
 
+        logger = logging.get_console_logger("sparsify")
+
+        logger.info("Computing node stats.")
         node_stats = chunked.get_node_stats(table.chunks(), self._apply_col)
+
         chunks = _general_sparsify(
             table,
             "weighted",
+            logger,
             counts_col=self._apply_col,
             stats=node_stats,
             bonferroni=self._bonferroni,
@@ -100,7 +101,9 @@ class SparLocalDegree(SparOperation):
         self._node_chunk = node_chunk
         self._tmp_dir: pathlib.Path | None = None
 
-    def run(self, table: "Table") -> "DfChunks":
+    def process(self, table: "Table") -> "DfChunks":
+
+        logger = logging.get_console_logger("sparsify")
 
         self._tmp_dir = pathlib.Path(tempfile.mkdtemp(prefix="hicona-"))
 
@@ -112,15 +115,13 @@ class SparLocalDegree(SparOperation):
         values = range(0, max_id + 1, self._node_chunk)
         breaks = [(i, i + self._node_chunk) for i in values]
 
+        # bin_id, degree, (quant)
+        logger.info("Computing node stats.")
         degrees = chunked.get_node_stats(table.chunks(), "count").drop("weight")
         ranking = chunked.get_degree_ranking(
             table.chunks(), degrees, breaks, self._tmp_dir
         )
 
-        degrees.write_csv("degrees.csv")  # TODO: remove
-        shutil.copytree(self._tmp_dir, "ranking")
-
-        chunks = _general_sparsify(table, "local_deg", degrees=degrees, ranking=ranking)
 
         return chunks
 

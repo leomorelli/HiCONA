@@ -15,14 +15,6 @@ if _TYPE_CHECKING:
 __all__ = ["NormBinwise", "NormGenomicDist"]
 
 
-# TODO: remove and merge with the one in _norm.py
-def _is_base_column(df: pl.DataFrame) -> list[pl.Expr]:
-    """Return an expression to select base columns from the chunk."""
-    base_cols = ["bin1_id", "bin2_id", "count", "norm"]
-    keep_cols = [pl.col(c) for c in base_cols if c in df.columns]
-    return keep_cols
-
-
 class NormBinwise(NormOperation):
     """Apply a binwise normalization to a table.
 
@@ -60,7 +52,7 @@ class NormBinwise(NormOperation):
         self._divisive = divisive
         self._drop_nas = drop_nas
 
-    def run(self, table: "Table") -> "DfChunks":
+    def process(self, table: "Table") -> "DfChunks":
 
         col1, col2 = f"{self._ann_name}1", f"{self._ann_name}2"
 
@@ -72,7 +64,7 @@ class NormBinwise(NormOperation):
             exp = (pl.col(self._apply_col) * pl.col(col1) * pl.col(col2)).alias("norm")
             exp = exp.drop_nulls() if self._drop_nas else exp
 
-            yield chunk.with_columns(exp).select(_is_base_column(chunk))
+            yield chunk.with_columns(exp)
 
 
 class NormGenomicDist(NormOperation):
@@ -92,7 +84,7 @@ class NormGenomicDist(NormOperation):
     def __init__(self, *, apply_col: str):
         self._apply_col = apply_col
 
-    def run(self, table: "Table") -> "DfChunks":
+    def process(self, table: "Table") -> "DfChunks":
 
         # TODO: maybe add check for inter chromosomal
 
@@ -118,4 +110,4 @@ class NormGenomicDist(NormOperation):
         for chunk in chunks:
             yield chunk.with_columns(
                 (pl.col(self._apply_col) / pl.col("0.5") + 1).log().alias("norm")
-            ).select(_is_base_column(chunk))
+            )

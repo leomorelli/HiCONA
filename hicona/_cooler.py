@@ -19,7 +19,7 @@ import polars as pl
 from hicona._constants import TABLES_ROOT, TABLE_COLUMNS
 from hicona._core import Table, uris
 from hicona._dtypes import GenericDf
-from hicona._ops import bed, hdf5
+from hicona._ops import bed, hdf5, logging
 from hicona.preprocess import Flow
 from hicona._table import HiconaTable
 
@@ -225,6 +225,8 @@ class HiconaCooler(cooler.Cooler):
         4     0.4219     0.4155        3      890      1   1.0
         """
 
+        logger = logging.get_console_logger("preprocess")
+
         # Convert any default string to the corresponding flow
         if isinstance(ops_flow, str):
             ops_flow = Flow.from_default(ops_flow)
@@ -238,21 +240,19 @@ class HiconaCooler(cooler.Cooler):
             if table.flow == ops_flow:
                 raise ValueError("E: Table with the same flow already exists.")
 
+        logger.info("Initializing raw table.")
         table = Table(self._init_raw_table(ops_flow, chunk_size))
+
         for op in table.flow.ops:
 
-            try:
-                print(f"Starting to apply: {op.name}")
-                start = time.time()
+            logger.info("Running operation %s.", op.name)
+            start_time = time.time()
 
-                tab_size = hdf5.write_table(table.uris, op.run(table))
-                hdf5.resize_table(table.uris, tab_size)
-                table.reset_index()
+            tab_size = hdf5.write_table(table.uris, op.run(table))
+            hdf5.resize_table(table.uris, tab_size)
+            table.reset_index()
 
-                end = time.time()
-                print(f"Took {end - start} seconds.")
-            finally:
-                op.cleanup()
+            logger.info("%s took %s seconds.", op.name, time.time() - start_time)
 
         return HiconaTable(table.uris)
 

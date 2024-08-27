@@ -39,14 +39,6 @@ def _within_range(
     return above_min & below_max
 
 
-# TODO: remove and merge with the one in _norm.py
-def _is_base_column(df: pl.DataFrame) -> list[pl.Expr]:
-    """Return an expression to select base columns from the chunk."""
-    base_cols = ["bin1_id", "bin2_id", "count", "norm"]
-    keep_cols = [pl.col(c) for c in base_cols if c in df.columns]
-    return keep_cols
-
-
 class FiltGenomicDist(FiltOperation):
     """Remove pixels whose genomic distance is outside of an interval.
 
@@ -72,7 +64,7 @@ class FiltGenomicDist(FiltOperation):
         self._min_dist = min_dist
         self._max_dist = max_dist
 
-    def run(self, table: "Table") -> "DfChunks":
+    def process(self, table: "Table") -> "DfChunks":
 
         def _get_dist_column(bin_size: int, interchrom: int) -> pl.Expr:
             """Expression to compute genomic distance between bins.
@@ -96,11 +88,9 @@ class FiltGenomicDist(FiltOperation):
 
         for chunk in table.chunks(annotated=True):
 
-            chunk = (
-                chunk.with_columns(_get_dist_column(table.bin_size, inter_value))
-                .filter(_within_range("dist", self._min_dist, self._max_dist, True))
-                .select(_is_base_column(chunk))
-            )
+            chunk = chunk.with_columns(
+                _get_dist_column(table.bin_size, inter_value)
+            ).filter(_within_range("dist", self._min_dist, self._max_dist, True))
 
             yield chunk
 
@@ -144,7 +134,7 @@ class FiltColumnQuant(FiltOperation):
         self._upper_quant = upper_quant
         self._chrom_wise = chrom_wise
 
-    def run(self, table: "Table") -> "DfChunks":
+    def process(self, table: "Table") -> "DfChunks":
 
         lower, upper, col = self._lower_quant, self._upper_quant, self._apply_col
 
@@ -162,11 +152,7 @@ class FiltColumnQuant(FiltOperation):
         for chunk in chunks:
             yield chunk.filter(
                 pl.col(col) > pl.col(str(lower)) if lower is not None else True
-            ).filter(
-                pl.col(col) < pl.col(str(upper)) if upper is not None else True
-            ).select(
-                _is_base_column(chunk)
-            )
+            ).filter(pl.col(col) < pl.col(str(upper)) if upper is not None else True)
 
 
 class FiltColumnValue(FiltOperation):
@@ -201,7 +187,7 @@ class FiltColumnValue(FiltOperation):
         self._upper_value = upper_value
         self._keep_extrema = keep_extrema
 
-    def run(self, table: "Table") -> "DfChunks":
+    def process(self, table: "Table") -> "DfChunks":
 
         for chunk in table.chunks():
 
@@ -212,7 +198,7 @@ class FiltColumnValue(FiltOperation):
                     self._upper_value,
                     self._keep_extrema,
                 )
-            ).select(_is_base_column(chunk))
+            )
 
 
 class FiltInterChroms(FiltOperation):
@@ -222,11 +208,9 @@ class FiltInterChroms(FiltOperation):
 
     """
 
-    def run(self, table: "Table") -> "DfChunks":
+    def process(self, table: "Table") -> "DfChunks":
         for chunk in table.chunks(annotated=True):
-            yield chunk.filter(pl.col("chrom1") == pl.col("chrom2")).select(
-                _is_base_column(chunk)
-            )
+            yield chunk.filter(pl.col("chrom1") == pl.col("chrom2"))
 
 
 class FiltSelfLooping(FiltOperation):
@@ -236,8 +220,6 @@ class FiltSelfLooping(FiltOperation):
 
     """
 
-    def run(self, table: "Table") -> "DfChunks":
+    def process(self, table: "Table") -> "DfChunks":
         for chunk in table.chunks():
-            yield chunk.filter(pl.col("bin1_id") != pl.col("bin2_id")).select(
-                _is_base_column(chunk)
-            )
+            yield chunk.filter(pl.col("bin1_id") != pl.col("bin2_id"))
