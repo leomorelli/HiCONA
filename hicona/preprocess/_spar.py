@@ -86,6 +86,8 @@ class SparLocalDegree(SparOperation):
     ----------
     node_chunk : int, optional
         The number of nodes to process at once. Default is 10_000.
+    as_quants : bool, optional
+        Whether to use quantiles instead of raw degrees. Default is False.
 
     Notes
     -----
@@ -97,8 +99,9 @@ class SparLocalDegree(SparOperation):
 
     """
 
-    def __init__(self, *, node_chunk: int = 10_000):
-        self._node_chunk = node_chunk
+    def __init__(self, *, as_quants: bool = False, node_chunk: int = 10_000):
+        self._node_chunk: int = node_chunk
+        self._rank_col: str = "degree" if not as_quants else "quant"
         self._tmp_dir: pathlib.Path | None = None
 
     def process(self, table: "Table") -> "DfChunks":
@@ -115,13 +118,30 @@ class SparLocalDegree(SparOperation):
         values = range(0, max_id + 1, self._node_chunk)
         breaks = [(i, i + self._node_chunk) for i in values]
 
-        # bin_id, degree, (quant)
+        # Degrees has the columns: bin_id, degree, (quant)
         logger.info("Computing node stats.")
         degrees = chunked.get_node_stats(table.chunks(), "count").drop("weight")
-        ranking = chunked.get_degree_ranking(
-            table.chunks(), degrees, breaks, self._tmp_dir
+        if self._rank_col == "quant":
+            degrees = dataf.add_percentiles(degrees, "degree")
+
+        # Ranking has the columns: bin_id, degree/quant, count
+        logger.info("Computing node ranking.")
+        ranking = chunked.get_column_ranking(
+            self._rank_col,
+            table.chunks(),
+            degrees,
+            breaks,
+            self._tmp_dir,
         )
 
+        chunks = _general_sparsify(
+            table,
+            "local_deg",
+            logger,
+            degrees=degrees,
+            ranking=ranking,
+            merge_col=self._rank_col,
+        )
 
         return chunks
 

@@ -85,3 +85,36 @@ def odds_ratios(
         odds_vect.append(np.log2(odds))
 
     return odds_vect, pval_vect
+
+
+def add_percentiles(df: pl.DataFrame, col_name: str):
+    """Add a column with the percentiles of the values in the given column.
+
+    In case the same value is assigned to multiple percentiles, select
+    the highest percentile. This should not have any impact if the
+    percentiles are used for ranking purposes.
+    """
+
+    quants = np.linspace(0, 1, 101)
+    values = [df.select(pl.col(col_name).quantile(q)).item() for q in quants]
+    cut_df = (
+        pl.DataFrame({"quant": quants, "value": values})
+        .group_by("value")
+        .max()
+        .with_columns((pl.col("quant") * 100).cast(int))
+        .sort("value")
+    )
+
+    df = df.with_columns(
+        (
+            pl.col(col_name)
+            .cut(
+                cut_df.select("value").to_numpy()[1:],  # type: ignore
+                labels=cut_df.select("quant").cast(pl.String).to_series().to_list(),
+                left_closed=True,
+            )
+            .cast(pl.Int32)
+        ).alias("quant")
+    )
+
+    return df

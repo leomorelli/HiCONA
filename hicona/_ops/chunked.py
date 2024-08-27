@@ -59,7 +59,8 @@ def get_node_stats(chunks: DfChunks, weight_col: str) -> pl.DataFrame:
     return pl.concat(stats).group_by("bin_id").sum()
 
 
-def get_degree_ranking(
+def get_column_ranking(
+    col_name: str,
     chunks: DfChunks,
     degrees: pl.DataFrame,
     id_breaks: list[tuple[int, int]],
@@ -116,9 +117,9 @@ def get_degree_ranking(
 
                 parts.append(
                     chunk.join(degrees, left_on=group_col, right_on="bin_id")
-                    .group_by([count_col, "degree"])
+                    .group_by([count_col, col_name])
                     .count()
-                    .select(pl.col(count_col).alias("bin_id"), "degree", "count")
+                    .select(pl.col(count_col).alias("bin_id"), col_name, "count")
                 )
 
             chunk = pl.concat(parts)
@@ -127,6 +128,8 @@ def get_degree_ranking(
                 chunk.filter(
                     (pl.col("bin_id") >= lower) & (pl.col("bin_id") < upper)
                 ).write_parquet(tmp_path / f"{lower}-{upper}" / f"{i}.parquet")
+
+        # TODO: crashes if empty dataframe in one of these steps, figure out and fix
 
         # NOTE: Somewhere below here, there is a step which makes memory usage
         # spike in a non-linear way when increasing number of nodes per chunk.
@@ -138,11 +141,13 @@ def get_degree_ranking(
 
             # Collect all files within the folder and aggregate the counts
             # (a node can be connected to a degree n node in multiple chunks)
+
+            # bin_id, quant, count
             parquet_df = (
                 pl.scan_parquet(break_fold / "*")
-                .group_by(["bin_id", "degree"])
+                .group_by(["bin_id", col_name])
                 .agg(pl.sum("count"))
-                .sort(by=["bin_id", "degree"], descending=[False, True])
+                .sort(by=["bin_id", col_name], descending=[False, True])
                 .collect()
             )
 

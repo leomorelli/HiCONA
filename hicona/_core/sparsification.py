@@ -71,18 +71,18 @@ def _score_local_deg(
     chunk: pl.DataFrame,
     ranking: pathlib.Path,
     degrees: pl.DataFrame,
+    merge_col: str,
 ) -> pl.DataFrame:
     """Return the local degree sparsification scores for a chunk."""
 
-    scores: pl.DataFrame = pl.DataFrame()
-
     # Add degrees to the chunk as well as empty score columns
     for col in [1, 2]:
-        chunk = (
-            chunk.join(degrees, how="left", left_on=f"bin{col}_id", right_on="bin_id")
-            .rename({"degree": f"bin{col}_degree"})
-            .with_columns(pl.lit(0).alias(f"bin{col}_rank"))
-        )
+        chunk = chunk.join(
+            degrees.select(pl.all().name.prefix(f"bin{col}_")),
+            how="left",
+            left_on=f"bin{col}_id",
+            right_on=f"bin{col}_bin_id",  # Not the prettiest but simpler
+        ).with_columns(pl.lit(0).alias(f"bin{col}_rank"))
 
     # Limits of the columns of each chunk, used to choose when the merge is necessary
     # since merging is expensive and with sorted dataframes we can avoid it partially.
@@ -95,7 +95,7 @@ def _score_local_deg(
         "bin2_upper": int(chunk["bin2_id"].max()),  # type: ignore
     }
 
-    # Annotate with all ranling chunks that overlap with the pixel chunk
+    # Annotate with all ranking chunks that overlap with the pixel chunk
     for rank_path in os.listdir(ranking):
 
         # Only use single-file parquet files (avoid intermediate chunks)
@@ -125,8 +125,8 @@ def _score_local_deg(
                 chunk.join(
                     pl.read_parquet(ranking / rank_path),
                     how="left",
-                    left_on=[f"bin{bin_col}_id", f"bin{deg_col}_degree"],
-                    right_on=["bin_id", "degree"],
+                    left_on=[f"bin{bin_col}_id", f"bin{deg_col}_{merge_col}"],
+                    right_on=["bin_id", merge_col],
                 )
                 .with_columns(
                     pl.when(pl.col("rank") > 0)
@@ -162,7 +162,10 @@ def _score_local_deg(
 def sparsify_chunk(chunk: pl.DataFrame, mode: str, **kwargs) -> pl.DataFrame:
     """Return the sparsified scores for a chunk."""
 
-    spar_functions = {"weighted": _score_weighted, "local_deg": _score_local_deg}
+    spar_functions = {
+        "weighted": _score_weighted,
+        "local_deg": _score_local_deg,
+    }
     func = spar_functions.get(mode)
 
     if not func:
@@ -174,4 +177,4 @@ def sparsify_chunk(chunk: pl.DataFrame, mode: str, **kwargs) -> pl.DataFrame:
     # TODO: remove rename once migrated from "alpha" to "score".
     scores = scores.rename({"score_min": "alpha_min", "score_max": "alpha_max"})
 
-    return scores
+    return pl.concat([chunk.drop("alpha_min", "alpha_max"), scores], how="horizontal")
