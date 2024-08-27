@@ -43,14 +43,14 @@ class SparWeighted(SparOperation):
         The column name of the node weights.
     bonferroni : bool, optional
         Whether to apply Bonferroni correction to the alpha values (multiply
-        by the number of neighbors of the node). Default is True.
+        by the number of neighbors of the node). Default is False.
     """
 
     def __init__(
         self,
         *,
         apply_col: str,
-        bonferroni: bool = True,
+        bonferroni: bool = False,
     ):
         self._apply_col = apply_col
         self._bonferroni = bonferroni
