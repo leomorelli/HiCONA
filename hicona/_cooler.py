@@ -302,12 +302,13 @@ class HiconaCooler(cooler.Cooler):
 
         """
 
-        # TODO: Breaks if the tables group does not exists
-
         out = ""
 
-        for table in self._iterate_tables():
-            out += f"- {table.flow.name}\n"
+        try:
+            for table in self._iterate_tables():
+                out += f"- {table.flow.name}\n"
+        except KeyError:
+            pass  # No tables available yet
 
         if not out:
             out = "- No tables available yet.\n"
