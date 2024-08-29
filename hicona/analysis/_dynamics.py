@@ -7,7 +7,7 @@ import pandas as pd
 import polars as pl
 import scipy as sp
 
-from hicona._dtypes import AlphaModType, OptionalAxes
+from hicona._dtypes import OptionalAxes
 from hicona._ops import chunked, dataf
 from hicona.analysis import _plotting
 
@@ -23,7 +23,7 @@ class AnnotDynamics:
 
     Class used to compute, return and plot pixel table annotation dynamics,
     that is, the changes in frequency of pixel annotation pairs as a function
-    of the alpha value used for filtering the table.
+    of the score threshold used for filtering the table.
 
     The annotation dynamics algorithm works as follows:
 
@@ -31,7 +31,7 @@ class AnnotDynamics:
       each annotation pair in the entire unfiltered table.
     - for each interval, compute the interval fractions, which are computed
       analogously to the background ones but only considering pixels with an
-      alpha value falling in the interval.
+      score value falling in the interval.
     - for each interval, compute the log odds ratios of the interval fractions
       with respect to the background fractions. Also compute p-values for the
       log odds ratios using Fisher's exact test and correct them for multiple
@@ -49,8 +49,6 @@ class AnnotDynamics:
     as_quantiles : bool, optional
         Whether the intervals are expressed in quantile points, rather than
         in absolute percentage points. Default is 'True'.
-    alpha_mod : 'alpha_min' or 'alpha_max', optional
-        The alpha mode to use for filtering. Default is 'alpha_min'.
 
     See Also
     --------
@@ -77,24 +75,22 @@ class AnnotDynamics:
         table: "HiconaTable",
         annot_name: str,
         as_quantiles: bool = True,
-        alpha_mod: AlphaModType = "alpha_min",
     ):
 
         self._hic_table = table
         self._anno_name = annot_name
-        self._alpha_mod = alpha_mod
         self._as_quants = as_quantiles
 
         # Automatically generate a grid with 0.01 wide intervals
         # Which can be aggregated to the desired intervals when queried
-        self._alpha_distr = self._hic_table.get_distribution(alpha_mod)
+        self._score_distr = self._hic_table.get_distribution("score")
         self._break_pts = self._compute_breakpoints(0.01, self._as_quants)
         self._abs_dynam = self._compute_dynamics()
 
     def _compute_breakpoints(self, size: float, as_quants: bool) -> list[float]:
         """Get the break points for the intervals."""
 
-        # Define the discrete alpha break points
+        # Define the discrete score break points
         num_pt: int = int(1 / size)
         decimals: int = len(str(size).split(".")[1])
         points: list[float] = [round(size * i, decimals) for i in range(1, num_pt + 1)]
@@ -102,8 +98,8 @@ class AnnotDynamics:
         # Convert break points to quantiles if needed
         if as_quants:
             chunks = self._hic_table.chunks()
-            quants = chunked.chunked_quants(chunks, self._alpha_mod, points)
-            points = quants[self._alpha_mod].tolist()
+            quants = chunked.chunked_quants(chunks, "score", points)
+            points = quants["score"].tolist()  # TODO: check
 
         return points
 
@@ -119,7 +115,7 @@ class AnnotDynamics:
 
         # Retrieve annotation dynamics in chunks
         dynam_parts = []
-        chunk_cols = anno_cols + [self._alpha_mod]
+        chunk_cols = anno_cols + ["score"]
         for chunk in self._hic_table.chunks(annotated=True, columns=chunk_cols):
 
             # Have annotations alpahebetically sorted to avoid duplicates
@@ -127,7 +123,7 @@ class AnnotDynamics:
 
             # Compute cumulative absolute frequencies per interval per chunk
             for pt in points:
-                chunk.query(f"{self._alpha_mod} <= {pt}", inplace=True)
+                chunk.query(f"score <= {pt}", inplace=True)
                 chunk_parts = chunk.groupby(anno_cols, as_index=False).count()
                 chunk_parts["upper"] = pt
                 dynam_parts.append(chunk_parts)
@@ -140,7 +136,7 @@ class AnnotDynamics:
         dynam = dynam.pivot_table(
             index=anno_cols,
             columns="upper",
-            values=self._alpha_mod,
+            values="score",
             fill_value=0,
         )
 
@@ -165,18 +161,18 @@ class AnnotDynamics:
         log odds ratios and one for the p-values.
 
         .. warning::
-            Currently, pixels with alpha value equal to zero are lost since the
+            Currently, pixels with score equal to zero are lost since the
             lower bound is excluded. This will likely be changed in the future
-            even though the number of pixels with alpha equal to zero is usually
+            even though the number of pixels with score equal to zero is usually
             very low.
 
         Parameters
         ----------
         cumulative : bool, optional
             Whether to compute the dynamics cumulatively. If set to 'True',
-            each interval includes all pixels with alpha values up to the
+            each interval includes all pixels with scores up to the
             interval upper bound (included), otherwise it considers only
-            pixels whose alphas are between the previous interval upper bound
+            pixels whose scores are between the previous interval upper bound
             (excluded) and the current one (included). Default is 'False'.
         intervals : list of int or None, optional
             If provided, the upper bounds of the intervals to consider, else
@@ -219,8 +215,8 @@ class AnnotDynamics:
         In this case, no intervals are provided, so the default grid of 1 unit
         (in this case 1 percentile since the quantile option is set to 'True')
         is used. Since the cumulative option is set to 'True', all pixels with
-        alpha values up to the interval upper bound are included, meaning that
-        the first column considers pixels with alpha values in the range
+        scores up to the interval upper bound are included, meaning that
+        the first column considers pixels with scores in the range
         ``(0, 0.1275]``, the second column in the range ``(0, 0.1597]``, and so on.
 
         Compute the non-cumulative dynamics for that dynamics object:
@@ -242,7 +238,7 @@ class AnnotDynamics:
 
         Since intervals are provided, the dynamics are computed every ten
         percentile points. Moreover, since the cumulative option is set to
-        'False', the first column considers pixels with alpha values in the
+        'False', the first column considers pixels with scores in the
         range ``(0, 10]``, the second column in the range ``(10, 20]``, and so on.
 
         """
@@ -301,7 +297,7 @@ class AnnotDynamics:
 
         Plot the full annotation dynamics table as a heatmap with all the
         annotation pairs as rows and the thresholds as columns. On top of
-        the heatmap, represent the alpha distribution and the thresholds
+        the heatmap, represent the score distribution and the thresholds
         of the heatmap cells (dashed lines).
 
         Parameters
@@ -336,7 +332,7 @@ class AnnotDynamics:
         odds, _ = self.get_dynamics(cumulative, intervals)
         _plotting.plot_dynamics_full(
             odds,
-            self._alpha_distr,
+            self._score_distr,
             sort_rows=sort_rows,
             inf_to_nan=True,
             img_path=img_path,
@@ -352,17 +348,17 @@ class AnnotDynamics:
     ) -> OptionalAxes:
         """Plot the annotation dynamics for a restricted p-value interval.
 
-        Given a single alpha value interval (lower bound excluded, upper bound
+        Given a single score interval (lower bound excluded, upper bound
         included), create a lower-triangular heatmap for the annotation
         enrichment in that interval.
 
         Parameters
         ----------
         lower_bound : int
-            The lower bound of the alpha interval to plot. See `get_dynamics`
+            The lower bound of the score interval to plot. See `get_dynamics`
             for more information.
         upper_bound : int
-            The upper bound of the alpha interval to plot. See `get_dynamics`
+            The upper bound of the score interval to plot. See `get_dynamics`
             for more information.
         img_path : str or None, optional
             If provided, path to save the plot to. (default is None)

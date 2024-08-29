@@ -10,7 +10,7 @@ from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.sparse import coo_matrix
 
 
-__all__ = ["plot_alpha_grid"]
+__all__ = ["plot_threshold_grid"]
 
 
 NAN_COLOR = "lightgrey"  # Color for NaN values in heatmaps
@@ -49,15 +49,15 @@ def _plot_output(plot, img_path, show, padding=0):
         return plot
 
 
-def plot_alpha_grid(
-    alpha_grid: pd.DataFrame,
+def plot_threshold_grid(
+    grid: pd.DataFrame,
     img_path: str | None = None,
     show: bool = False,
 ):
-    """Plot the grid used to compute the optimal alpha value.
+    """Plot the grid used to compute the optimal score threshold.
 
-    Plot and/or show the grid of alpha values tested when computing the
-    optimal alpha value for pixel filtering. The plot has the fraction
+    Plot and/or show the grid of score thresholds tested when computing the
+    optimal score threshold for pixel filtering. The plot has the fraction
     of retained nodes on the ``x`` axis and the fraction of retained
     edges on the ``y`` axis.
 
@@ -88,37 +88,37 @@ def plot_alpha_grid(
     }
 
     # Create main plot
-    axes = sns.lineplot(alpha_grid, x="nodes_f", y="edges_f")
+    axes = sns.lineplot(grid, x="nodes_f", y="edges_f")
     axes.set(
-        title="Optimal Alpha Test Grid",
+        title="Optimal Score Threshold Test Grid",
         xlabel="Node Fraction",
         ylabel="Edge Fraction",
         aspect="equal",
     )
 
     # Manually plot markers
-    for _, pts in alpha_grid.iterrows():
+    for _, pts in grid.iterrows():
         axes.plot(pts["nodes_f"], pts["edges_f"], **other_style)
 
-    # Redraw optimal alpha marker to have artist on top
-    optim = alpha_grid.iloc[alpha_grid["eu_dist"].idxmin()]  # type: ignore
+    # Redraw optimal optimal marker to have artist on top
+    optim = grid.iloc[grid["eu_dist"].idxmin()]  # type: ignore
     axes.plot(optim["nodes_f"], optim["edges_f"], **optim_style)
     plt.text(
         optim["nodes_f"] + x_offset,
         optim["edges_f"] + y_offset,
-        rf"$\alpha$ = {optim['alpha']:.3f}",
+        f"score = {optim['threshold']:.3f}",
     )
 
     return _plot_output(axes, img_path, show)
 
 
-def plot_alpha_distr(alpha_distr, img_path: str | None = None, show: bool = False):
-    """Plot alpha value distribution as a line plot."""
+def plot_score_distr(score_distr, img_path: str | None = None, show: bool = False):
+    """Plot score distribution as a line plot."""
 
-    axes = sns.lineplot(alpha_distr)
+    axes = sns.lineplot(score_distr)
     axes.set(
-        title="Alpha Score Distribution",
-        xlabel="Alpha Score",
+        title="Score Distribution",
+        xlabel="Score",
         ylabel="Count",
     )
 
@@ -136,7 +136,7 @@ def _get_color_map():
 
 def plot_dynamics_full(
     ann_dynamics: pd.DataFrame,
-    alpha_distr: pd.DataFrame,
+    score_distr: pd.DataFrame,
     sort_rows: bool = True,
     inf_to_nan: bool = True,
     img_path: str | None = None,
@@ -145,15 +145,15 @@ def plot_dynamics_full(
     """Plot annotation dynamics matrix.
 
     Create a heatmap for the provided annotation dynamics matrix. Moreover,
-    plot the distribution of alpha values as a line plot with overlaid lines
+    plot the score distribution as a line plot with overlaid lines
     for the thresholds used in the dynamics matrix.
 
     Parameters
     ----------
     ann_dynamics : pd.DataFrame
         The annotation dynamics matrix to plot.
-    alpha_distr : pd.DataFrame
-        The distribution of alpha values to plot.
+    score_distr : pd.DataFrame
+        The distribution of scores to plot.
     sort_rows : bool, optional
         Whether to sort the rows of the dynamics matrix by hierarchical
         clustering. Default is `True`.
@@ -195,17 +195,17 @@ def plot_dynamics_full(
         figsize=(24 * CM, 18 * CM),
     )
 
-    # TOP LEFT: Alpha distribution ------------------------------------------
+    # TOP LEFT: Score distribution ------------------------------------------
 
     thresholds = [float(t) for t in tab.columns]
-    alpha_distr = alpha_distr[alpha_distr["value"] <= max(thresholds)]
+    score_distr = score_distr[score_distr["value"] <= max(thresholds)]
 
-    sns.lineplot(data=alpha_distr, x="value", y="count", ax=axes[0][0])
+    sns.lineplot(data=score_distr, x="value", y="count", ax=axes[0][0])
     axes[0][0].set(
-        xlabel="Alpha",
+        xlabel="Score",
         ylabel="Number of Pixels",
         xlim=(-0.05, 1),
-        ylim=(-alpha_distr["count"].max() * 0.1, max(alpha_distr["count"]) * 1.1),
+        ylim=(-score_distr["count"].max() * 0.1, max(score_distr["count"]) * 1.1),
     )
     axes[0][0].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
     axes[0][0].xaxis.set_label_coords(-0.05, -0.04)
@@ -285,7 +285,6 @@ def plot_dynamics_interval(
     odds_mat = log_odds.unstack().T
     anno_mat = p_values.unstack().T
 
-    # title = rf"{interval[0]} $< \alpha \leq$ {interval[1]}"
     cmap = _get_color_map()
 
     axes = sns.heatmap(odds_mat, annot=anno_mat, cmap=cmap, center=0)
@@ -305,11 +304,11 @@ def plot_comparison(
 ):
     """Placeholder"""
 
-    # CAP_VAL = max(10_000, max(norm_alpha_distr["count"]))
+    # CAP_VAL = max(10_000, max(norm_score_distr["count"]))
 
     main_ratio = 5  # Ratio of the main plot to the side plots
     sides_size = 8  # Size of the image side in inches
-    distr_lims = (-0.01, 1.01)  # Limits for the distribution, assumed alpha
+    distr_lims = (-0.01, 1.01)  # Limits for the distribution, assumed score
     label_size = 16  # Font size for the labels
 
     # Need to define it on the distribution somehow
@@ -317,7 +316,7 @@ def plot_comparison(
     cap_val = 100000
 
     # Set up the plot structure
-    fig, axes = plt.subplots(
+    _, axes = plt.subplots(
         2,
         2,
         height_ratios=[main_ratio, 1],
@@ -325,7 +324,7 @@ def plot_comparison(
         figsize=(sides_size, sides_size),
     )
 
-    # Normalized alpha distr subplot
+    # Normalized score distr subplot
     sns.lineplot(
         data=distr_b,
         x="count",
@@ -348,7 +347,7 @@ def plot_comparison(
     size_a = int(distr_a["count"].sum())
     axes[0, 0].text(cap_val, 0.95, f"N = {size_a}", fontsize=11)
 
-    # Alpha vs Alpha matrix
+    # Score vs score matrix
     sns.histplot(
         data=points,
         x="x",
@@ -377,7 +376,7 @@ def plot_comparison(
     # Empty lower left subplot
     axes[1, 0].axis("off")
 
-    # Non normalized alpha distr subplot
+    # Non normalized score distr subplot
     sns.lineplot(
         data=distr_a,
         x="value",

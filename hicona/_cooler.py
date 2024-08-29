@@ -217,12 +217,7 @@ class HiconaCooler(cooler.Cooler):
         >>> table = handle.create_table()
         # Logging of the table creation process
         >>> table.dataframe().head()
-           alpha_max  alpha_min  bin1_id  bin2_id  count  norm
-        0     0.4219     0.4037        1     2720      1   1.0
-        1     0.4219     0.3737        1     5476      1   1.0
-        2     0.4219     0.3814        1     5802      1   1.0
-        3     0.4219     0.3816        1    18419      1   1.0
-        4     0.4219     0.4155        3      890      1   1.0
+        # TODO: remake this example
         """
 
         logger = logging.get_console_logger("preprocess")
@@ -285,12 +280,7 @@ class HiconaCooler(cooler.Cooler):
         >>> handle = HiconaCooler("path/to/file.cool")
         >>> table = handle.fetch_table()
         >>> table.dataframe().head()
-              alpha_max  alpha_min  bin1_id  bin2_id  count  norm
-        0        0.4219     0.4037        1     2720      1   1.0
-        1        0.4219     0.3737        1     5476      1   1.0
-        2        0.4219     0.3814        1     5802      1   1.0
-        3        0.4219     0.3816        1    18419      1   1.0
-        4        0.4219     0.4155        3      890      1   1.0
+        # TODO: remake this example
         """
 
         tables_uris = self._uris.add_path(self._tables_root)

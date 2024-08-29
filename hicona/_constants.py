@@ -9,8 +9,7 @@ TABLE_COLUMNS = {
     "bin2_id": "i8",
     "count": "i4",
     "norm": "f8",
-    "alpha_min": "f8",
-    "alpha_max": "f8",
+    "score": "f8",
 }
 
 # Columns that are always present in the bins table.

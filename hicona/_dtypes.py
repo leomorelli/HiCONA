@@ -15,9 +15,6 @@ DfChunks = Iterator[pl.DataFrame]
 # Type alias for generic type annotation.
 T = TypeVar("T")
 
-# Type alias for the alpha mod type.
-AlphaModType = Literal["alpha_min", "alpha_max"]
-
 # Type alias for the axes type.
 OptionalAxes = ax.Axes | None
 

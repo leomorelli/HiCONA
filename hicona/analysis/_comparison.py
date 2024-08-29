@@ -2,11 +2,9 @@
 
 from typing import TYPE_CHECKING
 
-import pandas as pd
 import cooler
 import polars as pl
 
-from hicona.analysis import _plotting
 from hicona._core import annotate
 
 if TYPE_CHECKING:
@@ -61,8 +59,8 @@ class TableComparison:
     ):
         """Placeholder"""
 
-        if column not in ["alpha_min", "alpha_max"]:
-            raise ValueError("Currently only alpha_min and alpha_max are supported")
+        if column not in ["score"]:
+            raise ValueError("Currently only score column is supported")
 
         points = self.get_dataframe("both")[[f"{column}_a", f"{column}_b"]]
         points = points.rename({f"{column}_a": "x", f"{column}_b": "y"})

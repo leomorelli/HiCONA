@@ -9,8 +9,7 @@ import collections
 import polars as pl
 
 from hicona._core import base_table, uris
-from hicona._dtypes import AlphaModType
-from hicona.analysis import AlphaGrid, AnnotDynamics
+from hicona.analysis import ThresholdGrid, AnnotDynamics
 
 
 class HiconaTable(base_table.Table):
@@ -167,25 +166,22 @@ class HiconaTable(base_table.Table):
         new_intervals = self._index & other._index
         return HiconaTable(self.uris, new_intervals)
 
-    def get_alpha_grid(
+    def get_threshold_grid(
         self,
         decimals: int = 3,
         verbose: bool = True,
-        alpha_mod: AlphaModType = "alpha_min",
-    ) -> "AlphaGrid":
-        """Return a grid of statistics for the table filtered at different alpha values.
+    ) -> "ThresholdGrid":
+        """Return a grid of stats for the table filtered at different score thresholds.
 
         Compute the number and fraction of nodes and edges remaining in the
-        table when filtered at different alpha values. Return this information
-        as an ``AlphaGrid`` object, which can also be used to plot the results
-        and retrieve the optimal alpha value for filtering the table.
+        table when filtered at different score thresholds. Return this information
+        as an ``ThresholdGrid`` object, which can also be used to plot the results
+        and retrieve the optimal score threshold for filtering the table.
 
-        For the threshold selection procedure see the ``AlphaGrid`` class.
+        For the threshold selection procedure see the ``ThresholdGrid`` class.
 
         Parameters
         ----------
-        alpha_mod : 'alpha_min' or 'alpha_max', optional
-            The alpha mode to use for filtering. Default is 'alpha_min'.
         decimals : int, optional
             Maximum number of decimal positions for the thresholds. Default is 3.
         verbose : bool, optional
@@ -193,37 +189,36 @@ class HiconaTable(base_table.Table):
 
         Returns
         -------
-        AlphaGrid
-            An AlphaGrid object with the statistics for each alpha value.
+        ThresholdGrid
+            An ThresholdGrid object with the statistics for each score threshold.
 
         See Also
         --------
-        analysis.AlphaGrid : Class for the alpha grid computation and selection.
+        analysis.ThresholdGrid : Class for the score threshold grid computation and selection.
 
         Examples
         --------
-        Compute the alpha grid for a table and fetch the optimal alpha value:
+        Compute the score threshold grid for a table and fetch the optimal score threshold:
 
         >>> handle = HiconaCooler("path/to/cool_file.cool")
         >>> table = handle.fetch_table("hicona")
-        >>> alpha_grid = table.get_alpha_grid()
-        >>> alpha_grid.optimal_alpha
+        >>> score_grid = table.get_threshold_grid()
+        >>> score_grid.optimal
         0.123
         """
 
-        return AlphaGrid(self, alpha_mod, decimals, verbose)
+        return ThresholdGrid(self, decimals, verbose)
 
     def get_annot_dynamics(
         self,
         annot: str,
         as_quantiles: bool = True,
-        alpha_mod: AlphaModType = "alpha_min",
     ):
-        """Return annotation dynamics as a function of alpha filtering.
+        """Return annotation dynamics as a function of score filtering.
 
         Given a multimodal annotation, the dynamics of the annotation are
         the enrichments of each modality of the annotation as the table is
-        filtered using progressively more stringent alpha values.
+        filtered using progressively more stringent score thresholds.
 
         Given that a table is composed of pixels, meaning two bins with
         individual values for the annotation, the dynamics are computed for
@@ -241,8 +236,6 @@ class HiconaTable(base_table.Table):
         as_quantiles : bool, optional
             Whether the intervals are expressed in quantile points, rather than
             in absolute percentage points. Default is 'True'.
-        alpha_mod : 'alpha_min' or 'alpha_max', optional
-            The alpha mode to use for filtering. Default is 'alpha_min'.
 
         Returns
         -------
@@ -262,25 +255,17 @@ class HiconaTable(base_table.Table):
         >>> dynamics = table.get_dynamics("multimodal_annot")
         >>> log_odds, pvals = dynamics.get_dynamics()
         >>> log_odds.head()
-                                 0.1363    0.1605   ...     0.4455    0.5318
-        HMM_annot1 HMM_annot2
-        Enh        Enh        -0.066962 -0.262823   ...  -2.853268 -2.022946
-                   Het        -2.155885 -2.001988   ...   0.890271 -0.463665
-                   Prom        0.109445  0.323272   ...  -1.969398 -1.388097
-                   Repr_Pc    -0.396773 -0.668461   ...  -1.762391 -1.160337
-                   Tx         -0.470425 -0.023662   ...  -3.228512 -1.852930
+        # TODO: remake this example
         """
 
-        # TODO: Add check that it is a multimodal annotation
-
-        return AnnotDynamics(self, annot, as_quantiles, alpha_mod)
+        return AnnotDynamics(self, annot, as_quantiles)
 
     def get_distribution(self, colname: str) -> pl.DataFrame:
-        """Return the distribution for the column as a pandas DataFrame.
+        """Return the distribution for the column as a DataFrame.
 
         Obtain the value distribution for the specified column in the table.
-        The distribution is provided as a ``pandas.DataFrame`` with the columns
-        ``value`` and ``count`` representing the unique values and their number
+        The distribution is provided as a DataFrame with the columns ``value``
+        and ``count`` representing the unique values and their number
         of occurrences, respectively.
 
         Parameters
@@ -290,25 +275,21 @@ class HiconaTable(base_table.Table):
 
         Returns
         -------
-        pandas.DataFrame
+        polars.DataFrame
             A dataframe with the distribution.
 
         Examples
         --------
-        Compute the alpha distribution for a table:
+        Compute the score distribution for a table:
 
         >>> handle = HiconaCooler("path/to/cool_file.cool")
         >>> table = handle.fetch_table("hicona")
-        >>> alpha_distr = table.get_distribution("alpha_min")
-        >>> alpha_distr.head(3)
+        >>> score_distr = table.get_distribution("score")
+        >>> score_distr.head(3)
             value  count
         0   0.000    675
         1   0.001   1245
         2   0.002   1456
-
-        The distribution can be plotted directly using the ``plot`` method:
-
-        >>> alpha_distr.plot(x="value", y="count")
         """
 
         # TODO: Maybe add check that it is a numeric column (e.i. no bin_id)

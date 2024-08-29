@@ -35,14 +35,14 @@ class SparWeighted(SparOperation):
     """Compute pixel table sparsification scores using edge weight.
 
     Compute the sparsification scores for a pixel table based on node weights.
-    The alpha values are computed according to `Serrano et al. 2009`.
+    The scores are the alphas as computed according to `Serrano et al. 2009`.
 
     Parameters
     ----------
     apply_col : str
         The column name of the node weights.
     bonferroni : bool, optional
-        Whether to apply Bonferroni correction to the alpha values (multiply
+        Whether to apply Bonferroni correction to the scores (multiply
         by the number of neighbors of the node). Default is False.
     """
 

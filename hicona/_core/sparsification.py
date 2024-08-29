@@ -60,9 +60,8 @@ def _score_weighted(
         scores = scores.with_columns(dataf["alpha"].alias(col))
 
     scores = scores.with_columns(
-        pl.min_horizontal("bin1_id", "bin2_id").alias("score_min"),
-        pl.max_horizontal("bin1_id", "bin2_id").alias("score_max"),
-    ).select(["score_min", "score_max"])
+        pl.min_horizontal("bin1_id", "bin2_id").alias("score")
+    ).select("score")
 
     return scores
 
@@ -152,9 +151,8 @@ def _score_local_deg(
 
     # Sort the scores into min and max columns
     scores = chunk.with_columns(
-        pl.min_horizontal("bin1_score", "bin2_score").alias("score_min"),
-        pl.max_horizontal("bin1_score", "bin2_score").alias("score_max"),
-    ).select(["score_min", "score_max"])
+        (pl.lit(1) - pl.max_horizontal("bin1_score", "bin2_score")).alias("score"),
+    ).select("score")
 
     return scores
 
@@ -171,10 +169,5 @@ def sparsify_chunk(chunk: pl.DataFrame, mode: str, **kwargs) -> pl.DataFrame:
     if not func:
         raise ValueError(f"Sparsification mode must be one of {list(spar_functions)}.")
 
-    # Compute the scores and sort them into min and max columns
     scores = func(chunk, **kwargs)
-
-    # TODO: remove rename once migrated from "alpha" to "score".
-    scores = scores.rename({"score_min": "alpha_min", "score_max": "alpha_max"})
-
-    return pl.concat([chunk.drop("alpha_min", "alpha_max"), scores], how="horizontal")
+    return pl.concat([chunk.drop("score"), scores], how="horizontal")

@@ -1,7 +1,6 @@
 """Module containing the Table class and related utilities."""
 
 import json
-import math
 from pathlib import Path
 from typing import Iterable
 
@@ -299,12 +298,7 @@ class Table:
         >>> for chunk in table.chunks():
         ...     print(chunk.head())
         ...     break
-           alpha_max  alpha_min  bin1_id  bin2_id  count  norm
-        0     0.4219     0.4037        1     2720      1   1.0
-        1     0.4219     0.3737        1     5476      1   1.0
-        2     0.4219     0.3814        1     5802      1   1.0
-        3     0.4219     0.3816        1    18419      1   1.0
-        4     0.4219     0.4155        3      890      1   1.0
+        # TODO: remake this example
 
         Only fetch the count values for the first chunk of the table:
 
@@ -332,15 +326,10 @@ class Table:
 
         Iterate over the first chunk of a table with a query:
 
-        >>> for chunk in table.chunks(query="alpha_min < 0.1"):
+        >>> for chunk in table.chunks(query="score < 0.1"):
         ...     print(chunk.head())
         ...     break
-              alpha_max  alpha_min  bin1_id  bin2_id  count      norm
-        0        0.0839     0.0787       94      130     35  2.772590
-        1        0.0900     0.0895       94      131     26  2.632268
-        2        0.1039     0.0947       95      126     33  2.514573
-        3        0.0776     0.0739       98      123     48  2.807355
-        4        0.1031     0.0963       98      126     38  2.523562
+        # TODO: remake this example
 
         """
 
@@ -432,20 +421,7 @@ class Table:
         >>> handle = HiconaCooler("path/to/cool_file.cool")
         >>> table = handle.fetch_table("hicona")
         >>> table.dataframe()  # Usually tables are much larger than this
-                alpha_max  alpha_min  bin1_id  bin2_id  count  norm
-        0          0.4219     0.4037        1     2720      1   1.0
-        1          0.4219     0.3737        1     5476      1   1.0
-        2          0.4219     0.3814        1     5802      1   1.0
-        3          0.4219     0.3816        1    18419      1   1.0
-        4          0.4219     0.4155        3      890      1   1.0
-        ...           ...        ...      ...      ...    ...   ...
-        449637     0.4574     0.4220      520     4700      1   1.0
-        449638     0.4574     0.3963      520     4701      1   1.0
-        449639     0.4574     0.3909      520     4702      1   1.0
-        449640     0.2091     0.1761      520     4704      3   2.0
-        449641     0.4574     0.4107      520     4706      1   1.0
-        <BLANKLINE>
-        [449642 rows x 6 columns]
+        # TODO: remake this example
 
         Only fetch the bin ids in the table:
 
@@ -483,23 +459,10 @@ class Table:
         <BLANKLINE>
         [449642 rows x 16 columns]
 
-        Only fetch the rows where the ``alpha_min`` is smaller than 0.1:
+        Only fetch the rows where the ``score`` is smaller than 0.1:
 
-        >>> table.dataframe(query="alpha_min < 0.1")
-              alpha_max  alpha_min  bin1_id  bin2_id  count      norm
-        0        0.0839     0.0787       94      130     35  2.772590
-        1        0.0900     0.0895       94      131     26  2.632268
-        2        0.1039     0.0947       95      126     33  2.514573
-        3        0.0776     0.0739       98      123     48  2.807355
-        4        0.1031     0.0963       98      126     38  2.523562
-        ...         ...        ...      ...      ...    ...       ...
-        1173     0.1313     0.0734      517     1311      8  3.169925
-        1174     0.1668     0.0990      517     1339      6  2.807355
-        1175     0.1158     0.0844      517     1359      7  3.000000
-        1176     0.0990     0.0969      517     1427      6  2.807355
-        1177     0.1937     0.0747      519     1323      7  3.000000
-        <BLANKLINE>
-        [1178 rows x 6 columns]
+        >>> table.dataframe(query="score < 0.1")
+        # TODO: remake this example
         """
 
         iterator = self.chunks(columns, annotated, query)
