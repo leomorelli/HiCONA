@@ -67,47 +67,73 @@ class NormBinwise(NormOperation):
             yield chunk.with_columns(exp)
 
 
+# class NormGenomicDist(NormOperation):
+#     """Apply default HiCONA normalization to a table (genomic distance).
+
+#     The normalized value is computed as the log2 of 1 plus the ratio of the
+#     value of the bin and some normalization factor. The normalization factor
+#     is computed as the median of the values of the bins at a given distance.
+#     Raises and error if inter-chromosomal pixels are found.
+
+#     Parameters
+#     ----------
+#     apply_col : str
+#         Column to apply the normalization to.
+#     """
+
+#     def __init__(self, *, apply_col: str):
+#         self._apply_col = apply_col
+
+#     def process(self, table: "Table") -> "DfChunks":
+
+#         # TODO: maybe add check for inter chromosomal
+
+#         def iter_with_dist(table_obj: "Table"):
+#             """Iter chunks with genomic distance. Add inter-chromosomal check."""
+
+#             chunks = table_obj.chunks(annotated=True)
+#             bin_size = table_obj.bin_size
+
+#             for chunk in chunks:
+#                 yield chunk.with_columns(
+#                     ((pl.col("bin2_id") - pl.col("bin1_id")) * bin_size).alias("dist")
+#                 )
+
+#         chunks = chunked.chunked_quants(
+#             iter_with_dist(table),
+#             column=self._apply_col,
+#             quants=0.5,
+#             split_on=["chrom1", "chrom2"],
+#             group_by="dist",
+#         )
+
+#         for chunk in chunks:
+#             yield chunk.with_columns(
+#                 (pl.col(self._apply_col) / pl.col("0.5") + 1).log().alias("norm")
+#             )
+
+
 class NormGenomicDist(NormOperation):
-    """Apply default HiCONA normalization to a table (genomic distance).
-
-    The normalized value is computed as the log2 of 1 plus the ratio of the
-    value of the bin and some normalization factor. The normalization factor
-    is computed as the median of the values of the bins at a given distance.
-    Raises and error if inter-chromosomal pixels are found.
-
-    Parameters
-    ----------
-    apply_col : str
-        Column to apply the normalization to.
-    """
+    """Testing genomic mean distance normalization."""
 
     def __init__(self, *, apply_col: str):
         self._apply_col = apply_col
 
     def process(self, table: "Table") -> "DfChunks":
 
-        # TODO: maybe add check for inter chromosomal
-
-        def iter_with_dist(table_obj: "Table"):
-            """Iter chunks with genomic distance. Add inter-chromosomal check."""
-
-            chunks = table_obj.chunks(annotated=True)
-            bin_size = table_obj.bin_size
-
-            for chunk in chunks:
-                yield chunk.with_columns(
-                    ((pl.col("bin2_id") - pl.col("bin1_id")) * bin_size).alias("dist")
-                )
-
-        chunks = chunked.chunked_quants(
-            iter_with_dist(table),
-            column=self._apply_col,
-            quants=0.5,
-            split_on=["chrom1", "chrom2"],
-            group_by="dist",
+        chunks = chunked.chunked_groupby(
+            table.chunks(annotated=True), split_on=["chrom1", "chrom2"]
         )
 
+        add_genomic_dist = (pl.col("bin2_id") - pl.col("bin1_id")) * table.bin_size
         for chunk in chunks:
-            yield chunk.with_columns(
-                (pl.col(self._apply_col) / pl.col("0.5") + 1).log().alias("norm")
+            chunk = (
+                chunk.with_columns(add_genomic_dist.alias("dist"))
+                .with_columns(
+                    pl.col(self._apply_col).mean().over("dist").alias("norm_factor")
+                )
+                .with_columns(
+                    (pl.col(self._apply_col) / pl.col("norm_factor")).alias("norm")
+                )
             )
+            yield chunk
