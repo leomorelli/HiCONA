@@ -44,8 +44,10 @@ def annotate(pixels: GenericDf, bins: GenericDf) -> GenericDf:
 
     """
 
+    was_polars = isinstance(pixels, pl.DataFrame)
+
     # Convert to polars DataFrames if necessary
-    pixels = pixels if isinstance(pixels, pl.DataFrame) else pl.DataFrame(pixels)
+    pixels = pixels if was_polars else pl.DataFrame(pixels)
     if isinstance(bins, pd.DataFrame):
         bins = pl.DataFrame(bins)
 
@@ -63,5 +65,8 @@ def annotate(pixels: GenericDf, bins: GenericDf) -> GenericDf:
         .rename(lambda c: c + "1" if c in bins.columns else c)
         .select(pl.all().exclude("bin_id1", "bin_id2"))
     )
+
+    if not was_polars:
+        annotated = annotated.to_pandas()
 
     return annotated
