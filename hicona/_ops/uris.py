@@ -24,6 +24,21 @@ class Uris:
         self._root = root if root != "/" else ""
         self._path = path or ""
 
+    @property
+    def store(self) -> str:
+        """Return the store part of the uri."""
+        return self._store
+
+    @property
+    def root(self) -> str:
+        """Return the root part of the uri."""
+        return self._root
+
+    @property
+    def path(self) -> str:
+        """Return the path part of the uri."""
+        return self._path
+
     def hdf5_uris(self) -> tuple[str, str]:
         """Return store and path parts up to the last specified."""
         return (self._store, "/".join([self._root, self._path]))
