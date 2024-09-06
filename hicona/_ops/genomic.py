@@ -2,8 +2,6 @@
 
 import re
 
-import polars as pl
-
 from hicona._resources import regexes
 
 
@@ -41,30 +39,17 @@ class GenomicRegion:
             return self._chrom
         return f"{self._chrom}:{self._start + 1}-{self._end}"
 
-    def to_query(self, both: bool = False) -> pl.Expr:
-        """Return region in query format."""
+    @property
+    def chrom(self) -> str:
+        """Region chromsome."""
+        return self._chrom
 
-        def get_bin_exp(
-            bin_id: int, chrom: str, start: int | None, end: int | None
-        ) -> pl.Expr:
+    @property
+    def start(self) -> int | None:
+        """Region start. None if full chromosome."""
+        return self._start
 
-            expr = pl.col(f"chrom{bin_id}") == chrom
-            if start is not None:
-                expr &= pl.col(f"start{bin_id}") >= start
-            if end is not None:
-                expr &= pl.col(f"end{bin_id}") <= end
-
-            return expr
-
-        bin1_exp = get_bin_exp(1, self._chrom, self._start, self._end)
-        bin2_exp = get_bin_exp(2, self._chrom, self._start, self._end)
-
-        return bin1_exp & bin2_exp if both else bin1_exp | bin2_exp
-
-    def snap_to_bin(self, bin_size: int) -> None:
-        """Snap start and end to bin boundaries."""
-
-        if self._start is not None:
-            self._start = (self._start // bin_size) * bin_size
-        if self._end is not None:
-            self._end = ((self._end + bin_size - 1) // bin_size) * bin_size
+    @property
+    def end(self) -> int | None:
+        """Region end. None if full chromosome."""
+        return self._end
