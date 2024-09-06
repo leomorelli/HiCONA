@@ -1,6 +1,6 @@
 """Module with custom data types for the hicona package type annotation."""
 
-from typing import Any, Iterator, Literal, TypeVar, Union, TYPE_CHECKING
+from typing import Iterator, TypeVar, Union, TYPE_CHECKING
 
 import matplotlib.axes as ax
 import polars as pl
@@ -19,10 +19,15 @@ T = TypeVar("T")
 OptionalAxes = ax.Axes | None
 
 # Type alias for a kwargs-like dict.
-KwargsDict = dict[str, Any]
-
-# Type alias for the JSON dictionary.
-JsonDict = dict[str, dict[str, Any]]
+JsonNative = Union[str, int, float, bool, None]
+JsonType = Union[
+    JsonNative,
+    dict[JsonNative, JsonNative],
+    list[JsonNative],
+    tuple[JsonNative, ...],
+]
+JsonDict = dict[str, JsonType]
+JsonOperation = dict[str, str | JsonDict]
 
 
 Operation = Union["FiltOperation", "NormOperation", "SparOperation"]

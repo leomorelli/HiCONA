@@ -14,7 +14,7 @@ from hicona._ops import io
 from hicona.preprocess import _DEFAULT_FLOWS, _FUNCS_MODULES
 
 if TYPE_CHECKING:
-    from hicona._dtypes import JsonDict, Operation, KwargsDict
+    from hicona._dtypes import JsonOperation, JsonDict, Operation
 
 
 __all__ = ["Flow"]
@@ -22,7 +22,7 @@ __all__ = ["Flow"]
 
 def _fetch_funs(
     fun_names: list[str],
-    fun_kwargs: list["KwargsDict"],
+    fun_kwargs: list["JsonDict"],
     sources: list[str],
 ) -> list["Operation"]:
     """Fetch preprocessing functions from their names."""
@@ -83,9 +83,13 @@ class Flow:
 
     """
 
-    def __init__(self, name: str, operations: Iterable["Operation"] | None = None):
+    def __init__(
+        self, operations: Iterable["Operation"] | None = None, name: str = "Unnamed"
+    ):
         self._name: str = name
-        self._ops: tuple[Operation, ...] = tuple(operations) if operations else tuple()
+        self._operations: list[JsonOperation] = (
+            [op.get_json() for op in operations] if operations else []
+        )
 
     def __eq__(self, other: "Flow") -> bool:
         """Check equality among ProcessingFlow objects."""
@@ -93,15 +97,19 @@ class Flow:
 
     def __len__(self) -> int:
         """Return the number of operations in the flow."""
-        return len(self._ops)
+        return len(self._operations)
+
+    def __add__(self, other: "Flow") -> "Flow":
+        """Concatenate two flows."""
+        return Flow.from_json({**self.to_json(), **other.to_json()}, self.name)
 
     def __str__(self) -> str:
         """Return the operations flow as a string."""
 
         out_str = f"Flow '{self.name}':\n"
 
-        for op in self._ops:
-            out_str += f" - {op.name} -> {op.kwargs}\n"
+        for op in self._operations:
+            out_str += f" - {op['name']} -> {op['kwargs']}\n"
 
         if len(self) == 0:
             out_str += " - No operations."
@@ -142,11 +150,14 @@ class Flow:
         'new_name'
 
         """
-
-        return Flow(name=new_name, operations=self._ops)
+        return Flow.from_json(self.to_json(), new_name)
 
     @classmethod
-    def from_json(cls, name: str, flow_dict: "JsonDict") -> "Flow":
+    def from_json(
+        cls,
+        flow_dict: dict[str, "JsonOperation"],
+        name: str = "Unnamed",
+    ) -> "Flow":
         """Create a flow from a json-like dictionary.
 
         Create an instance of ``Flow`` from a json-like dictionary representation,
@@ -175,15 +186,17 @@ class Flow:
         """
 
         # Sort flow_dict by keys to ensure order and check for gaps
-        sort_dict: JsonDict = dict(sorted(flow_dict.items(), key=lambda x: x[0]))
+        sort_dict = dict(sorted(flow_dict.items(), key=lambda x: x[0]))
         if not all(str(i) in sort_dict for i in range(len(sort_dict))):
             raise ValueError("The json data is not properly formatted.")
 
-        names_list: list[str] = [op["name"] for op in sort_dict.values()]
-        kwargs_list: list[KwargsDict] = [op["kwargs"] for op in sort_dict.values()]
+        print(flow_dict)
+
+        names_list: list[str] = [str(op["name"]) for op in sort_dict.values()]
+        kwargs_list: list["JsonDict"] = [op["kwargs"] for op in sort_dict.values()]  # type: ignore
         operations = _fetch_funs(names_list, kwargs_list, _FUNCS_MODULES)
 
-        return cls(name, operations)
+        return cls(operations, name)
 
     @classmethod
     def from_file(cls, json: str) -> "Flow":
@@ -217,9 +230,9 @@ class Flow:
 
         """
 
-        json_data: dict[str, JsonDict] = io.read_resource(json)
+        json_data: dict[str, dict[str, "JsonOperation"]] = io.read_resource(json)
         name, data = json_data.popitem()
-        return cls.from_json(name, data)
+        return cls.from_json(data, name)
 
     @classmethod
     def from_default(cls, default_name: str) -> "Flow":
@@ -255,10 +268,10 @@ class Flow:
         """
 
         default_json = io.read_resource(_DEFAULT_FLOWS, is_static=True)
-        return cls.from_json(default_name, default_json[default_name])
+        return cls.from_json(default_json[default_name], default_name)
 
     @property
-    def ops(self) -> tuple["Operation", ...]:
+    def operations(self) -> tuple["Operation", ...]:
         """Return the operations in the flow as a tuple of operations.
 
         Returns
@@ -272,11 +285,14 @@ class Flow:
 
         >>> import hicona.preprocess as prep
         >>> flow = prep.Flow.from_default("hicona")
-        >>> print(flow.ops)
+        >>> print(flow.operations)
         (FiltSelfLooping, FiltInterChroms, FiltGenomicDist, NormGenomicDist, FiltColumnQuant)
         """
 
-        return self._ops
+        ops_names: list[str] = [str(op["name"]) for op in self._operations]
+        ops_kwargs: list["JsonDict"] = [op["kwargs"] for op in self._operations]  # type: ignore
+
+        return tuple(_fetch_funs(ops_names, ops_kwargs, _FUNCS_MODULES))
 
     def ops_reset(self) -> "Flow":
         """Reset the operations flow.
@@ -351,7 +367,10 @@ class Flow:
 
         """
 
-        return Flow(name=self.name, operations=[*self._ops, operation])
+        new_ops = self.to_json()
+        new_ops[str(len(new_ops))] = operation.get_json()
+
+        return Flow.from_json(new_ops, self.name)
 
     def to_file(self, file_path: str) -> None:
         """Save a flow to a json file.
@@ -374,10 +393,9 @@ class Flow:
         """
 
         full_json = {self.name: self.to_json()}
-
         io.write_resource(file_path, full_json, is_static=False)
 
-    def to_json(self) -> "JsonDict":
+    def to_json(self) -> dict[str, "JsonOperation"]:
         """Return the flow as a json-like dictionary.
 
         Convert the flow to a json-like dictionary, that is, a dictionary in the
@@ -398,10 +416,4 @@ class Flow:
         {0: {"name": "FiltInterChroms", "kwargs": {}}}
 
         """
-
-        json_res: JsonDict = {
-            str(order): {"name": op.name, "kwargs": op.kwargs}
-            for order, op in enumerate(self._ops)
-        }
-
-        return json_res
+        return {str(order): op for order, op in enumerate(self._operations)}
