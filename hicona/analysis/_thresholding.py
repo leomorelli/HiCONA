@@ -8,7 +8,7 @@ import pandas as pd
 import polars as pl
 
 from hicona._dtypes import OptionalAxes
-from hicona._numeric import rounding
+from hicona._ops import numeric
 from hicona.analysis import _plotting
 
 if TYPE_CHECKING:

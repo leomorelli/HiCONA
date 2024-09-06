@@ -7,7 +7,7 @@ import scipy as sp
 import polars as pl
 import numpy as np
 
-from hicona._numeric import rounding
+from hicona._ops import numeric
 
 
 def _score_weighted(
@@ -23,7 +23,7 @@ def _score_weighted(
 
         res, _ = sp.integrate.quad(lambda x: (1 - x) ** (degree - 2), 0, weight)
         alpha = 1 - (degree - 1) * res
-        return rounding.round_half_up(alpha, 4)
+        return numeric.round_half_up(alpha, 4)
 
     scores: pl.DataFrame = pl.DataFrame()
 
