@@ -2,13 +2,15 @@
 
 from typing import TYPE_CHECKING
 
+import numpy as np
 import polars as pl
 
 from hicona._ops import chunked
 from hicona.preprocess._abcs import FiltOperation
+from hicona.preprocess._anno import add_annot, add_genomic_dist
 
 if TYPE_CHECKING:
-    from hicona._core import Table
+    from hicona._core import PixelTable
     from hicona._dtypes import DfChunks
 
 
@@ -18,6 +20,8 @@ __all__ = [
     "FiltColumnValue",
     "FiltInterChroms",
     "FiltSelfLooping",
+    "FiltGenomRegion",
+    "FiltRandSamples",
 ]
 
 
@@ -58,43 +62,33 @@ class FiltGenomicDist(FiltOperation):
 
     """
 
-    def __init__(self, *, min_dist: int | None = None, max_dist: int | None = None):
+    def __init__(
+        self,
+        *,
+        min_dist: int | None = None,
+        max_dist: int | None = None,
+        only_intra: bool = False,
+    ):
         if not any([min_dist, max_dist]):
             raise ValueError("At least one distance threshold must be provided.")
         self._min_dist = min_dist
         self._max_dist = max_dist
+        self._only_intra = only_intra
 
-    def process(self, table: "Table") -> "DfChunks":
+    def process(self, table: "PixelTable") -> "DfChunks":
 
-        def _get_dist_column(bin_size: int, interchrom: int) -> pl.Expr:
-            """Expression to compute genomic distance between bins.
+        dist_range = _within_range("dist", self._min_dist, self._max_dist, True)
 
-            Genomic distance is calculated as the difference between bin1_id and
-            bin2_id multiplied by the bin size (in bp). Pixels on different
-            chromosomes are assigned a fixed distance value (which should be in
-            the kept interval.)
-            """
-            exp = (
-                pl.when(pl.col("chrom1") != pl.col("chrom2"))
-                .then(pl.lit(interchrom))
-                .otherwise((pl.col("bin2_id") - pl.col("bin1_id")) * bin_size)
-                .alias("dist")
-            )
-            return exp
-
-        # Set interchromosomal distances to a value which will not be discarded
-        inter_value = self._min_dist if self._min_dist is not None else self._max_dist
-        assert inter_value is not None
-
-        for chunk in table.chunks(annotated=True):
-
-            chunk = chunk.with_columns(
-                _get_dist_column(table.bin_size, inter_value)
-            ).filter(_within_range("dist", self._min_dist, self._max_dist, True))
-
-            yield chunk
+        if self._only_intra:
+            for chunk in table.chunks():  # TODO: Wrong? No dist
+                yield chunk.filter(dist_range)
+        else:
+            keep_condition = (pl.col("chrom1") != pl.col("chrom2")) | dist_range
+            for chunk in add_genomic_dist(table):
+                yield chunk.filter(keep_condition).drop("dist", "chrom1", "chrom2")
 
 
+# TODO: Fix but maybe remove
 class FiltColumnQuant(FiltOperation):
     """Remove pixels with column value outside a certain quantile range.
 
@@ -134,7 +128,7 @@ class FiltColumnQuant(FiltOperation):
         self._upper_quant = upper_quant
         self._chrom_wise = chrom_wise
 
-    def process(self, table: "Table") -> "DfChunks":
+    def process(self, table: "PixelTable") -> "DfChunks":
 
         lower, upper, col = self._lower_quant, self._upper_quant, self._apply_col
 
@@ -143,16 +137,23 @@ class FiltColumnQuant(FiltOperation):
 
         # Compute quantiles for each chromosome
         chunks = chunked.chunked_quants(
-            table.chunks(annotated=self._chrom_wise),
+            add_annot(table, "chrom"),
             column=col,
             quants=quants,
             split_on=split_cols,
         )
 
         for chunk in chunks:
-            yield chunk.filter(
-                pl.col(col) > pl.col(str(lower)) if lower is not None else True
-            ).filter(pl.col(col) < pl.col(str(upper)) if upper is not None else True)
+            out = (
+                chunk.filter(pl.col(col) > pl.col(str(lower)) if lower else True)
+                .filter(pl.col(col) < pl.col(str(upper)) if upper else True)
+                .drop([str(q) for q in quants])
+            )
+
+            if self._chrom_wise:
+                out = out.drop(["chrom1", "chrom2"])
+
+            yield out
 
 
 class FiltColumnValue(FiltOperation):
@@ -187,18 +188,17 @@ class FiltColumnValue(FiltOperation):
         self._upper_value = upper_value
         self._keep_extrema = keep_extrema
 
-    def process(self, table: "Table") -> "DfChunks":
+    def process(self, table: "PixelTable") -> "DfChunks":
+
+        expr_filter = _within_range(
+            self._apply_col,
+            self._lower_value,
+            self._upper_value,
+            self._keep_extrema,
+        )
 
         for chunk in table.chunks():
-
-            yield chunk.filter(
-                _within_range(
-                    self._apply_col,
-                    self._lower_value,
-                    self._upper_value,
-                    self._keep_extrema,
-                )
-            )
+            yield chunk.filter(expr_filter)
 
 
 class FiltInterChroms(FiltOperation):
@@ -208,9 +208,14 @@ class FiltInterChroms(FiltOperation):
 
     """
 
-    def process(self, table: "Table") -> "DfChunks":
-        for chunk in table.chunks(annotated=True):
-            yield chunk.filter(pl.col("chrom1") == pl.col("chrom2"))
+    def process(self, table: "PixelTable") -> "DfChunks":
+
+        for chunk in add_genomic_dist(table):
+            yield (
+                chunk.filter(pl.col("chrom1") == pl.col("chrom2")).drop(
+                    ["chrom1", "chrom2"]
+                )
+            )
 
 
 class FiltSelfLooping(FiltOperation):
@@ -220,6 +225,43 @@ class FiltSelfLooping(FiltOperation):
 
     """
 
-    def process(self, table: "Table") -> "DfChunks":
+    def process(self, table: "PixelTable") -> "DfChunks":
+
         for chunk in table.chunks():
             yield chunk.filter(pl.col("bin1_id") != pl.col("bin2_id"))
+
+
+class FiltGenomRegion(FiltOperation):
+    """Remove pixels outside a genomic region."""
+
+    def __init__(self, region: str, both: bool = True):
+        self._region: str = region
+        self._both: bool = both
+
+    def process(self, table: "PixelTable") -> "DfChunks":
+
+        lower, upper = table.bins.get_region_bounds(self._region)
+        bin1_expr = _within_range("bin1_id", lower, upper, True)
+        bin2_expr = _within_range("bin2_id", lower, upper, True)
+        region_expr = bin1_expr & bin2_expr if self._both else bin1_expr | bin2_expr
+
+        for chunk in table.chunks():
+            yield chunk.filter(region_expr)
+
+
+class FiltRandSamples(FiltOperation):
+    """Randomly sample pixels from the table."""
+
+    def __init__(self, ratio: float, rng_seed: int = 42):
+        self._ratio: float = ratio
+        self._rng_seed: int = rng_seed
+
+    def process(self, table: "PixelTable") -> "DfChunks":
+
+        rng = np.random.default_rng(self._rng_seed)
+        for chunk in table.chunks():
+            yield chunk.with_columns(
+                pl.col("count").map_elements(
+                    lambda x: rng.binomial(x, self._ratio), return_dtype=pl.Int32
+                )
+            ).filter(pl.col("count") > 0)

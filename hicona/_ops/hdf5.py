@@ -6,7 +6,7 @@ import h5py
 import pandas as pd
 import polars as pl
 
-from hicona._core import uris
+from hicona._ops import uris
 from hicona._dtypes import DfChunks
 
 
@@ -42,7 +42,7 @@ def fetch_chunk(
     bounds: slice,
     keys: Iterable[str] | None = None,
 ) -> pl.DataFrame:
-    """Retrieve a subset of the table as a pandas dataframe."""
+    """Retrieve a subset of the table as a dataframe."""
 
     store, path = uris_path.hdf5_uris()
     with h5py.File(store, mode="r") as h5_handle:
@@ -51,6 +51,18 @@ def fetch_chunk(
         table = pd.DataFrame({f: _get_dataset(grp, f)[bounds] for f in keys})
 
     return pl.DataFrame(table)
+
+
+def iter_chunks(
+    uris_path: uris.Uris,
+    chunk_size: int,
+    keys: Iterable[str] | None = None,
+) -> DfChunks:
+    """Iterate over table chunks."""
+
+    tab_size = get_table_size(uris_path)
+    for lower in range(0, tab_size, chunk_size):
+        yield fetch_chunk(uris_path, slice(lower, lower + chunk_size), keys)
 
 
 def write_chunk(
@@ -71,6 +83,26 @@ def write_chunk(
 
         for key in keys:
             _get_dataset(grp, key)[bounds] = chunk[key]
+
+
+# def copy_table(source_uris: uris.Uris, dest_uris: uris.Uris) -> None:
+#     """Copy a group containing multiple datasets to a new location."""
+
+#     store, source = source_uris.hdf5_uris()
+#     with h5py.File(store, mode="r+") as h5_handle:
+#         h5_handle.copy(source, dest_uris.path)
+
+
+# def iter_table(uris_path: uris.Uris) -> DfChunks:
+#     """Iterate over table chunks."""
+
+#     store, path = uris_path.hdf5_uris()
+#     with h5py.File(store, mode="r") as h5_handle:
+#         grp = _get_group(h5_handle, path)
+
+#         tables = {k: _get_dataset(grp, k).iter_chunks() for k in grp.keys()}
+
+#         yield pl.DataFrame({k: next(v)[:] for k, v in tables.items()})
 
 
 # ////////////////////////////////////////////////////////////////////////////
@@ -112,7 +144,7 @@ def save_table(uris_path: uris.Uris, table: pl.DataFrame) -> None:
     """Convenience shorthand to initialize and place table at once."""
 
     mapping = {
-        k: v if v != "object" else f"|S{table[k].str.lengths().max()}"
+        k: (v if v != "object" else f"|S{table[k].str.len_chars().max()}")
         for k, v in dict(table.to_pandas().dtypes).items()
     }
     init_table(uris_path, len(table), mapping)

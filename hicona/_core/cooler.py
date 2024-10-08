@@ -8,8 +8,7 @@ can be retrieved to create filtered networks to analyze.
 """
 
 import json
-import time
-from typing import Generator, Iterable
+from typing import Iterable
 
 import cooler
 import h5py
@@ -17,11 +16,10 @@ import pandas as pd
 import polars as pl
 
 from hicona._constants import TABLES_ROOT, TABLE_COLUMNS
-from hicona._core import Table, uris
+from hicona._core import PixelTable
 from hicona._dtypes import GenericDf
-from hicona._ops import bed, hdf5, logging
+from hicona._ops import bed, hdf5, uris
 from hicona.preprocess import Flow
-from hicona._table import HiconaTable
 
 
 __all__ = ["HiconaCooler"]
@@ -97,7 +95,7 @@ class HiconaCooler(cooler.Cooler):
         return self._tables_root
 
     @property
-    def bare_bins(self) -> GenericDf:
+    def bare_bins(self) -> pl.DataFrame:
         """Get full bin table without any annotation.
 
         Return the ``bins`` table as a ``pandas.DataFrame`` with only
@@ -136,49 +134,12 @@ class HiconaCooler(cooler.Cooler):
     # // Functions to create, inspect and retrieve sparsified pixel tables ///
     # ////////////////////////////////////////////////////////////////////////
 
-    def _iterate_tables(self) -> Generator[HiconaTable, None, None]:
-        """Iterate all saved tables as `HiconaTable` objects."""
-
-        tables_uris = self._uris.add_path(self._tables_root)
-        for tab in hdf5.get_keys(tables_uris):
-            try:
-                yield HiconaTable(tables_uris.add_path(tab))
-            except KeyError:
-                print(f"W: table {tab} is corrupted, skipping.")
-
-    def _init_raw_table(
+    def create_pixel_table(
         self,
-        method: Flow,
-        chunk_size: int,
-    ) -> uris.Uris:
-        """Initialize a new raw table with the given parameters."""
-
-        # Get table uris
-        table_uris = self._uris.add_path(f"{self.tables_root}/{method.name}")
-
-        # Initialize table
-        num_pix = self.info["nnz"]
-        hdf5.init_table(table_uris, num_pix, TABLE_COLUMNS)
-
-        # TODO: This is currently slow
-        # Copy pixel data to the new table
-        for lower in range(0, num_pix, chunk_size):
-            upper = min(lower + chunk_size, num_pix)
-            chunk = pl.from_pandas(self.pixels()[lower:upper])  # type: ignore
-            hdf5.write_chunk(table_uris, chunk, lower, chunk.columns)
-
-        # Set table attributes
-        table_attrs = {"flow": json.dumps(method.to_json())}
-        hdf5.set_attrs(table_uris, table_attrs)
-
-        return table_uris
-
-    def create_table(
-        self,
-        ops_flow: str | Flow = "hicona",
+        ops_flow: None | str | Flow = "hicona",
         *,
         chunk_size: int = 10_000_000,
-    ) -> HiconaTable:
+    ) -> PixelTable:
         """Create a normalized and sparsified pixels table.
 
         Starting from the full ``pixel`` table, create a new ``pixel`` table
@@ -191,9 +152,6 @@ class HiconaCooler(cooler.Cooler):
             Flow of operations to use to filter and normalize the table. If a
             string is provided, the default flow for the corresponding method
             is used. Default is 'hicona'.
-        chunk_size : int, optional
-            Number of pixels per chunk when processing the raw table.
-            Default is '10,000,000'.
 
         Returns
         -------
@@ -220,38 +178,22 @@ class HiconaCooler(cooler.Cooler):
         # TODO: remake this example
         """
 
-        logger = logging.get_console_logger("preprocess")
-
         # Convert any default string to the corresponding flow
         if isinstance(ops_flow, str):
             ops_flow = Flow.from_default(ops_flow)
 
-        # Initialize the tables root if it does not exist already.
-        table_root_uris = self._uris.add_path(self.tables_root)
-        hdf5.require_group(table_root_uris)
+        table = PixelTable.from_cooler(self._uris.add_path("pixels"), chunk_size)
+        if ops_flow:
+            table = table.apply(ops_flow)
 
-        # Check there is no table with all matching keywords
-        for table in self._iterate_tables():
-            if table.flow == ops_flow:
-                raise ValueError("E: Table with the same flow already exists.")
+        return table
 
-        logger.info("Initializing raw table.")
-        table = Table(self._init_raw_table(ops_flow, chunk_size))
-
-        for op in table.flow.ops:
-
-            logger.info("Running operation %s.", op.name)
-            start_time = time.time()
-
-            tab_size = hdf5.write_table(table.uris, op.run(table))
-            hdf5.resize_table(table.uris, tab_size)
-            table.reset_index()
-
-            logger.info("%s took %s seconds.", op.name, time.time() - start_time)
-
-        return HiconaTable(table.uris)
-
-    def fetch_table(self, name: str = "hicona") -> HiconaTable:
+    def fetch_pixel_table(
+        self,
+        name: str = "hicona",
+        *,
+        chunk_size: int = 10_000_000,
+    ) -> PixelTable:
         """Retrieve a previously created sparsified pixel table.
 
         Get a previously sparsified ``pixel`` table as a ``HiconaTable``
@@ -283,10 +225,38 @@ class HiconaCooler(cooler.Cooler):
         # TODO: remake this example
         """
 
-        tables_uris = self._uris.add_path(self._tables_root)
-        return HiconaTable(tables_uris.add_path(name))
+        if name not in self.list_pixel_tables():
+            raise ValueError(f"E: No table with the name {name} was found.")
 
-    def list_tables(self) -> None:
+        tables_uris = self._uris.add_path(self._tables_root)
+        return PixelTable.from_cooler(tables_uris.add_path(name), chunk_size)
+
+    def save_pixel_table(self, name: str, table: PixelTable) -> None:
+        """Save a pixel table to the cooler file."""
+
+        if name in self.list_pixel_tables():
+            raise ValueError(f"E: A table with the name {name} already exists.")
+
+        # Initialize the tables root if it does not exist already.
+        table_root_uris = self._uris.add_path(self.tables_root)
+        hdf5.require_group(table_root_uris)
+
+        # Get table uris (where the table is to be placed within the hicona tables root)
+        table_uris = table_root_uris.add_path(name)
+        num_pix = table.get_size()
+        hdf5.init_table(table_uris, num_pix, TABLE_COLUMNS)  # TODO: Change to necessary
+
+        # TODO: Currently probably not the best due to the chunks having variable size
+        curr_pos = 0
+        for chunk in table.chunks():
+            hdf5.write_chunk(table_uris, chunk, curr_pos, chunk.columns)
+            curr_pos += len(chunk)
+
+        # Add the flow as an attribute
+        table_attrs = {"flow": json.dumps(table.flow.to_json())}
+        hdf5.set_attrs(table_uris, table_attrs)
+
+    def list_pixel_tables(self) -> list[str]:
         """Print the names of the available pixel tables.
 
         Examples
@@ -302,19 +272,13 @@ class HiconaCooler(cooler.Cooler):
 
         """
 
-        out = ""
-
+        tables_uris = self._uris.add_path(self._tables_root)
         try:
-            for table in self._iterate_tables():
-                out += f"- {table.flow.name}\n"
+            tables = list(hdf5.get_keys(tables_uris))
         except KeyError:
-            pass  # No tables available yet
+            tables = []
 
-        if not out:
-            out = "- No tables available yet.\n"
-
-        out = "Available tables:\n" + out
-        print(out.strip())
+        return tables
 
     # ////////////////////////////////////////////////////////////////////////
     # ///////////////////////// ANNOTATION FUNCTIONS /////////////////////////
@@ -326,11 +290,11 @@ class HiconaCooler(cooler.Cooler):
 
         names = names or []
         names = [names] if isinstance(names, str) else names
-        names = [n for n in names if n in self.annot_list()]
+        names = [n for n in names if n in self.list_bin_annot()]
 
         return names
 
-    def annot_list(self) -> list[str]:
+    def list_bin_annot(self) -> list[str]:
         """Return a list of available bin annotation columns.
 
         Return a list of all available bin annotation columns (that is, all
@@ -362,7 +326,7 @@ class HiconaCooler(cooler.Cooler):
         bed_path: str,
         *,
         in_file: str | None = None,
-        to_keep: str | list[str | None] | None = None,
+        to_keep: str | Iterable[str | None] | None = None,
     ) -> None:
         """Add one (or more) bin annotation(s) from a bed-like file.
 
@@ -439,20 +403,20 @@ class HiconaCooler(cooler.Cooler):
         # TODO: Check behaviour with multiple intersections
 
         # Convert to_keep to None if all elements are None
-        to_keep = [to_keep] if isinstance(to_keep, str) else to_keep
-        # to_keep = to_keep if any(to_keep) and to_keep else None
+        to_keep = (to_keep,) if isinstance(to_keep, str) else to_keep
+        to_keep = tuple(to_keep) if to_keep else None
 
         # Check for no overlap in old and new annotations
-        if in_file in self.annot_list():
+        if in_file in self.list_bin_annot():
             raise ValueError("E: 'in file' annotation name already exists.")
-        if to_keep and any(ann in to_keep for ann in self.annot_list()):
+        if to_keep and any(ann in to_keep for ann in self.list_bin_annot()):
             raise ValueError("E: Overlap with old annotations, stopping.")
 
         # Create the two bin df and merge on default bed columns
         # While reading, replace chrom, start, end of bed file with None.
         bin_df = self.bare_bins
         ann_df = bed.bed_to_df(bed_path, to_keep)
-        ann_df = bed.intersect_dfs(bin_df, ann_df, drop_none=False, loj=True)
+        ann_df = bed.intersect_dfs(bin_df, ann_df, (), drop_none=False, loj=True)
 
         # Check for overlapping annotations
         if len(ann_df) != len(bin_df):

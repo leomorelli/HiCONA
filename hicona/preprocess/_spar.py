@@ -5,19 +5,21 @@ import shutil
 import tempfile
 from typing import TYPE_CHECKING
 
-from hicona._core import sparsification
+import polars as pl
+
+from hicona._ops import sparsification
 from hicona._ops import chunked, dataf, logging
 from hicona.preprocess._abcs import SparOperation
 
 if TYPE_CHECKING:
-    from hicona._core import Table
+    from hicona._core import PixelTable
     from hicona._dtypes import DfChunks
 
 
 __all__ = ["SparWeighted", "SparLocalDegree"]
 
 
-def _general_sparsify(table: "Table", mode: str, logger, **kwargs) -> "DfChunks":
+def _general_sparsify(table: "PixelTable", mode: str, logger, **kwargs) -> "DfChunks":
     """General sparsification function for pixel table chunks."""
 
     # NOTE: implemented this way to simplify breaking into parallel later
@@ -26,6 +28,8 @@ def _general_sparsify(table: "Table", mode: str, logger, **kwargs) -> "DfChunks"
     for i, chunk in enumerate(table.chunks()):
 
         logger.info("Working on chunk %s.", i)
+        if "score" not in chunk.columns:
+            chunk = chunk.with_columns(pl.lit(0.0).alias("score"))
         spar_chunk = sparsification.sparsify_chunk(chunk, mode, **kwargs)
 
         yield spar_chunk
@@ -55,7 +59,7 @@ class SparWeighted(SparOperation):
         self._apply_col = apply_col
         self._bonferroni = bonferroni
 
-    def process(self, table: "Table") -> "DfChunks":
+    def process(self, table: "PixelTable") -> "DfChunks":
 
         logger = logging.get_console_logger("sparsify")
 
@@ -104,7 +108,7 @@ class SparLocalDegree(SparOperation):
         self._rank_col: str = "degree" if not as_quants else "quant"
         self._tmp_dir: pathlib.Path | None = None
 
-    def process(self, table: "Table") -> "DfChunks":
+    def process(self, table: "PixelTable") -> "DfChunks":
 
         logger = logging.get_console_logger("sparsify")
 

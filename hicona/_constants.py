@@ -8,8 +8,8 @@ TABLE_COLUMNS = {
     "bin1_id": "i8",
     "bin2_id": "i8",
     "count": "i4",
-    "norm": "f8",
-    "score": "f8",
+    # "norm": "f8",
+    # "score": "f8",
 }
 
 # Columns that are always present in the bins table.

@@ -112,8 +112,9 @@ def ann_fraction(
     # missing fraction and the nan annotation as the annotation.
     # NOTE: To my knowledge, chromHMM should cover the entire genome, which
     # does not happen all the time somehow. This is to fix that.
+
     missing = (
-        dataf.groupby(BASE_BINS_COLS)
+        dataf.group_by(BASE_BINS_COLS)
         .agg((pl.lit(1) - pl.col(frac_col).sum()).alias(frac_col))
         .with_columns(pl.lit(nan_annot).alias(anno_col))
         .filter(pl.col(frac_col) > 0)

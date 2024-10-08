@@ -84,8 +84,11 @@ class Flow:
     """
 
     def __init__(
-        self, operations: Iterable["Operation"] | None = None, name: str = "Unnamed"
+        self,
+        operations: Iterable["Operation"] | None = None,
+        name: str = "Unnamed",
     ):
+
         self._name: str = name
         self._operations: list[JsonOperation] = (
             [op.get_json() for op in operations] if operations else []
@@ -189,8 +192,6 @@ class Flow:
         sort_dict = dict(sorted(flow_dict.items(), key=lambda x: x[0]))
         if not all(str(i) in sort_dict for i in range(len(sort_dict))):
             raise ValueError("The json data is not properly formatted.")
-
-        print(flow_dict)
 
         names_list: list[str] = [str(op["name"]) for op in sort_dict.values()]
         kwargs_list: list["JsonDict"] = [op["kwargs"] for op in sort_dict.values()]  # type: ignore

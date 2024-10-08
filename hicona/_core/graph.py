@@ -7,15 +7,17 @@ implementing algorithms for network analysis of pixel tables.
 
 import itertools
 import time
-from typing import Iterable
+from typing import Iterable, TYPE_CHECKING
 
 import graph_tool.all as gt
 import numpy as np
 import pandas as pd
 
 from hicona._ops import dataf
-from hicona._cooler import HiconaCooler
-from hicona._table import HiconaTable
+from hicona._core import HiconaCooler
+
+if TYPE_CHECKING:
+    from hicona._core import PixelTable
 
 
 __all__ = ["HiconaGraph"]
@@ -62,7 +64,7 @@ class HiconaGraph(gt.Graph):
 
     """
 
-    def __init__(self, table: HiconaTable, query: str | None = None):
+    def __init__(self, table: "PixelTable", query: str | None = None):
 
         # Initialize the object
         super().__init__(directed=False)
@@ -75,7 +77,7 @@ class HiconaGraph(gt.Graph):
         # Fetch the data to create the graph
         # NOTE: might be expensive if the table is very big but chunks are not
         #       an option, as the maps must be created in one go
-        data_df = table.dataframe(query=query)
+        data_df = table.dataframe()  # TODO: Fix
 
         # Create the initial bin to node id conversion table
         self._update_ids_table(data_df["bin1_id"])
@@ -185,7 +187,7 @@ class HiconaGraph(gt.Graph):
         return self._ids_table
 
     @property
-    def table(self) -> HiconaTable:
+    def table(self) -> "PixelTable":
         """Return the pixel table used to create the graph.
 
         Return the instance of the ``HiconaTable`` class which was used to
@@ -519,6 +521,7 @@ class HiconaGraph(gt.Graph):
         print("Starting model creation...")
         state_args = {"deg_corr": True}  # Usually lower entropy
         state_type = gt.BlockState  # Default state type
+        # Test
 
         if genomic_links:
             state_args.update({"ec": self.ep.is_genomic_link, "layers": True})

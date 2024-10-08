@@ -12,7 +12,7 @@ from hicona._ops import numeric
 from hicona.analysis import _plotting
 
 if TYPE_CHECKING:
-    from hicona._table import HiconaTable
+    from hicona._core import PixelTable
 
 
 __all__ = ["ThresholdGrid"]
@@ -82,7 +82,7 @@ class ThresholdGrid:
 
     def __init__(
         self,
-        table: "HiconaTable",
+        table: "PixelTable",
         decimals: int,
         verbose: bool,
     ):
@@ -161,7 +161,7 @@ class ThresholdGrid:
             raise ValueError("Non numeric index. This should not happen.")
         threshold_value = table["threshold"].iloc[position]
 
-        return rounding.round_half_up(threshold_value, decimals)
+        return numeric.round_half_up(threshold_value, decimals)
 
     @property
     def optimal(self) -> float:

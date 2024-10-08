@@ -1,5 +1,7 @@
 """Placehodler"""
 
+import matplotlib.figure as fg
+import matplotlib.axes as ax
 import matplotlib.colors as clr
 import matplotlib.pyplot as plt
 import numpy as np
@@ -10,7 +12,7 @@ from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.sparse import coo_matrix
 
 
-__all__ = ["plot_threshold_grid"]
+__all__ = ["plot_threshold_grid", "plot_jaccard_table"]
 
 
 NAN_COLOR = "lightgrey"  # Color for NaN values in heatmaps
@@ -432,3 +434,194 @@ def plot_table_heatmap(
     sns.heatmap(data, ax=axes[0], cbar_ax=axes[1], square=True)
 
     return _plot_output(axes, img_path, show)
+
+
+def _edgelist_to_numpy(
+    table: pl.DataFrame,
+    value_col: str,
+    out_side: int,
+) -> np.ndarray:
+    """Convert and edgelist to a dense numpy matrix."""
+
+    # Create the empty dense matrix and fill it with the edge values
+    edges: np.ndarray = table.select("bin1_id", "bin2_id", value_col).to_numpy()
+    dense: np.ndarray = np.zeros((out_side, out_side), dtype=float)
+    dense[edges[:, 0], edges[:, 1]] = edges[:, 2]
+
+    return dense
+
+
+def plot_table_comparison(
+    table_a: pl.DataFrame,
+    table_b: pl.DataFrame,
+    values_col: str,
+    *,
+    log_scale: bool = False,
+    binary: bool = False,
+    gain_a: float = 1,
+    gain_b: float = 1,
+    **kwargs,
+) -> tuple[fg.Figure, np.ndarray[ax.Axes]]:  # type: ignore
+    """Given two edgelists and a values column, plot the comparison heatmap.
+
+    Given two edge lists defined roughly over the same set of bins (reindexed
+    starting from 0), plot the comparison heatmap of the two values columns.
+    The final heatmap has table a as the upper triangular part, and table b as
+    the lower triangular part. The diagonal is set to zero to avoid overlap.
+
+    Gain is a multiplicative factor to apply to the values of the matrices
+    (prior to eventual log scaling) in case of vast differences in the values.
+
+    Kwargs are passed to the seaborn heatmap function.
+    """
+
+    if binary and log_scale:
+        raise ValueError("Cannot use binary and log scale at the same time.")
+
+    # Get the dense matrices from the edge lists and apply the gains
+    side = max(
+        int(table_a.select("bin2_id").to_series().max()),  # type: ignore
+        int(table_b.select("bin2_id").to_series().max()),  # type: ignore
+    )
+    side += 1
+
+    matrix_a = _edgelist_to_numpy(table_a, values_col, side) * gain_a
+    matrix_b = _edgelist_to_numpy(table_b, values_col, side) * gain_b
+
+    # Add the matrices and set the diagonal to zero to avoid overlap
+    full_matrix = matrix_a + matrix_b.T
+    np.fill_diagonal(full_matrix, 0)
+
+    if log_scale:
+        full_matrix = np.log1p(full_matrix)
+    if binary:
+        full_matrix = full_matrix > 0
+
+    fig, axes = plt.subplots(
+        nrows=2,
+        ncols=1,
+        height_ratios=[16, 1],
+        figsize=(15 * CM, 18 * CM),
+    )
+
+    sns.heatmap(
+        full_matrix,
+        square=True,
+        cmap="viridis",
+        cbar_kws={
+            "label": f"ln(1 + {values_col})" if log_scale else values_col,
+            "orientation": "horizontal",
+        },
+        **kwargs,
+        ax=axes[0],
+        cbar_ax=axes[1],
+    )
+    axes[0].axis("off")
+
+    # For some reason double tight layout is needed to fully compress the plot
+    plt.tight_layout()
+    plt.tight_layout()
+
+    return fig, axes
+
+
+def plot_jaccard_table(
+    jaccard_table: pl.DataFrame,
+    title: str | None = None,
+) -> tuple[fg.Figure, np.ndarray[ax.Axes]]:  # type: ignore
+    """Placeholder."""
+
+    def custom_heatmap(
+        matrix: np.ndarray,
+        *,
+        axes: ax.Axes,
+        cbar_ax: ax.Axes,
+        cbar_min: float,
+        cbar_max: float,
+        cmap: str,
+        ylabel: str,
+        **kwargs,
+    ):
+        """Placeholder."""
+
+        sns.heatmap(
+            matrix,
+            ax=axes,
+            cbar_ax=cbar_ax,
+            annot=True,
+            fmt=".3f",
+            square=True,
+            cbar_kws={"ticks": [cbar_min, (cbar_min + cbar_max) / 2, cbar_max]},
+            cmap=cmap,
+            vmin=cbar_min,
+            vmax=cbar_max,
+            **kwargs,
+        )
+        axes.set_yticklabels(axes.get_yticklabels(), rotation=0)
+        axes.set_xticklabels(axes.get_xticklabels(), rotation=45)
+        axes.vlines(1, 0, matrix.shape[0], colors="w", linestyles="-")
+        axes.set_ylabel(ylabel, fontsize=14)
+
+    table = jaccard_table.with_columns(
+        pl.concat_str("Table A", "Table B", separator="-").alias("Pair")
+    ).pivot("Flow", index="Pair", values="Jaccard")
+
+    matrix: np.ndarray = table.drop("Pair").to_numpy()
+    row_labels: list[str] = table["Pair"].to_list()
+    col_labels: list[str] = table.drop("Pair").columns
+
+    if matrix.ndim == 1:
+        matrix = matrix.reshape(1, matrix.shape[0])
+
+    # TODO: Definitely to adjust
+    dim_tolerance = 8 * CM
+    cbar_width = 1 * CM
+    plt_width = matrix.shape[1] * CM + dim_tolerance
+    plt_height = matrix.shape[0] * CM * 3 + dim_tolerance
+    width_ratios = [plt_width - cbar_width, cbar_width]
+
+    fig, axes = plt.subplots(
+        3, 2, figsize=(plt_width, plt_height), width_ratios=width_ratios
+    )
+
+    custom_heatmap(
+        matrix,
+        axes=axes[0, 0],
+        cbar_ax=axes[0, 1],
+        cbar_min=0,
+        cbar_max=1,
+        ylabel=r"$\mathbb{J}_x$",
+        cmap="Reds",
+        yticklabels=row_labels,
+        xticklabels=False,
+    )
+
+    custom_heatmap(
+        np.log2(matrix / matrix[:, :1]),
+        axes=axes[1, 0],
+        cbar_ax=axes[1, 1],
+        cbar_min=-3,
+        cbar_max=3,
+        ylabel=r"$\mathrm{log}_2(\mathbb{J}_x)$",
+        cmap="coolwarm",
+        yticklabels=row_labels,
+        xticklabels=False,
+    )
+
+    custom_heatmap(
+        matrix - matrix[:, :1],
+        axes=axes[2, 0],
+        cbar_ax=axes[2, 1],
+        cbar_min=-1,
+        cbar_max=1,
+        ylabel=r"$\mathbb{J}_x - \mathbb{J}_0$",
+        cmap="bwr",
+        yticklabels=row_labels,
+        xticklabels=col_labels,
+    )
+
+    if title:
+        plt.suptitle(title, fontsize=16)
+
+    plt.tight_layout()
+    return fig, axes
