@@ -25,3 +25,8 @@ analysis_scripts
 
 # Ignore memory profiling
 mprofile*
+
+# Ignore mypy
+.mypy_cache
+mypy.ini
+

@@ -1,5 +1,6 @@
-"""Core objects for the HiCONA package."""
+"""Main classes from the package."""
 
-from .base_table import Table
-from .annotation import annotate
-from .subsampling import subsample
+from .cooler import *
+from .graph import *
+from .table import *
+from .table_ops import *
