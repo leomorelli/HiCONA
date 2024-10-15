@@ -5,6 +5,7 @@ import polars as pl
 
 from .._utils.df_dtypes import DataFrame, DfStream, PdChunks, PlChunks
 from .cooler import HiconaCooler
+from .graph import HiconaGraph
 
 class HiconaTable:
     """Class to handle data subsets from a cooler file."""
@@ -107,3 +108,13 @@ class HiconaTable:
         region: str | None = ...,
         store_size: int = ...,
     ) -> "HiconaTable": ...
+
+    # from_graph
+    @classmethod
+    def from_graph(
+        cls,
+        graph: "HiconaGraph" = ...,
+    ) -> "HiconaTable": ...
+
+    # subset
+    def subset(self, region: str = ..., *, store_size: int = ...) -> "HiconaTable": ...

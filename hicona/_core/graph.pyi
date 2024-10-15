@@ -5,6 +5,7 @@ import polars as pl
 
 from .._utils.df_dtypes import PdChunks, PlChunks, Bool
 from .cooler import HiconaCooler
+from .table import HiconaTable
 
 class HiconaGraph:
 
