@@ -19,7 +19,6 @@ from __future__ import annotations
 from typing import Any, TYPE_CHECKING
 
 import numpy as np
-import pandas as pd
 import polars as pl
 import graph_tool as gt  # type: ignore
 
@@ -30,6 +29,7 @@ from .._utils.chunked_ops import (
     format_stream,
     cast_dtypes,
 )
+from .._utils.dtype_conversion import NP_TO_GT
 from .table_ops import subset_bin_region, subset_pixel_region
 
 
@@ -70,6 +70,46 @@ def _iter_row_chunks(graph: gt.Graph, chunk_size: int) -> "PlChunks":
         yield pl.DataFrame(dict(zip(colnames, buffer[:index].T))).drop_nulls()
 
 
+def _add_df_as_vp(graph: gt.Graph, df: pl.DataFrame):
+    """Add vertex properties to a graph from a DataFrame."""
+    for col in df.columns:
+        np_col: np.ndarray = df[col].to_numpy()
+        np_dtype: str = NP_TO_GT.get(np_col.dtype.name, "object")
+        graph.vp[col] = graph.new_vertex_property(np_dtype, np_col)
+
+
+def _add_df_as_ep(graph: gt.Graph, df: pl.DataFrame):
+    """Add edge properties to a graph from a DataFrame."""
+    for col in df.columns:
+        np_col: np.ndarray = df[col].to_numpy()
+        np_dtype: str = NP_TO_GT.get(np_col.dtype.name, "object")
+        graph.ep[col] = graph.new_edge_property(np_dtype, np_col)
+
+
+def _chunk_to_edge_list(chunk: pl.DataFrame, bins: pl.DataFrame) -> np.ndarray:
+    """Convert a chunk of a DataFrame to an index DataFrame."""
+    return (
+        chunk.join(bins, left_on="bin1_id", right_on="bin_id", how="left")
+        .rename({"node_id": "node1_id"})
+        .join(bins, left_on="bin2_id", right_on="bin_id", how="left")
+        .rename({"node_id": "node2_id"})
+        .select(["node1_id", "node2_id"])
+    ).to_numpy()
+
+
+def _add_genomic_link(graph: gt.Graph, link_val: int):
+    """Add missing genomic links to avoid isolated nodes."""
+    # TODO: Probably need to find a better way to do this, seems slow
+
+    num_edges: int = graph.num_edges()
+    for i in range(graph.num_vertices() - 1):
+        graph.edge(i, i + 1, add_missing=True)
+    graph.ep.count.fa[num_edges:] = link_val
+
+    genomic: list[bool] = [False] * num_edges + [True] * (graph.num_edges() - num_edges)
+    graph.ep["genomic"] = graph.new_edge_property("bool", genomic)
+
+
 class HiconaGraph:
     """Graph representation of a portion of 3D chromatin conformation data."""
 
@@ -83,11 +123,9 @@ class HiconaGraph:
     ):
 
         bins, pixels = to_iterable(bins, pixels)
-        bins = (
-            pl.concat(convert(bins, "polars"))
-            .with_row_index("node_id")
-            .with_columns(pl.col("node_id").cast(pl.Int32))
-        )
+        bins = pl.concat(convert(bins, "polars")).with_row_index("node_id")
+
+        graph = gt.Graph(bins.height, directed=False)
 
         # TODO: Maybe review this for the sake of memory efficiency
         # AFAIK, properties must be created in one go, no chunking allowed.
@@ -96,39 +134,14 @@ class HiconaGraph:
         # Moreover, it would probably be slower using edge accessors given the loop.
         # For this reason all pixels properties are stored in a df and added at the end.
         eprops: list[pl.DataFrame] = []
-
-        graph = gt.Graph(bins.height, directed=False)
         for chunk in convert(pixels, "polars"):
-
             eprops.append(chunk.select(pl.all().exclude("bin1_id", "bin2_id")))
+            graph.add_edge_list(_chunk_to_edge_list(chunk, bins))
 
-            chunk = (
-                chunk.join(bins, left_on="bin1_id", right_on="bin_id", how="left")
-                .rename({"node_id": "node1_id"})
-                .join(bins, left_on="bin2_id", right_on="bin_id", how="left")
-                .rename({"node_id": "node2_id"})
-                .select(["node1_id", "node2_id"])
-            )
-
-            graph.add_edge_list(chunk.to_numpy())
-
-        eprops_df = pl.concat(eprops)
-        for col in eprops_df.columns:
-            graph.edge_properties[col] = graph.new_edge_property(
-                "int",  # TODO: this is tmp, should be inferred
-                eprops_df[col].to_numpy(),
-            )
-
-        # TODO: Probably need to find a better way to do this, seems slow
-        # Add missing genomic links to avoid isolated nodes
-        num_edges: int = graph.num_edges()
-
-        for i in range(bins.height - 1):
-            graph.edge(i, i + 1, add_missing=True)
-        graph.ep.count.fa[num_edges:] = default_link  # Unsure about safety
-        graph.edge_properties["genomic"] = graph.new_edge_property(
-            "bool", [False] * num_edges + [True] * (graph.num_edges() - num_edges)
-        )
+        # Add bin and pixel properties, as well as genomic links
+        _add_df_as_vp(graph, bins)
+        _add_df_as_ep(graph, pl.concat(eprops))
+        _add_genomic_link(graph, default_link)
 
         self._graph: gt.Graph = graph
         self._bins: pl.DataFrame = bins
@@ -197,8 +210,8 @@ class HiconaGraph:
 
                 pix_df = (
                     pix_df.with_columns(
-                        pl.col("node1_id").cast(pl.Int32),
-                        pl.col("node2_id").cast(pl.Int32),  # TODO: rm?
+                        pl.col("node1_id").cast(pl.UInt32),
+                        pl.col("node2_id").cast(pl.UInt32),  # TODO: rm?
                     )
                     .join(
                         conv_table, left_on="node1_id", right_on="node_id", how="left"
