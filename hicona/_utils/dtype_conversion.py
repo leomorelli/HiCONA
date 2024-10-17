@@ -40,3 +40,13 @@ NP_TO_GT: dict[str, str] = {
     # "intp": "",
     # "uintp": "",
 }
+
+GT_TO_NP: dict[str, str] = {
+    "string": "object",
+    "uint8_t": "bool",
+    "bool": "bool",  # bool is an alaias of uint8_t in graph-tool
+    "int16_t": "int16",
+    "int32_t": "int32",
+    "int64_t": "int64",
+    "double": "float64",
+}

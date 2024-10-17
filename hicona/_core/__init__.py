@@ -3,4 +3,3 @@
 from .cooler import *
 from .graph import *
 from .table import *
-from .table_ops import *
