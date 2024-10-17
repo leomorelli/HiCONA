@@ -11,8 +11,9 @@ Temporary storages are torn down when the instance is deleted.
 from __future__ import annotations
 
 import os
-from typing import cast, TYPE_CHECKING
+from typing import cast, TYPE_CHECKING, Literal
 
+import numpy as np
 import polars as pl
 
 from .._utils.chunked_ops import rechunk, convert
@@ -29,6 +30,8 @@ if TYPE_CHECKING:
     )
 
 __all__ = ["BinTable", "PixelTable"]
+
+MatrixMode = Literal["upper", "lower", "full"]
 
 
 def _annotate(pixels: pl.DataFrame, bins: pl.DataFrame) -> pl.DataFrame:
@@ -220,6 +223,61 @@ class PixelTable(Table):
         if dtype == "polars":  # NOTE: done this way to make type checker understand
             return chunks
         return (chunk.to_pandas() for chunk in chunks)
+
+    def get_matrix(
+        self,
+        region: str | None = None,
+        *,
+        value_col: str = "count",
+        mode: MatrixMode = "full",
+        mask_diagonal: bool = False,
+    ) -> np.ndarray:
+        """Return the pixel data as a matrix."""
+
+        # NOTE: Not using pl.DataFrame.pivot because does not fill missing bin ids.
+
+        # TODO: remove type ignore once the type checker is fixed
+        df: pl.DataFrame = self.get_dataframe(region, dtype="polars")  # type: ignore
+
+        # Either use left and right bin most ids in the df or the region bounds (for comparison)
+        bounds: tuple[int, int]
+        if region:
+            bounds = self._bins.extent(region)
+        else:
+            bounds = (
+                cast(int, df.get_column("bin1_id").min()),
+                cast(int, df.get_column("bin2_id").max()),
+            )
+
+        # Shift the bin ids to start from 0 and convert to numpy
+        edge_list: np.ndarray = (
+            df.with_columns(
+                pl.col("bin1_id") - bounds[0],
+                pl.col("bin2_id") - bounds[0],
+            )
+            .select(["bin1_id", "bin2_id", value_col])
+            .to_numpy()
+        )
+
+        # Create an empty matrix with the right dimensions and fill it
+        # TODO: ideally, speed this up somehow
+        side: int = bounds[1] - bounds[0] + 1
+        matrix: np.ndarray = np.zeros([side, side], dtype=float)  # TODO: maybe infer
+        for row in edge_list:
+            matrix[row[0], row[1]] = row[2]
+
+        match mode:
+            case "upper":
+                pass
+            case "lower":
+                matrix = matrix.T
+            case "full":
+                matrix += np.tril(matrix.T, -1)
+
+        if mask_diagonal:
+            np.fill_diagonal(matrix, 0)
+
+        return matrix
 
     def subset(self, region: str) -> "PixelTable":
         """Return a new HiconaTable instance with data from a specific region."""
