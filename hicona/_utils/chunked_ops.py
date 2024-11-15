@@ -42,10 +42,9 @@ def convert(chunks: DfStream, to: DfDtype) -> DfChunks:
 
     if to == "polars":
         return (c if isinstance(c, pl.DataFrame) else pl.from_pandas(c) for c in chunks)
-    elif to == "pandas":
+    if to == "pandas":
         return (c if isinstance(c, pd.DataFrame) else c.to_pandas() for c in chunks)
-    else:
-        raise ValueError("Invalid conversion target.")
+    raise ValueError("Invalid conversion target.")
 
 
 @overload

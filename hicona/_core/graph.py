@@ -16,58 +16,281 @@ needed by the user, therefore this way keep the namespace cleaner.
 
 from __future__ import annotations
 
-from typing import Any, TYPE_CHECKING
+from functools import partial
+from typing import Any, cast, Generator, TYPE_CHECKING
 
 import numpy as np
-import pandas as pd
 import polars as pl
-import graph_tool as gt  # type: ignore
+import graph_tool.all as gt  # type: ignore
 
-from .._utils.chunked_ops import (
-    rechunk,
-    convert,
-    to_iterable,
-    format_stream,
-    cast_dtypes,
-)
-from .table_ops import subset_bin_region, subset_pixel_region
+from .._utils.chunked_ops import convert, to_iterable
+from .._utils.dtype_conversion import NP_TO_GT, GT_TO_NP
+from .table import BinTable, PixelTable
 
 
 if TYPE_CHECKING:
-    from .._utils.df_dtypes import (
-        PlChunks,
-        DataFrame,
-        DfChunks,
-        DfStream,
-        PlStream,
-        Bool,
-        DfDtype,
-    )
-    from .table import HiconaTable
+    from .._utils.df_dtypes import PlChunks, DataFrame, DfStream, Bool
     from .cooler import HiconaCooler
 
 
 __all__ = ["HiconaGraph"]
 
 
-def _iter_row_chunks(graph: gt.Graph, chunk_size: int) -> "PlChunks":
-    """Iterate over the rows of a graph in chunks."""
+#########################################################################################
+#################### UTILITY FUNCTIONS FOR GENERAL GRAPH MANIPULATION ###################
+#########################################################################################
 
-    buffer_size: tuple[int, int] = (chunk_size, (2 + len(list(graph.ep.keys()))))
-    colnames: list[str] = ["node1_id", "node2_id"] + list(graph.ep.keys())
-    buffer: np.ndarray = np.empty(buffer_size, dtype=int)
 
+def _iter_item_chunks(
+    iterable: Generator[np.ndarray],
+    colnames: list[str],
+    coltypes: list[str],
+    chunk_size: int,
+) -> Generator[pl.DataFrame]:
+
+    buffer: list[np.ndarray | None] = [None] * chunk_size
     index: int = 0
-    for row in graph.iter_edges(eprops=graph.ep.values()):
-        buffer[index, :] = row
+    for item in iterable:
+        buffer[index] = item
         index += 1
 
         if index == chunk_size:
-            yield pl.DataFrame(dict(zip(colnames, buffer.T)))
+            generator = zip(colnames, coltypes, np.array(buffer).T)
+            yield pl.DataFrame({n: v.astype(t) for n, t, v in generator})
+
+            buffer = [None] * chunk_size
             index = 0
 
     if index:
-        yield pl.DataFrame(dict(zip(colnames, buffer[:index].T))).drop_nulls()
+        buffer = [b for b in buffer if b is not None]
+        generator = zip(colnames, coltypes, np.array(buffer).T)
+        yield pl.DataFrame({n: v.astype(t) for n, t, v in generator})
+
+
+def _iter_bin_chunks(graph: gt.Graph, chunk_size: int) -> "PlChunks":
+    """Iterate over the bins of a graph in chunks."""
+
+    # Get names and types of the vertex properties
+    colnames: list[str] = list(graph.vp.keys())
+    coltypes: list[str] = [GT_TO_NP[graph.vp[c].value_type()] for c in colnames]
+
+    # The first column in the iterator is always the node_id
+    colnames = ["node_id"] + colnames
+    coltypes = ["int32"] + coltypes
+
+    generator: Generator[np.ndarray] = graph.iter_vertices(vprops=graph.vp.values())
+    return _iter_item_chunks(generator, colnames, coltypes, chunk_size)
+
+
+def _iter_pix_chunks(graph: gt.Graph, chunk_size: int) -> "PlChunks":
+    """Iterate over the rows of a graph in chunks."""
+
+    # Get names and types of the edge properties
+    colnames: list[str] = list(graph.ep.keys())
+    coltypes: list[str] = [GT_TO_NP[graph.ep[c].value_type()] for c in colnames]
+
+    # The first two columns in the iterator are always the node1_id and node2_id
+    colnames = ["node1_id", "node2_id"] + colnames
+    coltypes = ["int32", "int32"] + coltypes
+
+    generator: Generator[np.ndarray] = graph.iter_edges(eprops=graph.ep.values())
+    return _iter_item_chunks(generator, colnames, coltypes, chunk_size)
+
+
+def _add_df_as_vp(graph: gt.Graph, df: pl.DataFrame):
+    """Add vertex properties to a graph from a DataFrame."""
+    # NOTE: Assumes that the nodes are sorted, which should be the case
+    # NOTE: Assumes that df is sorted the same way as the graph
+
+    for col in df.columns:
+        np_col: np.ndarray = df[col].to_numpy()
+        np_dtype: str = NP_TO_GT.get(np_col.dtype.name, "object")
+        graph.vp[col] = graph.new_vertex_property(np_dtype, np_col)
+
+
+def _add_df_as_ep(graph: gt.Graph, df: pl.DataFrame):
+    """Add edge properties to a graph from a DataFrame."""
+    # NOTE: Assumes that the edge are sorted, which should be the case at the beginning
+    # NOTE: Assumes that df is sorted the same way as the graph
+    # TODO: This does not seem too reliable, maybe check edge by edge even if slow
+
+    for col in df.columns:
+        np_col: np.ndarray = df[col].to_numpy()
+        np_dtype: str = NP_TO_GT.get(np_col.dtype.name, "object")
+        graph.ep[col] = graph.new_edge_property(np_dtype, np_col)
+
+
+def _bin_to_node_id(data_df: pl.DataFrame, conv_df: pl.DataFrame) -> pl.DataFrame:
+    """Change bin1_id and bin2_id to node1_id and node2_id."""
+
+    conv_df = conv_df.select(["bin_id", "node_id"])  # Safety measure
+    init_cols = [c for c in data_df.columns if c not in ["bin1_id", "bin2_id"]]
+
+    return (
+        data_df.join(conv_df, left_on="bin1_id", right_on="bin_id", how="left")
+        .rename({"node_id": "node1_id"})
+        .join(conv_df, left_on="bin2_id", right_on="bin_id", how="left")
+        .rename({"node_id": "node2_id"})
+        .select(["node1_id", "node2_id"] + init_cols)
+    )
+
+
+def _node_to_bin_id(data_df: pl.DataFrame, conv_df: pl.DataFrame) -> pl.DataFrame:
+    """Change node1_id and node2_id to bin1_id and bin2_id."""
+
+    conv_df = conv_df.select(["node_id", "bin_id"])  # Safety measure
+    init_cols = [c for c in data_df.columns if c not in ["node1_id", "node2_id"]]
+
+    return (
+        data_df.join(conv_df, left_on="node1_id", right_on="node_id", how="left")
+        .rename({"bin_id": "bin1_id"})
+        .join(conv_df, left_on="node2_id", right_on="node_id", how="left")
+        .rename({"bin_id": "bin2_id"})
+        .select(["bin1_id", "bin2_id"] + init_cols)
+    )
+
+
+def _add_genomic_link(graph: gt.Graph, link_val: int):
+    """Add missing genomic links to avoid isolated nodes."""
+    # NOTE: Assumes that the nodes are sorted, which should be the case
+
+    genomic: gt.EdgePropertyMap = graph.new_edge_property("bool", False)
+    for i in range(graph.num_vertices() - 1):
+        edge = graph.edge(i, i + 1)
+        if edge is None:
+            edge = graph.add_edge(i, i + 1)
+            graph.ep.count[edge] = link_val
+            graph.ep.genomic[edge] = True
+
+    graph.ep["genomic"] = genomic
+
+
+#########################################################################################
+############################ UTILITY FUNCTIONS FOR CLUSTERING ###########################
+#########################################################################################
+
+
+def _get_callback_func() -> tuple[partial, list[gt.Graph], list]:
+    """Create partial function to use as callback in hierarchical_clustering."""
+
+    def callback_func(
+        state: gt.MixedMeasuredBlockState,
+        graph: list[gt.Graph],
+        parts: list[gt.PropertyArray],
+    ):
+
+        new_graph = state.collect_marginal(graph[0] if len(graph) > 0 else None)
+        try:
+            graph[0] = new_graph
+        except IndexError:
+            graph.append(new_graph)
+
+        bstate = cast(gt.NestedBlockState, state.get_block_state())
+        parts.append(bstate.levels[0].b.a.copy())
+
+        # g = state.get_graph()
+        # MAX_VAL = 55
+        # max_num_edges = g.num_vertices() * (g.num_vertices() - 1) // 2
+        # M = g.num_edges() * MAX_VAL  # + (max_num_edges - g.num_edges())
+        # T = g.ep.count.fa.sum()
+        # TODO: add check for no diagonal
+
+    new_graph: list[gt.Graph] = []  # In list since the argument must be mutable
+    partitions: list[gt.PropertyArray] = []
+    callback: partial = partial(
+        callback_func,
+        graph=new_graph,
+        parts=partitions,
+    )
+
+    return callback, new_graph, partitions
+
+
+def _update_with_prob_graph(old: gt.Graph, new: gt.Graph):
+    """Update a graph with a new one containing edge probabilities.
+
+    Adds any new edge found in the probability graph to the old graph.
+    Adds edge probability as a new edge property "edge_prob".
+    Adds a categorical edge property to distinguish between:
+    - 0: edges which were in the old graph and remain in the new one
+    - 1: edges which were not in the old graph and are in the new one
+    - 2: edges which were in the old graph and are not in the new one
+    """
+
+    probs_map: gt.EdgePropertyMap = old.new_edge_property("float", val=0)
+    group_map: gt.EdgePropertyMap = old.new_edge_property("int", val=2)
+
+    # TODO: is it an issue to add edges in the loop?
+    for new_edge in new.edges():
+        old_edge = old.edge(new_edge.source(), new_edge.target())  # TODO: Type hint?
+
+        if old_edge is not None:
+            group_map[old_edge] = 0
+        else:
+            old_edge = old.add_edge(new_edge.source(), new_edge.target())
+            group_map[old_edge] = 1
+
+        probs_map[old_edge] = new.ep.eprob[new_edge]
+
+    # prob_map: gt.EdgePropertyMap = old.new_edge_property("float", val=1)
+    # for e in old.edges():
+    #     if new.edge(e.source(), e.target()) is not None:
+    #         prob_map[e] = new.ep.eprob[new.edge(e.source(), e.target())]
+    # old.ep["edge_prob"] = prob_map
+
+    old.ep["edge_prob"] = probs_map
+    old.ep["edge_group"] = group_map
+
+    if any(group_map.get_array() == 2):
+        print(
+            "Warning: Some edges were removed from the graph.",
+            "Check the edge_group property for more information.",
+        )
+
+
+def _add_vertex_clusters(graph: gt.Graph, state: gt.MixedMeasuredBlockState) -> None:
+    """Add vertex annotations corresponding to the hierarchical clustering levels."""
+    # NOTE: Assumes that the nodes are sorted.
+
+    # Fetch the underlying nested block state
+    blocks: gt.NestedBlockState = cast(gt.NestedBlockState, state.get_block_state())
+
+    # Project partitions of the block state to vertex level
+    num_vertices: int = state.get_graph().num_vertices()
+    groups: np.ndarray = np.zeros((num_vertices, len(blocks.get_bs())), dtype=int)
+    for level in range(len(blocks.get_bs())):
+        groups[:, level] = blocks.project_partition(level, 0).get_array()
+
+    # Rename partitions to consecutive integers
+    levels: pl.DataFrame = pl.DataFrame(groups)
+    for col in levels.columns:
+        levels = levels.with_columns(pl.col(col).rank("dense"))
+
+    # Save all levels with at least two clusters as vertex properties
+    for col in levels.columns:
+        if levels[col].n_unique() == 1:
+            continue  # Not break to avoid assuming that df columns are sorted
+        colname: str = f"level_({col.split('_')[1]})"
+        graph.vp[colname] = graph.new_vp("int", levels[col])
+
+
+def _add_edge_clusters(graph: gt.Graph) -> None:
+
+    # Compute the number of levels and initialize that many edge property maps
+    num_levels: int = len([c for c in graph.vp.keys() if c.startswith("level_")])
+    for i in range(num_levels):
+        graph.ep[f"level_({i})"] = graph.new_edge_property("int", 0)
+
+    # For each edge, check if the bins are in the same cluster at each level
+    for edge in graph.edges():
+        source, target = edge.source(), edge.target()
+
+        for i in range(num_levels):
+            clust_source: int = graph.vp[f"level_({i})"][source]
+            clust_target: int = graph.vp[f"level_({i})"][target]
+
+            if clust_source == clust_target:
+                graph.ep[f"level_({i})"][edge] = clust_source
 
 
 class HiconaGraph:
@@ -78,7 +301,6 @@ class HiconaGraph:
         *,
         bins: "DataFrame" | "DfStream",
         pixels: "DataFrame" | "DfStream",
-        info: dict[str, Any],
         default_link: int = 1,
     ):
 
@@ -89,6 +311,8 @@ class HiconaGraph:
             .with_columns(pl.col("node_id").cast(pl.Int32))
         )
 
+        graph = gt.Graph(bins.height, directed=False)
+
         # TODO: Maybe review this for the sake of memory efficiency
         # AFAIK, properties must be created in one go, no chunking allowed.
         # Theoretically, one could create an empty property and update it steb by step,
@@ -96,179 +320,138 @@ class HiconaGraph:
         # Moreover, it would probably be slower using edge accessors given the loop.
         # For this reason all pixels properties are stored in a df and added at the end.
         eprops: list[pl.DataFrame] = []
-
-        graph = gt.Graph(bins.height, directed=False)
         for chunk in convert(pixels, "polars"):
-
+            chunk = chunk.filter(pl.col("bin1_id") != pl.col("bin2_id"))  # Rm loops
             eprops.append(chunk.select(pl.all().exclude("bin1_id", "bin2_id")))
+            graph.add_edge_list(_bin_to_node_id(chunk, bins).to_numpy())
 
-            chunk = (
-                chunk.join(bins, left_on="bin1_id", right_on="bin_id", how="left")
-                .rename({"node_id": "node1_id"})
-                .join(bins, left_on="bin2_id", right_on="bin_id", how="left")
-                .rename({"node_id": "node2_id"})
-                .select(["node1_id", "node2_id"])
-            )
-
-            graph.add_edge_list(chunk.to_numpy())
-
-        eprops_df = pl.concat(eprops)
-        for col in eprops_df.columns:
-            graph.edge_properties[col] = graph.new_edge_property(
-                "int",  # TODO: this is tmp, should be inferred
-                eprops_df[col].to_numpy(),
-            )
-
-        # TODO: Probably need to find a better way to do this, seems slow
-        # Add missing genomic links to avoid isolated nodes
-        num_edges: int = graph.num_edges()
-
-        for i in range(bins.height - 1):
-            graph.edge(i, i + 1, add_missing=True)
-        graph.ep.count.fa[num_edges:] = default_link  # Unsure about safety
-        graph.edge_properties["genomic"] = graph.new_edge_property(
-            "bool", [False] * num_edges + [True] * (graph.num_edges() - num_edges)
-        )
+        # Add bin and pixel properties, as well as genomic links
+        _add_df_as_vp(graph, bins.drop("node_id"))
+        _add_df_as_ep(graph, pl.concat(eprops))
+        _add_genomic_link(graph, default_link)
 
         self._graph: gt.Graph = graph
-        self._bins: pl.DataFrame = bins
-        self._info: dict[str, Any] = info  # TODO: decide what goes in info
 
     @property
     def graph(self) -> gt.Graph:
         """graph_tool.Graph instance associated with the HiconaGraph."""
         return self._graph
 
-    @property
-    def info(self) -> dict[str, Any]:
-        """Dictionary with additional information about the graph."""
-        return self._info
-
     def get_bins(
         self,
         region: str | None = None,
         *,
+        drop_node_id: Bool = True,
         bare: Bool = False,
-        df_dtype: DfDtype = "polars",
-        as_chunks: Bool = True,
-        chunk_size: int = 10_000_000,
-    ) -> "DataFrame" | "DfChunks":
+        store_size: int = 10_000_000,
+    ) -> "BinTable":
         """Return the bins as a dataframe."""
 
-        chunks: "PlStream" = (self._bins,)
+        node_chunks: PlChunks = _iter_bin_chunks(self._graph, store_size)
+
+        if drop_node_id:
+            node_chunks = (c.drop("node_id") for c in node_chunks)
 
         if bare:
-            bare_cols = ["node_id", "chrom", "start", "end"]
-            chunks = (chunk.select(bare_cols) for chunk in chunks)
+            bare_cols: tuple[str, ...] = ("bin_id", "chrom", "start", "end")
+            node_chunks = (c.select(bare_cols) for c in node_chunks)
 
-        if region:
-            chunks = subset_bin_region(
-                chunks,
-                region=region,
-                df_dtype="polars",
-                as_chunks=True,
-                chunk_size=chunk_size,
-            )
-
-        chunks = rechunk(chunks, chunk_size)
-        chunks = cast_dtypes(chunks, {"chrom": str})
-        return format_stream(chunks, df_dtype, as_chunks)
+        table = BinTable(node_chunks, store_size)
+        return table if region is None else table.subset(region)
 
     def get_pixels(
         self,
         region: str | None = None,
         *,
-        keep_genomic: bool = False,
-        df_dtype: DfDtype = "polars",
-        as_chunks: Bool = True,
-        chunk_size: int = 10_000_000,
-    ) -> "DataFrame" | "DfChunks":
-        """Get the pixels table with all pixel properties."""
+        keep_genomic: Bool = False,
+        store_size: int = 10_000_000,
+    ) -> "PixelTable":
+        """Return the pixels as a dataframe."""
 
-        def pix_chunks(graph: gt.Graph, bins: pl.DataFrame) -> "PlChunks":
-
-            conv_table = bins.select(["node_id", "bin_id"])
-            for pix_df in _iter_row_chunks(graph, 1_000_000):
-                keep_cols: tuple[str, ...] = tuple(graph.ep.keys())
-
-                if not keep_genomic:
-                    pix_df = pix_df.filter(pl.col("genomic") == 0).drop("genomic")
-                    keep_cols = tuple(col for col in keep_cols if col != "genomic")
-
-                pix_df = (
-                    pix_df.with_columns(
-                        pl.col("node1_id").cast(pl.Int32),
-                        pl.col("node2_id").cast(pl.Int32),  # TODO: rm?
-                    )
-                    .join(
-                        conv_table, left_on="node1_id", right_on="node_id", how="left"
-                    )
-                    .drop("node1_id")
-                    .rename({"bin_id": "bin1_id"})
-                    .join(
-                        conv_table, left_on="node2_id", right_on="node_id", how="left"
-                    )
-                    .drop("node2_id")
-                    .rename({"bin_id": "bin2_id"})
-                    .select(("bin1_id", "bin2_id") + keep_cols)
-                )
-
-                yield pix_df
-
-        chunks: "DfChunks" = rechunk(pix_chunks(self._graph, self._bins), 10_000_000)
-
-        if region:
-            chunks = subset_pixel_region(
-                chunks,
-                region=region,
-                ref_bins=self._bins,
-                df_dtype="polars",
-                as_chunks=True,
-                chunk_size=chunk_size,
+        # TODO: Remove type ignore once the type checker is fixed
+        id_table: pl.DataFrame = pl.concat(_iter_bin_chunks(self._graph, store_size))
+        edge_chunks: PlChunks = _iter_pix_chunks(self._graph, store_size)
+        edge_chunks = (_node_to_bin_id(c, id_table) for c in edge_chunks)  # type: ignore
+        if not keep_genomic:
+            edge_chunks = (
+                c.filter(pl.col("genomic") == 0).drop("genomic") for c in edge_chunks
             )
 
-        return format_stream(chunks, df_dtype, as_chunks)
+        table = PixelTable(
+            edge_chunks,
+            bins=self.get_bins(store_size=store_size),
+            store_size=store_size,
+        )
+        return table if region is None else table.subset(region)
 
     @classmethod
-    def from_table(
-        cls,
-        table: "HiconaTable",
-        *,
-        region: str | None = None,
+    def from_pixel_table(
+        cls, table: "PixelTable", *, region: str | None = None
     ) -> "HiconaGraph":
         """Create a HiconaGraph from a HiconaTable instance."""
 
-        pixels: "PlChunks" = table.get_pixels(region, df_dtype="polars", as_chunks=True)
-        bins: "PlChunks" = table.get_bins(region, df_dtype="polars", as_chunks=True)
-        info: dict[str, Any] = table.info  # TODO: decide what goes in info
+        # TODO: Remove type ignore once the type checker is fixed
+        pixels: "PlChunks" = table.get_chunks(region, dtype="polars")  # type: ignore
+        bins: pl.DataFrame = table.bins.get_dataframe(region, dtype="polars")  # type: ignore
 
-        return cls(bins=bins, pixels=pixels, info=info)
+        return cls(bins=bins, pixels=pixels)
 
     @classmethod
     def from_cooler(
-        cls,
-        handle: "HiconaCooler",
-        *,
-        region: str | None = None,
+        cls, handle: "HiconaCooler", *, region: str | None = None
     ) -> "HiconaGraph":
         """Create a HiconaGraph from a HiconaCooler instance."""
 
-        pixels: "PlChunks" = handle.get_pixels(
-            region,
-            df_dtype="polars",
-            as_chunks=True,
-        )
-        bins: "PlChunks" = handle.get_bins(
-            region,
-            df_dtype="polars",
-            as_chunks=True,
-        )
-        info: dict[str, Any] = {"region": region}  # TODO: decide what goes in info
+        pixels: "PixelTable" = handle.get_pixels(region)
+        return cls.from_pixel_table(pixels, region=region)
 
-        return cls(bins=bins, pixels=pixels, info=info)
-
-    def plot_matrix(self):
-        """Plot the genomic region data as a contact matrix."""
-
-    def compute_clustering(self):
+    def hierarchical_clustering(
+        self,
+        force_niter: int = 50_000,
+        mcmc_niter: int = 50,
+        equil_kwargs: dict[str, Any] | None = None,
+    ) -> None:
         """Compute hierarchical clustering of the bins based on the pixels."""
+
+        # Create initial block state
+        max_value: int = self._graph.ep.count.get_array().max()
+        n: gt.EdgePropertyMap = self._graph.new_ep("int", max_value)
+        x: gt.EdgePropertyMap = self._graph.new_ep("int", self._graph.ep.count.copy())
+        state = gt.MixedMeasuredBlockState(self._graph, n=n, x=x)
+
+        # TODO: leave n_default=1, x_default=0?
+        # TODO: Leave fn_params and fp_params as default?
+
+        # max_num_edges: int = (
+        #     self.graph.num_vertices() * (self.graph.num_vertices() - 1) // 2
+        # )
+        # print(max_value)
+        # N = (
+        #     self.graph.num_edges() * max_value
+        #     + (max_num_edges - self.graph.num_edges()) * 1
+        # )  # TODO: maybe put in terms of maps
+        # X = self.graph.ep.count.fa.sum()
+        # print(N)
+        # print(X)
+
+        # Calibrate the state
+        equil_kwargs = equil_kwargs or {"wait": 1000, "mcmc_args": {"niter": 10}}
+        gt.mcmc_equilibrate(state, **equil_kwargs)
+
+        # Actual hierarchical clustering
+        callback, new_graph, partitions = _get_callback_func()
+        gt.mcmc_equilibrate(
+            state,
+            force_niter=force_niter,
+            mcmc_args={"niter": mcmc_niter},
+            callback=callback,
+        )
+
+        _update_with_prob_graph(self._graph, new_graph[0])
+        _add_vertex_clusters(self._graph, state)
+        _add_edge_clusters(self._graph)
+
+        # TODO: Max marginal? Node marginal in thiago
+        # TODO: Allow to decide hierarchy level to project on instead of always 0
+        # 1 entropy per level, bstate.entropy
+        # Regenerate block state (same partition, same entropy)
