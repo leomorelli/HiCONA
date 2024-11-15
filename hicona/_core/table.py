@@ -259,12 +259,16 @@ class PixelTable(Table):
             .to_numpy()
         )
 
-        # Create an empty matrix with the right dimensions and fill it
         # TODO: ideally, speed this up somehow
+        # Create an empty matrix with the right dimensions and fill it
+        # NOTE: Int conversion is needed since numpy uses a single type for the whole array,
+        # and having float value col casts the bin ids to float.
         side: int = bounds[1] - bounds[0] + 1
-        matrix: np.ndarray = np.zeros([side, side], dtype=float)  # TODO: maybe infer
+        # matrix: np.ndarray = np.zeros([side, side], dtype=float)  # TODO: maybe infer
+        matrix: np.ndarray = np.empty([side, side], dtype=float)
+        matrix.fill(np.nan)
         for row in edge_list:
-            matrix[row[0], row[1]] = row[2]
+            matrix[int(row[0]), int(row[1])] = row[2]
 
         match mode:
             case "upper":
