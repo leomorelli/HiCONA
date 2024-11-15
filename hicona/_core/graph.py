@@ -16,11 +16,12 @@ needed by the user, therefore this way keep the namespace cleaner.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Generator
+from functools import partial
+from typing import Any, cast, Generator, TYPE_CHECKING
 
 import numpy as np
 import polars as pl
-import graph_tool as gt  # type: ignore
+import graph_tool.all as gt  # type: ignore
 
 from .._utils.chunked_ops import convert, to_iterable
 from .._utils.dtype_conversion import NP_TO_GT, GT_TO_NP
@@ -33,6 +34,11 @@ if TYPE_CHECKING:
 
 
 __all__ = ["HiconaGraph"]
+
+
+#########################################################################################
+#################### UTILITY FUNCTIONS FOR GENERAL GRAPH MANIPULATION ###################
+#########################################################################################
 
 
 def _iter_item_chunks(
@@ -93,6 +99,9 @@ def _iter_pix_chunks(graph: gt.Graph, chunk_size: int) -> "PlChunks":
 
 def _add_df_as_vp(graph: gt.Graph, df: pl.DataFrame):
     """Add vertex properties to a graph from a DataFrame."""
+    # NOTE: Assumes that the nodes are sorted, which should be the case
+    # NOTE: Assumes that df is sorted the same way as the graph
+
     for col in df.columns:
         np_col: np.ndarray = df[col].to_numpy()
         np_dtype: str = NP_TO_GT.get(np_col.dtype.name, "object")
@@ -101,6 +110,10 @@ def _add_df_as_vp(graph: gt.Graph, df: pl.DataFrame):
 
 def _add_df_as_ep(graph: gt.Graph, df: pl.DataFrame):
     """Add edge properties to a graph from a DataFrame."""
+    # NOTE: Assumes that the edge are sorted, which should be the case at the beginning
+    # NOTE: Assumes that df is sorted the same way as the graph
+    # TODO: This does not seem too reliable, maybe check edge by edge even if slow
+
     for col in df.columns:
         np_col: np.ndarray = df[col].to_numpy()
         np_dtype: str = NP_TO_GT.get(np_col.dtype.name, "object")
@@ -139,15 +152,145 @@ def _node_to_bin_id(data_df: pl.DataFrame, conv_df: pl.DataFrame) -> pl.DataFram
 
 def _add_genomic_link(graph: gt.Graph, link_val: int):
     """Add missing genomic links to avoid isolated nodes."""
-    # TODO: Probably need to find a better way to do this, seems slow
+    # NOTE: Assumes that the nodes are sorted, which should be the case
 
-    num_edges: int = graph.num_edges()
+    genomic: gt.EdgePropertyMap = graph.new_edge_property("bool", False)
     for i in range(graph.num_vertices() - 1):
-        graph.edge(i, i + 1, add_missing=True)
-    graph.ep.count.fa[num_edges:] = link_val
+        edge = graph.edge(i, i + 1)
+        if edge is None:
+            edge = graph.add_edge(i, i + 1)
+            graph.ep.count[edge] = link_val
+            graph.ep.genomic[edge] = True
 
-    genomic: list[bool] = [False] * num_edges + [True] * (graph.num_edges() - num_edges)
-    graph.ep["genomic"] = graph.new_edge_property("bool", genomic)
+    graph.ep["genomic"] = genomic
+
+
+#########################################################################################
+############################ UTILITY FUNCTIONS FOR CLUSTERING ###########################
+#########################################################################################
+
+
+def _get_callback_func() -> tuple[partial, list[gt.Graph], list]:
+    """Create partial function to use as callback in hierarchical_clustering."""
+
+    def callback_func(
+        state: gt.MixedMeasuredBlockState,
+        graph: list[gt.Graph],
+        parts: list[gt.PropertyArray],
+    ):
+
+        new_graph = state.collect_marginal(graph[0] if len(graph) > 0 else None)
+        try:
+            graph[0] = new_graph
+        except IndexError:
+            graph.append(new_graph)
+
+        bstate = cast(gt.NestedBlockState, state.get_block_state())
+        parts.append(bstate.levels[0].b.a.copy())
+
+        # g = state.get_graph()
+        # MAX_VAL = 55
+        # max_num_edges = g.num_vertices() * (g.num_vertices() - 1) // 2
+        # M = g.num_edges() * MAX_VAL  # + (max_num_edges - g.num_edges())
+        # T = g.ep.count.fa.sum()
+        # TODO: add check for no diagonal
+
+    new_graph: list[gt.Graph] = []  # In list since the argument must be mutable
+    partitions: list[gt.PropertyArray] = []
+    callback: partial = partial(
+        callback_func,
+        graph=new_graph,
+        parts=partitions,
+    )
+
+    return callback, new_graph, partitions
+
+
+def _update_with_prob_graph(old: gt.Graph, new: gt.Graph):
+    """Update a graph with a new one containing edge probabilities.
+
+    Adds any new edge found in the probability graph to the old graph.
+    Adds edge probability as a new edge property "edge_prob".
+    Adds a categorical edge property to distinguish between:
+    - 0: edges which were in the old graph and remain in the new one
+    - 1: edges which were not in the old graph and are in the new one
+    - 2: edges which were in the old graph and are not in the new one
+    """
+
+    probs_map: gt.EdgePropertyMap = old.new_edge_property("float", val=0)
+    group_map: gt.EdgePropertyMap = old.new_edge_property("int", val=2)
+
+    # TODO: is it an issue to add edges in the loop?
+    for new_edge in new.edges():
+        old_edge = old.edge(new_edge.source(), new_edge.target())  # TODO: Type hint?
+
+        if old_edge is not None:
+            group_map[old_edge] = 0
+        else:
+            old_edge = old.add_edge(new_edge.source(), new_edge.target())
+            group_map[old_edge] = 1
+
+        probs_map[old_edge] = new.ep.eprob[new_edge]
+
+    # prob_map: gt.EdgePropertyMap = old.new_edge_property("float", val=1)
+    # for e in old.edges():
+    #     if new.edge(e.source(), e.target()) is not None:
+    #         prob_map[e] = new.ep.eprob[new.edge(e.source(), e.target())]
+    # old.ep["edge_prob"] = prob_map
+
+    old.ep["edge_prob"] = probs_map
+    old.ep["edge_group"] = group_map
+
+    if any(group_map.get_array() == 2):
+        print(
+            "Warning: Some edges were removed from the graph.",
+            "Check the edge_group property for more information.",
+        )
+
+
+def _add_vertex_clusters(graph: gt.Graph, state: gt.MixedMeasuredBlockState) -> None:
+    """Add vertex annotations corresponding to the hierarchical clustering levels."""
+    # NOTE: Assumes that the nodes are sorted.
+
+    # Fetch the underlying nested block state
+    blocks: gt.NestedBlockState = cast(gt.NestedBlockState, state.get_block_state())
+
+    # Project partitions of the block state to vertex level
+    num_vertices: int = state.get_graph().num_vertices()
+    groups: np.ndarray = np.zeros((num_vertices, len(blocks.get_bs())), dtype=int)
+    for level in range(len(blocks.get_bs())):
+        groups[:, level] = blocks.project_partition(level, 0).get_array()
+
+    # Rename partitions to consecutive integers
+    levels: pl.DataFrame = pl.DataFrame(groups)
+    for col in levels.columns:
+        levels = levels.with_columns(pl.col(col).rank("dense"))
+
+    # Save all levels with at least two clusters as vertex properties
+    for col in levels.columns:
+        if levels[col].n_unique() == 1:
+            continue  # Not break to avoid assuming that df columns are sorted
+        colname: str = f"level_({col.split('_')[1]})"
+        graph.vp[colname] = graph.new_vp("int", levels[col])
+
+
+def _add_edge_clusters(graph: gt.Graph) -> None:
+
+    # Compute the number of levels and initialize that many edge property maps
+    num_levels: int = len([c for c in graph.vp.keys() if c.startswith("level_")])
+    for i in range(num_levels):
+        graph.ep[f"level_({i})"] = graph.new_edge_property("int", 0)
+
+    # For each edge, check if the bins are in the same cluster at each level
+    for edge in graph.edges():
+        source, target = edge.source(), edge.target()
+
+        for i in range(num_levels):
+            clust_source: int = graph.vp[f"level_({i})"][source]
+            clust_target: int = graph.vp[f"level_({i})"][target]
+
+            if clust_source == clust_target:
+                graph.ep[f"level_({i})"][edge] = clust_source
 
 
 class HiconaGraph:
@@ -178,6 +321,7 @@ class HiconaGraph:
         # For this reason all pixels properties are stored in a df and added at the end.
         eprops: list[pl.DataFrame] = []
         for chunk in convert(pixels, "polars"):
+            chunk = chunk.filter(pl.col("bin1_id") != pl.col("bin2_id"))  # Rm loops
             eprops.append(chunk.select(pl.all().exclude("bin1_id", "bin2_id")))
             graph.add_edge_list(_bin_to_node_id(chunk, bins).to_numpy())
 
@@ -219,7 +363,7 @@ class HiconaGraph:
         self,
         region: str | None = None,
         *,
-        keep_genomic: str | None = None,
+        keep_genomic: Bool = False,
         store_size: int = 10_000_000,
     ) -> "PixelTable":
         """Return the pixels as a dataframe."""
@@ -261,5 +405,53 @@ class HiconaGraph:
         pixels: "PixelTable" = handle.get_pixels(region)
         return cls.from_pixel_table(pixels, region=region)
 
-    def compute_clustering(self):
+    def hierarchical_clustering(
+        self,
+        force_niter: int = 50_000,
+        mcmc_niter: int = 50,
+        equil_kwargs: dict[str, Any] | None = None,
+    ) -> None:
         """Compute hierarchical clustering of the bins based on the pixels."""
+
+        # Create initial block state
+        max_value: int = self._graph.ep.count.get_array().max()
+        n: gt.EdgePropertyMap = self._graph.new_ep("int", max_value)
+        x: gt.EdgePropertyMap = self._graph.new_ep("int", self._graph.ep.count.copy())
+        state = gt.MixedMeasuredBlockState(self._graph, n=n, x=x)
+
+        # TODO: leave n_default=1, x_default=0?
+        # TODO: Leave fn_params and fp_params as default?
+
+        # max_num_edges: int = (
+        #     self.graph.num_vertices() * (self.graph.num_vertices() - 1) // 2
+        # )
+        # print(max_value)
+        # N = (
+        #     self.graph.num_edges() * max_value
+        #     + (max_num_edges - self.graph.num_edges()) * 1
+        # )  # TODO: maybe put in terms of maps
+        # X = self.graph.ep.count.fa.sum()
+        # print(N)
+        # print(X)
+
+        # Calibrate the state
+        equil_kwargs = equil_kwargs or {"wait": 1000, "mcmc_args": {"niter": 10}}
+        gt.mcmc_equilibrate(state, **equil_kwargs)
+
+        # Actual hierarchical clustering
+        callback, new_graph, partitions = _get_callback_func()
+        gt.mcmc_equilibrate(
+            state,
+            force_niter=force_niter,
+            mcmc_args={"niter": mcmc_niter},
+            callback=callback,
+        )
+
+        _update_with_prob_graph(self._graph, new_graph[0])
+        _add_vertex_clusters(self._graph, state)
+        _add_edge_clusters(self._graph)
+
+        # TODO: Max marginal? Node marginal in thiago
+        # TODO: Allow to decide hierarchy level to project on instead of always 0
+        # 1 entropy per level, bstate.entropy
+        # Regenerate block state (same partition, same entropy)
