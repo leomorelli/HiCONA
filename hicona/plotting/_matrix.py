@@ -247,3 +247,33 @@ def plot_pixel_matrix(
     plt.subplots_adjust(hspace=0, wspace=0)
 
     return tuple(a for a in [main_ax, cbar_top, cbar_bot] if a is not None)
+
+
+def draw_tad(
+    plot: ax.Axes,
+    full_region: str,
+    tad_region: str,
+    bins: BinTable,
+    where: Literal["lower", "upper", "both"] = "both",
+    line_kwargs: dict[str, Any] | None = None,
+):
+    """Add TAD boundaries to a plot."""
+
+    line_kwargs = line_kwargs or {"color": "black", "lw": 3, "linestyle": "--"}
+
+    offset, _ = bins.extent(full_region)
+    tad_ext: tuple[int, int] = bins.extent(tad_region)
+
+    lo: int = tad_ext[0] - offset  # get starting point of TAD in the area
+    hi: int = tad_ext[1] - offset + 1  # get ending point of TAD in the area
+
+    lines: list[ln.Line2D] = []
+    if where in ("upper", "both"):
+        lines.append(ln.Line2D([lo, hi], [lo, lo], **line_kwargs))
+        lines.append(ln.Line2D([hi, hi], [lo, hi], **line_kwargs))
+    if where in ("lower", "both"):
+        lines.append(ln.Line2D([lo, hi], [hi, hi], **line_kwargs))
+        lines.append(ln.Line2D([lo, lo], [lo, hi], **line_kwargs))
+
+    for line in lines:
+        plot.add_line(line)
