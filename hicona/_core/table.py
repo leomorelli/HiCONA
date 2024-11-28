@@ -11,9 +11,10 @@ Temporary storages are torn down when the instance is deleted.
 from __future__ import annotations
 
 import os
-from typing import cast, TYPE_CHECKING, Literal
+from typing import cast, Literal, overload, TYPE_CHECKING
 
 import numpy as np
+import pandas as pd
 import polars as pl
 
 from .._utils.chunked_ops import rechunk, convert
@@ -24,6 +25,7 @@ if TYPE_CHECKING:
         DataFrame,
         DfChunks,
         DfStream,
+        PdChunks,
         PlChunks,
         PlStream,
         DfDtype,
@@ -82,7 +84,7 @@ class BinTable(Table):
         resolution: None | int = None
         for chunk in self._get_chunks():
             row_dict: dict[str, str | int] = chunk.row(0, named=True)
-            resolution = int(row_dict["end"] - row_dict["start"])  # type: ignore
+            resolution = int(row_dict["end"]) - int(row_dict["start"])
             break
         assert resolution is not None
         self._resolution: int = resolution
@@ -137,6 +139,22 @@ class BinTable(Table):
         assert lower_id is not None and upper_id is not None
         return lower_id, upper_id
 
+    @overload
+    def get_dataframe(self, region: str | None = ...) -> pl.DataFrame:
+        ...
+
+    @overload
+    def get_dataframe(
+        self, region: str | None = ..., *, dtype: Literal["polars"]
+    ) -> pl.DataFrame:
+        ...
+
+    @overload
+    def get_dataframe(
+        self, region: str | None = ..., *, dtype: Literal["pandas"]
+    ) -> pd.DataFrame:
+        ...
+
     def get_dataframe(
         self,
         region: str | None = None,
@@ -155,10 +173,7 @@ class BinTable(Table):
 
     def subset(self, region: str) -> "BinTable":
         """Return a new HiconaTable instance with data from a specific region."""
-        return BinTable(
-            [cast(pl.DataFrame, self.get_dataframe(region))],  # TODO: fix typing
-            store_size=self._chunk_size,
-        )
+        return BinTable([self.get_dataframe(region)], store_size=self._chunk_size)
 
 
 class PixelTable(Table):
@@ -180,6 +195,32 @@ class PixelTable(Table):
         """Return the BinTable instance."""
         return self._bins
 
+    @overload
+    def get_dataframe(
+        self, region: str | None = ..., *, annotate: bool = ...
+    ) -> pl.DataFrame:
+        ...
+
+    @overload
+    def get_dataframe(
+        self,
+        region: str | None = ...,
+        *,
+        annotate: bool = ...,
+        dtype: Literal["polars"],
+    ) -> pl.DataFrame:
+        ...
+
+    @overload
+    def get_dataframe(
+        self,
+        region: str | None = ...,
+        *,
+        annotate: bool = ...,
+        dtype: Literal["pandas"],
+    ) -> pd.DataFrame:
+        ...
+
     def get_dataframe(
         self,
         region: str | None = None,
@@ -189,12 +230,37 @@ class PixelTable(Table):
     ) -> "DataFrame":
         """Return the pixels as a dataframe."""
 
-        chunks: "PlChunks" = cast(  # TODO: Fix once understood why type checker fails
-            "PlChunks", self.get_chunks(region, annotate=annotate, dtype="polars")
-        )
-
+        chunks: "PlChunks" = self.get_chunks(region, annotate=annotate, dtype="polars")
         df: pl.DataFrame = pl.concat(chunks)  # TODO: fix error on concat empty list
         return df if dtype == "polars" else df.to_pandas()
+
+    @overload
+    def get_chunks(
+        self, region: str | None = ..., *, annotate: bool = ..., chunk_size: int = ...
+    ) -> "PlChunks":
+        ...
+
+    @overload
+    def get_chunks(
+        self,
+        region: str | None = ...,
+        *,
+        annotate: bool = ...,
+        chunk_size: int = ...,
+        dtype: Literal["polars"],
+    ) -> "PlChunks":
+        ...
+
+    @overload
+    def get_chunks(
+        self,
+        region: str | None = ...,
+        *,
+        annotate: bool = ...,
+        chunk_size: int = ...,
+        dtype: Literal["pandas"],
+    ) -> "PdChunks":
+        ...
 
     def get_chunks(
         self,
@@ -215,14 +281,12 @@ class PixelTable(Table):
             pix_filter &= (pl.col("bin2_id") >= lower) & (pl.col("bin2_id") < upper)
 
         if annotate:
-            bins = cast(pl.DataFrame, self._bins.get_dataframe(region))  # TODO: fix?
+            bins = self._bins.get_dataframe(region)
 
         chunks = rechunk(self._get_chunks(pix_filter), chunk_size)
         chunks = chunks if bins is None else (_annotate(c, bins) for c in chunks)
 
-        if dtype == "polars":  # NOTE: done this way to make type checker understand
-            return chunks
-        return (chunk.to_pandas() for chunk in chunks)
+        return (chunk.to_pandas() for chunk in chunks) if dtype == "pandas" else chunks
 
     def get_matrix(
         self,
@@ -235,9 +299,7 @@ class PixelTable(Table):
         """Return the pixel data as a matrix."""
 
         # NOTE: Not using pl.DataFrame.pivot because does not fill missing bin ids.
-
-        # TODO: remove type ignore once the type checker is fixed
-        df: pl.DataFrame = self.get_dataframe(region, dtype="polars")  # type: ignore
+        df: pl.DataFrame = self.get_dataframe(region, dtype="polars")
 
         # Either use left and right bin most ids in the df or the region bounds (for comparison)
         bounds: tuple[int, int]

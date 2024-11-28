@@ -8,7 +8,7 @@ as the pixel count.
 
 Rather than directly inheriting from graph_tool.Graph, the graph object is
 stored as an attribute of the class. This avoids mixing the new methods and
-attributes with the methods and attributes from graph_tool.Graph. 
+attributes with the methods and attributes from graph_tool.Graph.
 This is relevant since most of the graph_tool.Graph methods will likely not be
 needed by the user, therefore this way keep the namespace cleaner.
 
@@ -47,7 +47,6 @@ def _iter_item_chunks(
     coltypes: list[str],
     chunk_size: int,
 ) -> Generator[pl.DataFrame]:
-
     buffer: list[np.ndarray | None] = [None] * chunk_size
     index: int = 0
     for item in iterable:
@@ -178,7 +177,6 @@ def _get_callback_func() -> tuple[partial, list[gt.Graph], list]:
         graph: list[gt.Graph],
         parts: list[gt.PropertyArray],
     ):
-
         new_graph = state.collect_marginal(graph[0] if len(graph) > 0 else None)
         try:
             graph[0] = new_graph
@@ -275,7 +273,6 @@ def _add_vertex_clusters(graph: gt.Graph, state: gt.MixedMeasuredBlockState) -> 
 
 
 def _add_edge_clusters(graph: gt.Graph) -> None:
-
     # Compute the number of levels and initialize that many edge property maps
     num_levels: int = len([c for c in graph.vp.keys() if c.startswith("level_")])
     for i in range(num_levels):
@@ -303,7 +300,6 @@ class HiconaGraph:
         pixels: "DataFrame" | "DfStream",
         default_link: int = 1,
     ):
-
         bins, pixels = to_iterable(bins, pixels)
         bins = (
             pl.concat(convert(bins, "polars"))
@@ -368,10 +364,9 @@ class HiconaGraph:
     ) -> "PixelTable":
         """Return the pixels as a dataframe."""
 
-        # TODO: Remove type ignore once the type checker is fixed
         id_table: pl.DataFrame = pl.concat(_iter_bin_chunks(self._graph, store_size))
         edge_chunks: PlChunks = _iter_pix_chunks(self._graph, store_size)
-        edge_chunks = (_node_to_bin_id(c, id_table) for c in edge_chunks)  # type: ignore
+        edge_chunks = (_node_to_bin_id(c, id_table) for c in edge_chunks)
         if not keep_genomic:
             edge_chunks = (
                 c.filter(pl.col("genomic") == 0).drop("genomic") for c in edge_chunks
@@ -390,10 +385,8 @@ class HiconaGraph:
     ) -> "HiconaGraph":
         """Create a HiconaGraph from a HiconaTable instance."""
 
-        # TODO: Remove type ignore once the type checker is fixed
-        pixels: "PlChunks" = table.get_chunks(region, dtype="polars")  # type: ignore
-        bins: pl.DataFrame = table.bins.get_dataframe(region, dtype="polars")  # type: ignore
-
+        pixels: "PlChunks" = table.get_chunks(region, dtype="polars")
+        bins: pl.DataFrame = table.bins.get_dataframe(region, dtype="polars")
         return cls(bins=bins, pixels=pixels)
 
     @classmethod

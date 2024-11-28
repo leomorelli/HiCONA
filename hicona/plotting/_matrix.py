@@ -1,7 +1,7 @@
 """Plotting functions for contact matrices."""
 
 from dataclasses import dataclass, field
-from typing import Any, Literal
+from typing import Any, Iterable, Literal
 
 import numpy as np
 
@@ -36,7 +36,7 @@ class CmapSpecs:
         Additional keyword arguments to pass to the colorbar, by default None.
     """
 
-    palette: str
+    palette: str | Iterable[str]
     log_scale: bool = False
     cbar_show: bool = True
     cbar_title: str | None = None
@@ -64,7 +64,7 @@ def get_cmap_specs(specs: _DefaultSpecs) -> CmapSpecs:
         case "clusters":
             tab20_hex = [co.to_hex(color) for color in sns.color_palette("tab20", 500)]
             cluster_palette = ["#FFFFFF"] + tab20_hex
-            return CmapSpecs(cluster_palette, log_scale=False, cbar_show=False)  # type: ignore
+            return CmapSpecs(cluster_palette, log_scale=False, cbar_show=False)
         case "probs":
             return CmapSpecs("Reds", log_scale=False, cbar_title=r"$p$")
         case _:
@@ -202,7 +202,7 @@ def plot_pixel_matrix(
         sns.heatmap(
             mask_a + mask_b,
             ax=main_ax,
-            cmap=cmap_specs[0].palette,
+            cmap=cmap_specs[0].palette,  # type: ignore
             cbar=cmap_specs[0].cbar_show,
             cbar_ax=cbar_top,
             square=True,
@@ -212,7 +212,7 @@ def plot_pixel_matrix(
         sns.heatmap(
             matrix_a,
             ax=main_ax,
-            cmap=cmap_specs[0].palette,
+            cmap=cmap_specs[0].palette,  # type: ignore
             cbar=cmap_specs[0].cbar_show,
             cbar_ax=cbar_top,
             mask=np.tril(np.ones_like(matrix_a, dtype=bool)),
@@ -222,7 +222,7 @@ def plot_pixel_matrix(
         sns.heatmap(
             matrix_b,
             ax=main_ax,
-            cmap=cmap_specs[1].palette,
+            cmap=cmap_specs[1].palette,  # type: ignore
             cbar=cmap_specs[1].cbar_show,
             cbar_ax=cbar_bot,
             mask=np.triu(np.ones_like(matrix_b, dtype=bool)),
