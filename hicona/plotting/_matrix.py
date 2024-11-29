@@ -235,8 +235,8 @@ def plot_pixel_matrix(
     if cbar_bot and cmap_specs[1].cbar_title:
         cbar_bot.set_title(cmap_specs[1].cbar_title)
 
-    main_ax.set_xticks([])  # Remove x-axis ticks
-    main_ax.set_yticks([])  # Remove y-axis ticks
+    main_ax.set_xticks([])  # Remove x-axis ticks  # type: ignore
+    main_ax.set_yticks([])  # Remove y-axis ticks  # type: ignore
 
     if add_border:
         for _, spine in main_ax.spines.items():

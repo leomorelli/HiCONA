@@ -10,7 +10,7 @@ use in the original class.
 from math import ceil
 from typing import TYPE_CHECKING, Union
 
-import cooler  # type: ignore
+import cooler
 import polars as pl
 
 from .._utils.chunked_ops import (
@@ -40,7 +40,7 @@ def _chunked_selector(selector, chunk_size) -> "PlChunks":
         yield pl.from_pandas(selector[start:stop])
 
 
-class HiconaCooler(cooler.Cooler):
+class HiconaCooler(cooler.Cooler):  # type: ignore  # Cooler is not exported explicitly
     """Cooler file handle with extended functionalities."""
 
     def __init__(self, store: Union[str, "h5py.File", "h5py.Group"], **kwargs):
