@@ -47,6 +47,8 @@ def _iter_item_chunks(
     coltypes: list[str],
     chunk_size: int,
 ) -> Generator[pl.DataFrame]:
+    """Convert a generator of numpy arrays into a generator of polars DataFrames."""
+
     buffer: list[np.ndarray | None] = [None] * chunk_size
     index: int = 0
     for item in iterable:
@@ -273,6 +275,8 @@ def _add_vertex_clusters(graph: gt.Graph, state: gt.MixedMeasuredBlockState) -> 
 
 
 def _add_edge_clusters(graph: gt.Graph) -> None:
+    """Project node clusters on the edges where both nodes are in the same cluster."""
+
     # Compute the number of levels and initialize that many edge property maps
     num_levels: int = len([c for c in graph.vp.keys() if c.startswith("level_")])
     for i in range(num_levels):
@@ -291,7 +295,33 @@ def _add_edge_clusters(graph: gt.Graph) -> None:
 
 
 class HiconaGraph:
-    """Graph representation of a portion of 3D chromatin conformation data."""
+    """Graph representation of a portion of 3D chromatin conformation data.
+
+    A wrapper class for the :class:`graph_tool.Graph` class, implementing methods
+    which are specific for Hi-C-like data, which avoids having to directly interface
+    with the graph object for specialized operations.
+
+    Parameters
+    ----------
+    bins : polars.DataFrame, pandas.DataFrame or a interable of either.
+        A dataframe containing bin information, provided in full or in chunks.
+        The dataframe must contain at least the columns `node_id`, `chrom`, `start`
+        and `end`.
+    pixels: polars.DataFrame, pandas.DataFrame or a interable of either.
+        A dataframe containing pixel information, provided in full or in chunks.
+        The dataframe must contain at least the columns `bin1_id`, `bin2_id` and
+        `count`.
+    default_link : int, optional
+        Default value for the genomic link property, e.i. default values for
+        genomically contiguous bins if they do not have an edge already. Default is 1.
+
+
+    Warning
+    -------
+    This class requires loading all the bins and pixels into memory, which can be
+    memory-intensive, especially at high resolutions. Consider subsetting the data
+    to a chromosome or a region of interest before creating the class instance.
+    """
 
     def __init__(
         self,
@@ -341,7 +371,28 @@ class HiconaGraph:
         bare: Bool = False,
         store_size: int = 10_000_000,
     ) -> "BinTable":
-        """Return the bins as a dataframe."""
+        """Return the nodes as a BinTable instance.
+
+        Recreate the bin table from the graph by visiting all nodes and extracting all
+        vertex properties. The table can be subsetted to a genomic region of interest.
+
+        Parameters
+        ----------
+        region : str, optional
+            Genomic region of interest in the format "chr:start-end" or "chr".
+        drop_node_id : bool, optional
+            Whether to drop the `node_id` column. Default is True.
+        bare : bool, optional
+            Whether to return only the columns `bin_id`, `chrom`, `start` and `end`.
+            Default is False.
+        store_size : int, optional
+            Max number of bins per parquet storage chunk. Default is 10_000_000.
+
+        Returns
+        -------
+        BinTable
+            Bin table handler.
+        """
 
         node_chunks: PlChunks = _iter_bin_chunks(self._graph, store_size)
 
@@ -362,7 +413,26 @@ class HiconaGraph:
         keep_genomic: Bool = False,
         store_size: int = 10_000_000,
     ) -> "PixelTable":
-        """Return the pixels as a dataframe."""
+        """Return the edges as a PixelTable instance.
+
+        Recreate the pixel table from the graph by visiting all edges and extracting all
+        edge properties. The table can be subsetted to a genomic region of interest.
+
+        Parameters
+        ----------
+        region : str, optional
+            Genomic region of interest in the format "chr:start-end" or "chr".
+        keep_genomic : bool, optional
+            Whether to keep the genomic links in the table. Default is False.
+        store_size : int, optional
+            Max number of pixels per parquet storage chunk. Default is 10_000_000.
+
+        Returns
+        -------
+        PixelTable
+            Pixel table handler.
+
+        """
 
         id_table: pl.DataFrame = pl.concat(_iter_bin_chunks(self._graph, store_size))
         edge_chunks: PlChunks = _iter_pix_chunks(self._graph, store_size)
@@ -383,7 +453,16 @@ class HiconaGraph:
     def from_pixel_table(
         cls, table: "PixelTable", *, region: str | None = None
     ) -> "HiconaGraph":
-        """Create a HiconaGraph from a HiconaTable instance."""
+        """Create a HiconaGraph from a HiconaTable instance.
+
+        Parameters
+        ----------
+        table : PixelTable
+            PixelTable instance to create the graph from.
+        region : str, optional
+            Genomic region of interest in the format "chr:start-end" or "chr".
+
+        """
 
         pixels: "PlChunks" = table.get_chunks(region, dtype="polars")
         bins: pl.DataFrame = table.bins.get_dataframe(region, dtype="polars")
@@ -393,7 +472,16 @@ class HiconaGraph:
     def from_cooler(
         cls, handle: "HiconaCooler", *, region: str | None = None
     ) -> "HiconaGraph":
-        """Create a HiconaGraph from a HiconaCooler instance."""
+        """Create a HiconaGraph from a HiconaCooler instance.
+
+        Parameters
+        ----------
+        handle : HiconaCooler
+            Cooler file handler.
+        region : str, optional
+            Genomic region of interest in the format "chr:start-end" or "chr".
+
+        """
 
         pixels: "PixelTable" = handle.get_pixels(region)
         return cls.from_pixel_table(pixels, region=region)
@@ -404,7 +492,16 @@ class HiconaGraph:
         mcmc_niter: int = 50,
         equil_kwargs: dict[str, Any] | None = None,
     ) -> None:
-        """Compute hierarchical clustering of the bins based on the pixels."""
+        """Compute hierarchical clustering of the bins based on the pixels.
+
+        Perform network reconstruction and hierarchical clustering of the bins.
+        The method uses a :class:`graph_tool.MixedMeasuredBlockState` object to
+        represent the state of the Markov chain, therefore assuming independent
+        edge noise when modeling.
+        # TODO: Explain better and add citation to paper.
+
+        # TODO: Document parameters once the interface becomes stable.
+        """
 
         # Create initial block state
         max_value: int = self._graph.ep.count.get_array().max()

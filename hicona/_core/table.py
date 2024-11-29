@@ -47,7 +47,20 @@ def _annotate(pixels: pl.DataFrame, bins: pl.DataFrame) -> pl.DataFrame:
 
 
 class Table(TmpStorage):
-    """Parquet table saved in a temporary storage."""
+    """Parquet table saved in a temporary storage.
+
+    Creates a folder in the system's temporary directory to store the table data.
+    The folder is deleted when execution ends or the kernel is killed.
+    The table is saved in parquet format and can be accessed as a generator of chunks.
+
+    Parameters
+    ----------
+    prefix : str
+        Prefix for the temporary storage folder name.
+    chunk_size : int, optional
+        Max number of rows per parquet storage chunk. Default is 10_000_000.
+
+    """
 
     def __init__(self, prefix: str, chunk_size: int = 10_000_000):
         super().__init__(prefix)
@@ -75,7 +88,20 @@ class Table(TmpStorage):
 
 
 class BinTable(Table):
-    """Parquet table for bin data saved in a temporary storage."""
+    """Handler for bin data stored in a temporary folder.
+
+    The provided data is saved into a temporary parquet folder and can be accessed
+    as a dataframe or a generator of chunks. This is significantly faster when only
+    a subset of the data is needed and needs to be iterated multiple times.
+
+    Parameters
+    ----------
+    bins : polars.DataFrame, pandas.DataFrame or a interable of either.
+        The bin data to save in the temporary storage.
+    store_size : int, optional
+        Max number of rows per parquet storage chunk. Default is 10_000_000.
+
+    """
 
     def __init__(self, bins: "DfStream", store_size: int = 10_000_000):
         super().__init__("hicona_bins", store_size)
@@ -95,7 +121,19 @@ class BinTable(Table):
         return self._resolution
 
     def extent(self, region: str) -> tuple[int, int]:
-        """Return the lower and upper bin ids for a genomic region of interest."""
+        """Return the lower and upper bin ids for a genomic region of interest.
+
+        Parameters
+        ----------
+        region : str
+            Genomic region of interest in the format "chr:start-end" or "chr".
+
+        Returns
+        -------
+        tuple[int, int]
+            Lower and upper bin ids for the region.
+
+        """
 
         def bins_filter(region: str, res: int) -> pl.Expr:
             """Filter to apply on the bins to find boundary ids."""
@@ -161,7 +199,22 @@ class BinTable(Table):
         *,
         dtype: DfDtype = "polars",
     ) -> "DataFrame":
-        """Return the bins as a dataframe."""
+        """Return the bins as a dataframe.
+
+        Parameters
+        ----------
+        region : str, optional
+            Genomic region of interest in the format "chr:start-end" or "chr".
+        dtype : {"polars", "pandas"}, optional
+            Whether to return the dataframe as a polars or pandas dataframe.
+            Default is "polars".
+
+        Returns
+        -------
+        polars.DataFrame or pandas.DataFrame
+            The bins as a dataframe.
+
+        """
 
         bin_filter: pl.Expr | None = None
         if region:
@@ -172,12 +225,39 @@ class BinTable(Table):
         return df if dtype == "polars" else df.to_pandas()
 
     def subset(self, region: str) -> "BinTable":
-        """Return a new HiconaTable instance with data from a specific region."""
+        """Return a new HiconaTable instance with data from a genomic region.
+
+        Parameters
+        ----------
+        region : str
+            Genomic region of interest in the format "chr:start-end" or "chr".
+
+        Returns
+        -------
+        BinTable
+            A new instance with data from the specified region.
+
+        """
         return BinTable([self.get_dataframe(region)], store_size=self._chunk_size)
 
 
 class PixelTable(Table):
-    """Parquet table for pixel data saved in a temporary storage."""
+    """Handler for pixel data stored in a temporary folder.
+
+    The provided data is saved into a temporary parquet folder and can be accessed
+    as a dataframe or a generator of chunks. This is significantly faster when only
+    a subset of the data is needed and needs to be iterated multiple times.
+
+    Parameters
+    ----------
+    pixels : polars.DataFrame, pandas.DataFrame or a interable of either.
+        The pixel data to save in the temporary storage.
+    bins : BinTable
+        The bin data associated with the pixels.
+    store_size : int, optional
+        Max number of rows per parquet storage chunk. Default is 10_000_000.
+
+    """
 
     def __init__(
         self,
@@ -228,7 +308,24 @@ class PixelTable(Table):
         annotate: bool = False,
         dtype: DfDtype = "polars",
     ) -> "DataFrame":
-        """Return the pixels as a dataframe."""
+        """Return the pixels as a dataframe.
+
+        Parameters
+        ----------
+        region : str, optional
+            Genomic region of interest in the format "chr:start-end" or "chr".
+        annotate : bool, optional
+            Whether to annotate the pixel data with bin information. Default is False.
+        dtype : {"polars", "pandas"}, optional
+            Whether to return the dataframe as a polars or pandas dataframe.
+            Default is "polars".
+
+        Returns
+        -------
+        polars.DataFrame or pandas.DataFrame
+            The pixels as a dataframe.
+
+        """
 
         chunks: "PlChunks" = self.get_chunks(region, annotate=annotate, dtype="polars")
         df: pl.DataFrame = pl.concat(chunks)  # TODO: fix error on concat empty list
@@ -270,7 +367,26 @@ class PixelTable(Table):
         chunk_size: int = 10_000_000,
         dtype: DfDtype = "polars",
     ) -> "DfChunks":
-        """Return the pixels as a generator of chunks."""
+        """Return the pixels as a generator of chunks.
+
+        Parameters
+        ----------
+        region : str, optional
+            Genomic region of interest in the format "chr:start-end" or "chr".
+        annotate : bool, optional
+            Whether to annotate the pixel data with bin information. Default is False.
+        chunk_size : int, optional
+            Max number of rows per chunk. Default is 10_000_000.
+        dtype : {"polars", "pandas"}, optional
+            Whether to return the chunks as polars or pandas dataframes.
+            Default is "polars".
+
+        Returns
+        -------
+        Generator of polars.DataFrame or pandas.DataFrame
+            The pixels as a generator of chunks.
+
+        """
 
         pix_filter: pl.Expr | None = None
         bins: pl.DataFrame | None = None
@@ -296,7 +412,31 @@ class PixelTable(Table):
         mode: MatrixMode = "full",
         mask_diagonal: bool = False,
     ) -> np.ndarray:
-        """Return the pixel data as a matrix."""
+        """Return the pixel data as a contact matrix.
+
+        Convert the pixel data, usually stored as a list of edges, into a contact matrix.
+
+        Parameters
+        ----------
+        region : str, optional
+            Genomic region of interest in the format "chr:start-end" or "chr".
+        value_col : str, optional
+            Pixels column to use as the value for the matrix. Default is "count".
+        mode : {"upper", "lower", "full"}, optional
+            Whether to return the upper, lower or full matrix. Default is "full".
+        mask_diagonal : bool, optional
+            Whether to mask the diagonal of the matrix. Default is False.
+
+        Returns
+        -------
+        numpy.ndarray
+            The contact matrix.
+
+        Warning
+        -------
+        This operation can create a large matrix in memory, use with caution.
+
+        """
 
         # NOTE: Not using pl.DataFrame.pivot because does not fill missing bin ids.
         df: pl.DataFrame = self.get_dataframe(region, dtype="polars")
@@ -346,7 +486,19 @@ class PixelTable(Table):
         return matrix
 
     def subset(self, region: str) -> "PixelTable":
-        """Return a new HiconaTable instance with data from a specific region."""
+        """Return a new HiconaTable instance with data from a genomic region.
+
+        Parameters
+        ----------
+        region : str
+            Genomic region of interest in the format "chr:start-end" or "chr".
+
+        Returns
+        -------
+        PixelTable
+            A new instance with data from the specified region.
+
+        """
         return PixelTable(self.get_chunks(region), bins=self._bins.subset(region))
 
     # TODO: from_graph

@@ -41,7 +41,11 @@ def _chunked_selector(selector, chunk_size) -> "PlChunks":
 
 
 class HiconaCooler(cooler.Cooler):  # type: ignore  # Cooler is not exported explicitly
-    """Cooler file handle with extended functionalities."""
+    """Cooler file handle with extended functionalities.
+
+    For class constructor documentation, see :class:`cooler.Cooler`.
+    # TODO: Copy docs from cooler.Cooler or write new ones.
+    """
 
     def __init__(self, store: Union[str, "h5py.File", "h5py.Group"], **kwargs):
         # Mask deprecated root parameter from super-class
@@ -53,7 +57,22 @@ class HiconaCooler(cooler.Cooler):  # type: ignore  # Cooler is not exported exp
         *,
         store_size: int = 10_000_000,
     ) -> "BinTable":
-        """Return an iterable of bin chunks.
+        """Returns a bin table handler.
+
+        Returns an instance of :class:`hicona.BinTable`, potentially subsetted to a
+        genomic region of interest.
+
+        Parameters
+        ----------
+        region : str, optional
+            Genomic region of interest in the format "chr:start-end" or "chr".
+        store_size : int, optional
+            Max number of bins per parquet storage chunk. Default is 10_000_000.
+
+        Returns
+        -------
+        BinTable
+            Bin table handler.
 
         Notes
         -----
@@ -83,7 +102,24 @@ class HiconaCooler(cooler.Cooler):  # type: ignore  # Cooler is not exported exp
         *,
         store_size: int = 10_000_000,
     ) -> "PixelTable":
-        """Return an iterable of pixel chunks."""
+        """Returns a pixel table handler.
+
+        Returns an instance of :class:`hicona.PixelTable`, potentially subsetted to a
+        genomic region of interest.
+
+        Parameters
+        ----------
+        region : str, optional
+            Genomic region of interest in the format "chr:start-end" or "chr".
+        store_size : int, optional
+            Max number of pixels per parquet storage chunk. Default is 10_000_000.
+
+        Returns
+        -------
+        PixelTable
+            Pixel table handler.
+
+        """
 
         chunks: "PlChunks" = _chunked_selector(self.pixels(), store_size)
 
