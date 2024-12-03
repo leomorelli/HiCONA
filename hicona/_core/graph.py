@@ -491,6 +491,7 @@ class HiconaGraph:
         force_niter: int = 50_000,
         mcmc_niter: int = 50,
         equil_kwargs: dict[str, Any] | None = None,
+        rand_seed: int = 42,
     ) -> None:
         """Compute hierarchical clustering of the bins based on the pixels.
 
@@ -523,6 +524,10 @@ class HiconaGraph:
         # X = self.graph.ep.count.fa.sum()
         # print(N)
         # print(X)
+
+        # Set random state for reproducibility
+        np.random.seed(rand_seed)
+        gt.seed_rng(rand_seed)
 
         # Calibrate the state
         equil_kwargs = equil_kwargs or {"wait": 1000, "mcmc_args": {"niter": 10}}
