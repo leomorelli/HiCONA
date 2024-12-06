@@ -478,7 +478,12 @@ class PixelTable(Table):
             case "lower":
                 matrix = matrix.T
             case "full":
-                matrix += np.tril(matrix.T, -1)
+                nan_mask: np.ndarray = np.isnan(matrix) & np.isnan(matrix.T)
+                matrix = np.nan_to_num(matrix, nan=0) + np.nan_to_num(matrix.T, nan=0)
+                matrix[nan_mask] = np.nan
+                np.fill_diagonal(matrix, np.diag(matrix) / 2)
+            case _:
+                raise ValueError(f"Invalid mode: {mode}")
 
         if mask_diagonal:
             np.fill_diagonal(matrix, 0)
