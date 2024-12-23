@@ -11,7 +11,7 @@ Temporary storages are torn down when the instance is deleted.
 from __future__ import annotations
 
 import os
-from typing import cast, Literal, overload, TYPE_CHECKING
+from typing import cast, Literal, overload, TYPE_CHECKING, Union
 
 import numpy as np
 import pandas as pd
@@ -263,12 +263,12 @@ class PixelTable(Table):
         self,
         pixels: "DfStream",
         *,
-        bins: "BinTable",
+        bins: Union["DfStream", "BinTable"],
         store_size: int = 10_000_000,
     ):
         super().__init__("hicona_pixels", store_size)
         self._save_chunks(convert(pixels, "polars"))
-        self._bins: BinTable = bins
+        self._bins = bins if isinstance(bins, BinTable) else BinTable(bins, store_size)
 
     @property
     def bins(self) -> BinTable:
