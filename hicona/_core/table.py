@@ -11,7 +11,8 @@ Temporary storages are torn down when the instance is deleted.
 from __future__ import annotations
 
 import os
-from typing import cast, Literal, overload, TYPE_CHECKING, Union
+from functools import partial
+from typing import Any, cast, Iterable, Literal, overload, TYPE_CHECKING, Union
 
 import numpy as np
 import pandas as pd
@@ -19,6 +20,7 @@ import polars as pl
 
 from .._utils.chunked_ops import rechunk, convert
 from .._utils.tmp_storage import TmpStorage
+from .strategies import annotate_pixels, balance_pixels, subset_region
 
 if TYPE_CHECKING:
     from .._utils.df_dtypes import (
@@ -29,21 +31,12 @@ if TYPE_CHECKING:
         PlChunks,
         PlStream,
         DfDtype,
+        Strategy,
     )
 
 __all__ = ["BinTable", "PixelTable"]
 
 MatrixMode = Literal["upper", "lower", "full"]
-
-
-def _annotate(pixels: pl.DataFrame, bins: pl.DataFrame) -> pl.DataFrame:
-    """Annotate the pixel data with bin information."""
-
-    return (
-        pixels.join(bins, how="left", left_on="bin1_id", right_on="bin_id")
-        .join(bins, how="left", left_on="bin2_id", right_on="bin_id", suffix="2")
-        .rename({c: c + "1" for c in bins.columns if c != "bin_id"})
-    )
 
 
 class Table(TmpStorage):
@@ -277,7 +270,11 @@ class PixelTable(Table):
 
     @overload
     def get_dataframe(
-        self, region: str | None = ..., *, annotate: bool = ...
+        self,
+        region: str | None = ...,
+        *,
+        annotate: bool = ...,
+        selection_kwargs: dict[str, Any] | None = ...,
     ) -> pl.DataFrame:
         ...
 
@@ -288,6 +285,7 @@ class PixelTable(Table):
         *,
         annotate: bool = ...,
         dtype: Literal["polars"],
+        selection_kwargs: dict[str, Any] | None = ...,
     ) -> pl.DataFrame:
         ...
 
@@ -298,6 +296,7 @@ class PixelTable(Table):
         *,
         annotate: bool = ...,
         dtype: Literal["pandas"],
+        selection_kwargs: dict[str, Any] | None = ...,
     ) -> pd.DataFrame:
         ...
 
@@ -307,6 +306,7 @@ class PixelTable(Table):
         *,
         annotate: bool = False,
         dtype: DfDtype = "polars",
+        selection_kwargs: dict[str, Any] | None = None,
     ) -> "DataFrame":
         """Return the pixels as a dataframe.
 
@@ -319,6 +319,10 @@ class PixelTable(Table):
         dtype : {"polars", "pandas"}, optional
             Whether to return the dataframe as a polars or pandas dataframe.
             Default is "polars".
+        selection_kwargs : dict, optional
+            Additional arguments to pass to the internally called `get_chunks` method.
+            If explicitely passed, `region`, `annotate` and `dtype` will override the
+            values declared in this dictionary.
 
         Returns
         -------
@@ -327,13 +331,28 @@ class PixelTable(Table):
 
         """
 
-        chunks: "PlChunks" = self.get_chunks(region, annotate=annotate, dtype="polars")
+        selection_kwargs = selection_kwargs or {}
+        selection_kwargs.update(
+            {
+                "region": region,
+                "annotate": annotate,
+                "dtype": "polars",  # Ensure since merging is performed in polars
+            }
+        )
+
+        chunks: "PlChunks" = self.get_chunks(**selection_kwargs)
         df: pl.DataFrame = pl.concat(chunks)  # TODO: fix error on concat empty list
         return df if dtype == "polars" else df.to_pandas()
 
     @overload
     def get_chunks(
-        self, region: str | None = ..., *, annotate: bool = ..., chunk_size: int = ...
+        self,
+        region: str | None = ...,
+        *,
+        annotate: bool = ...,
+        balance: bool = ...,
+        chunk_size: int = ...,
+        strategies: Strategy | Iterable[Strategy] | None = ...,
     ) -> "PlChunks":
         ...
 
@@ -343,8 +362,10 @@ class PixelTable(Table):
         region: str | None = ...,
         *,
         annotate: bool = ...,
+        balance: bool = ...,
         chunk_size: int = ...,
         dtype: Literal["polars"],
+        strategies: Strategy | Iterable[Strategy] | None = ...,
     ) -> "PlChunks":
         ...
 
@@ -354,8 +375,10 @@ class PixelTable(Table):
         region: str | None = ...,
         *,
         annotate: bool = ...,
+        balance: bool = ...,
         chunk_size: int = ...,
         dtype: Literal["pandas"],
+        strategies: Strategy | Iterable[Strategy] | None = ...,
     ) -> "PdChunks":
         ...
 
@@ -364,10 +387,23 @@ class PixelTable(Table):
         region: str | None = None,
         *,
         annotate: bool = False,
+        balance: bool = False,
         chunk_size: int = 10_000_000,
         dtype: DfDtype = "polars",
+        strategies: Strategy | Iterable[Strategy] | None = None,
     ) -> "DfChunks":
         """Return the pixels as a generator of chunks.
+
+        The chunks can be returned as they are or modified using some default
+        or custom strategies. A strategy is any function that takes a generator
+        of `polars.DataFrame` instances and returns another generator of the same,
+        therefore applying some function to each chunk in the stream.
+
+        Note
+        ----
+        Strategies should take only one argument, the generator of chunks, and
+        return another generator of chunks. If your function requires more arguments,
+        use `functools.partial` to create a partial function with the extra arguments.
 
         Parameters
         ----------
@@ -375,11 +411,15 @@ class PixelTable(Table):
             Genomic region of interest in the format "chr:start-end" or "chr".
         annotate : bool, optional
             Whether to annotate the pixel data with bin information. Default is False.
+        balance : bool, optional
+            Whether to balance count column by bin weights. Default is False.
         chunk_size : int, optional
             Max number of rows per chunk. Default is 10_000_000.
         dtype : {"polars", "pandas"}, optional
             Whether to return the chunks as polars or pandas dataframes.
             Default is "polars".
+        strategies : Strategy or Iterable of Strategy, optional
+            List of strategies to apply to the chunks. Default is None.
 
         Returns
         -------
@@ -388,21 +428,32 @@ class PixelTable(Table):
 
         """
 
-        pix_filter: pl.Expr | None = None
+        strats: list[Strategy] = []
+        chunks: "DfChunks" = self._get_chunks()
         bins: pl.DataFrame | None = None
 
         if region:
-            lower, upper = self._bins.extent(region)
-            pix_filter = (pl.col("bin1_id") >= lower) & (pl.col("bin1_id") < upper)
-            pix_filter &= (pl.col("bin2_id") >= lower) & (pl.col("bin2_id") < upper)
+            strats.append(partial(subset_region, extent=self._bins.extent(region)))
+
+        if balance:
+            bins = bins or self._bins.get_dataframe(region)
+            strats.append(partial(balance_pixels, bins_df=bins))
+
+        strategies = [strategies] if callable(strategies) else strategies
+        strats.extend(strategies or [])  # Add user-defined strategies
 
         if annotate:
-            bins = self._bins.get_dataframe(region)
+            bins = bins or self._bins.get_dataframe(region)
+            strats.append(partial(annotate_pixels, bins_df=bins))
 
-        chunks = rechunk(self._get_chunks(pix_filter), chunk_size)
-        chunks = chunks if bins is None else (_annotate(c, bins) for c in chunks)
+        strats.append(partial(rechunk, size=chunk_size))
 
-        return (chunk.to_pandas() for chunk in chunks) if dtype == "pandas" else chunks
+        # Apply queue of strategies to the chunks
+        for strategy in strats:
+            chunks = strategy(chunks)
+
+        # NOTE: Convert is not a strat due to typing issues
+        return convert(chunks, dtype)
 
     def get_matrix(
         self,
@@ -411,6 +462,7 @@ class PixelTable(Table):
         value_col: str = "count",
         mode: MatrixMode = "full",
         mask_diagonal: bool = False,
+        selection_kwargs: dict[str, Any] | None = None,
     ) -> np.ndarray:
         """Return the pixel data as a contact matrix.
 
@@ -426,6 +478,10 @@ class PixelTable(Table):
             Whether to return the upper, lower or full matrix. Default is "full".
         mask_diagonal : bool, optional
             Whether to mask the diagonal of the matrix. Default is False.
+        selection_kwargs : dict, optional
+            Additional arguments to pass to the internally called `get_chunks` method.
+            If explicitely passed, `region`, will override the values declared in this
+            dictionary.
 
         Returns
         -------
@@ -439,7 +495,9 @@ class PixelTable(Table):
         """
 
         # NOTE: Not using pl.DataFrame.pivot because does not fill missing bin ids.
-        df: pl.DataFrame = self.get_dataframe(region, dtype="polars")
+        selection_kwargs = selection_kwargs or {}
+        selection_kwargs.update({"region": region, "dtype": "polars"})
+        df: pl.DataFrame = self.get_dataframe(selection_kwargs=selection_kwargs)
 
         # Either use left and right bin most ids in the df or the region bounds (for comparison)
         bounds: tuple[int, int]
@@ -505,6 +563,36 @@ class PixelTable(Table):
 
         """
         return PixelTable(self.get_chunks(region), bins=self._bins.subset(region))
+
+    def apply(self, strategies: Strategy | Iterable[Strategy]) -> "PixelTable":
+        """Return a new PixelTable modified according to the provided strategies.
+
+        Parameters
+        ----------
+        strategies : Strategy or Iterable of Strategy
+            Strategy or list of strategies to apply to the chunks.
+
+        Returns
+        -------
+        PixelTable
+            A new instance with modified data.
+
+        Note
+        ----
+        Using this method followed by `get_chunks` or `get_dataframe` on the new instance
+        without passing any strategy yields the same result as passing the strategies to
+        the `get_chunks` or `get_dataframe` method of the original instance. The key
+        difference is that `apply` creates a new instance in memory; this means a higher
+        overhead for the first use, but it becomes faster if that specific subset needs
+        to be iterated multiple times.
+
+        """
+
+        return PixelTable(
+            self.get_chunks(strategies=strategies),
+            bins=self._bins,
+            store_size=self._chunk_size,
+        )
 
     # TODO: from_graph
     # TODO: from_cooler
