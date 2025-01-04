@@ -23,18 +23,15 @@ from .df_dtypes import (
     PlStream,
     Bool,
     DfDtype,
-    PdStream,
 )
 
 
 @overload
-def convert(chunks: DfStream, to: Literal["polars"]) -> PlChunks:
-    ...
+def convert(chunks: DfStream, to: Literal["polars"]) -> PlChunks: ...
 
 
 @overload
-def convert(chunks: DfStream, to: Literal["pandas"]) -> PdChunks:
-    ...
+def convert(chunks: DfStream, to: Literal["pandas"]) -> PdChunks: ...
 
 
 def convert(chunks: DfStream, to: DfDtype) -> DfChunks:
@@ -52,8 +49,7 @@ def format_stream(
     stream: DfStream,
     to: Literal["polars"],
     as_chunks: Literal[True],
-) -> PlChunks:
-    ...
+) -> PlChunks: ...
 
 
 @overload
@@ -61,8 +57,7 @@ def format_stream(
     stream: DfStream,
     to: Literal["polars"],
     as_chunks: Literal[False],
-) -> pl.DataFrame:
-    ...
+) -> pl.DataFrame: ...
 
 
 @overload
@@ -70,8 +65,7 @@ def format_stream(
     stream: DfStream,
     to: Literal["pandas"],
     as_chunks: Literal[True],
-) -> PdChunks:
-    ...
+) -> PdChunks: ...
 
 
 @overload
@@ -79,8 +73,7 @@ def format_stream(
     stream: DfStream,
     to: Literal["pandas"],
     as_chunks: Literal[False],
-) -> pd.DataFrame:
-    ...
+) -> pd.DataFrame: ...
 
 
 def format_stream(

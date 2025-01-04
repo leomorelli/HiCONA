@@ -20,6 +20,7 @@ import polars as pl
 
 from .._utils.chunked_ops import rechunk, convert
 from .._utils.tmp_storage import TmpStorage
+from ._bin_annotation import get_annotated_bins
 from .strategies import annotate_pixels, balance_pixels, subset_region
 
 if TYPE_CHECKING:
@@ -37,6 +38,7 @@ if TYPE_CHECKING:
 __all__ = ["BinTable", "PixelTable"]
 
 MatrixMode = Literal["upper", "lower", "full"]
+BASE_BIN_COLS: tuple[str, str, str] = ("chrom", "start", "end")
 
 
 class Table(TmpStorage):
@@ -171,20 +173,17 @@ class BinTable(Table):
         return lower_id, upper_id
 
     @overload
-    def get_dataframe(self, region: str | None = ...) -> pl.DataFrame:
-        ...
+    def get_dataframe(self, region: str | None = ...) -> pl.DataFrame: ...
 
     @overload
     def get_dataframe(
         self, region: str | None = ..., *, dtype: Literal["polars"]
-    ) -> pl.DataFrame:
-        ...
+    ) -> pl.DataFrame: ...
 
     @overload
     def get_dataframe(
         self, region: str | None = ..., *, dtype: Literal["pandas"]
-    ) -> pd.DataFrame:
-        ...
+    ) -> pd.DataFrame: ...
 
     def get_dataframe(
         self,
@@ -233,6 +232,74 @@ class BinTable(Table):
         """
         return BinTable([self.get_dataframe(region)], store_size=self._chunk_size)
 
+    def annotate(
+        self,
+        annot_df: "DataFrame",
+        *,
+        metric: Literal["bp_overlap", "chrom_enrich", "frac_overlap"] = "frac_overlap",
+        consolidate: bool = True,
+        save_all_mods: bool = False,
+    ) -> "BinTable":
+        """Create a new bin table with some annotation column from a bed-like dataframe.
+
+        Given a dataframe containing some annotation in bed-like format, intersect
+        it with the BinTable and return a new instance with the annotation added.
+
+        Parameters
+        ----------
+        annot_df: pandas.DataFrame or polars.DataFrame
+            A bed-like dataframe to merge to the bin table. The dataframe must contain
+            the columns "chrom", "start", "end" and 1 annotation column.
+        metric: one of ["bp_overlap", "chrom_enrich", "frac_overlap"]
+            In case of multiple intersections with a bin, metric used to decide which
+            intersection to keep. Available strategies are:
+
+            - `bp_overlap`: keep the intersection with highest overlap in base pairs.
+            - `frac_overlap`: same as `bp_overlap` but as fraction of bin size.
+            - `chrom_enrich`: Requires a categorical annotation covering the entire
+            genome (initially designed for chromHMM style annotations). For each
+            bin, assign the modality which is most enriched with respect to its
+            own chromosome. Enrichment for a modality is computed as the log2 fold
+            change between the fraction of bp in the bin assigned to the annotation
+            and the fraction of bp in the chromosome containing the bin assigned to
+            the annotation. Only available if `consolidate = True`.
+
+        consolidate: bool
+            When the annotation column is categorical with few repetitive modalities,
+            if set to `True`, all intersections belonging to the same modality are
+            considered jointly, summing all overlaps of the modality across the bin.
+        save_all_mods: bool
+            When the annotation column is categorical with few repetitive modalities,
+            if set to `True`, instead of choosing the best modality for each bin
+            according to the selected metric, create a column for each modality and
+            save the metric for each modality for each bin. Only available if
+            `consolidate = True`.
+
+        Returns
+        -------
+        BinTable
+            A new bin table with one (or more) new annotation column(s).
+
+        Note
+        ----
+        Currently it is assumed that the entire bin table fits into memory. If extremely
+        small resolutions (and therefore large bin tables) become mainstay, the function
+        will be changed to work in chunks.
+
+        """
+
+        new_df: pl.DataFrame = self.get_dataframe().hstack(
+            get_annotated_bins(
+                self.get_dataframe().select(BASE_BIN_COLS),
+                annot_df,
+                metric,
+                consolidate,
+                save_all_mods,
+            ).select(pl.exclude(BASE_BIN_COLS))
+        )
+
+        return BinTable((new_df,), store_size=self._chunk_size)
+
 
 class PixelTable(Table):
     """Handler for pixel data stored in a temporary folder.
@@ -275,8 +342,7 @@ class PixelTable(Table):
         *,
         annotate: bool = ...,
         selection_kwargs: dict[str, Any] | None = ...,
-    ) -> pl.DataFrame:
-        ...
+    ) -> pl.DataFrame: ...
 
     @overload
     def get_dataframe(
@@ -286,8 +352,7 @@ class PixelTable(Table):
         annotate: bool = ...,
         dtype: Literal["polars"],
         selection_kwargs: dict[str, Any] | None = ...,
-    ) -> pl.DataFrame:
-        ...
+    ) -> pl.DataFrame: ...
 
     @overload
     def get_dataframe(
@@ -297,8 +362,7 @@ class PixelTable(Table):
         annotate: bool = ...,
         dtype: Literal["pandas"],
         selection_kwargs: dict[str, Any] | None = ...,
-    ) -> pd.DataFrame:
-        ...
+    ) -> pd.DataFrame: ...
 
     def get_dataframe(
         self,
@@ -353,8 +417,7 @@ class PixelTable(Table):
         balance: bool = ...,
         chunk_size: int = ...,
         strategies: Strategy | Iterable[Strategy] | None = ...,
-    ) -> "PlChunks":
-        ...
+    ) -> "PlChunks": ...
 
     @overload
     def get_chunks(
@@ -366,8 +429,7 @@ class PixelTable(Table):
         chunk_size: int = ...,
         dtype: Literal["polars"],
         strategies: Strategy | Iterable[Strategy] | None = ...,
-    ) -> "PlChunks":
-        ...
+    ) -> "PlChunks": ...
 
     @overload
     def get_chunks(
@@ -379,8 +441,7 @@ class PixelTable(Table):
         chunk_size: int = ...,
         dtype: Literal["pandas"],
         strategies: Strategy | Iterable[Strategy] | None = ...,
-    ) -> "PdChunks":
-        ...
+    ) -> "PdChunks": ...
 
     def get_chunks(
         self,
@@ -592,6 +653,64 @@ class PixelTable(Table):
             self.get_chunks(strategies=strategies),
             bins=self._bins,
             store_size=self._chunk_size,
+        )
+
+    def add_bin_annotation(
+        self,
+        annot_df: "DataFrame",
+        *,
+        metric: Literal["bp_overlap", "chrom_enrich", "frac_overlap"] = "frac_overlap",
+        consolidate: bool = True,
+        save_all_mods: bool = False,
+    ) -> None:
+        """Add some annotation columns from a bed-like dataframe to the bin table.
+
+        Given a dataframe containing some annotation in bed-like format, intersect
+        it and add the information to the bin table.
+
+        Parameters
+        ----------
+        annot_df: pandas.DataFrame or polars.DataFrame
+            A bed-like dataframe to merge to the bin table. The dataframe must contain
+            the columns "chrom", "start", "end" and 1 annotation column.
+        metric: one of ["bp_overlap", "chrom_enrich", "frac_overlap"]
+            In case of multiple intersections with a bin, metric used to decide which
+            intersection to keep. Available strategies are:
+
+            - `bp_overlap`: keep the intersection with highest overlap in base pairs.
+            - `frac_overlap`: same as `bp_overlap` but as fraction of bin size.
+            - `chrom_enrich`: Requires a categorical annotation covering the entire
+            genome (initially designed for chromHMM style annotations). For each
+            bin, assign the modality which is most enriched with respect to its
+            own chromosome. Enrichment for a modality is computed as the log2 fold
+            change between the fraction of bp in the bin assigned to the annotation
+            and the fraction of bp in the chromosome containing the bin assigned to
+            the annotation. Only available if `consolidate = True`.
+
+        consolidate: bool
+            When the annotation column is categorical with few repetitive modalities,
+            if set to `True`, all intersections belonging to the same modality are
+            considered jointly, summing all overlaps of the modality across the bin.
+        save_all_mods: bool
+            When the annotation column is categorical with few repetitive modalities,
+            if set to `True`, instead of choosing the best modality for each bin
+            according to the selected metric, create a column for each modality and
+            save the metric for each modality for each bin. Only available if
+            `consolidate = True`.
+
+        Note
+        ----
+        Currently it is assumed that the entire bin table fits into memory. If extremely
+        small resolutions (and therefore large bin tables) become mainstay, the function
+        will be changed to work in chunks.
+
+        """
+
+        self._bins = self._bins.annotate(
+            annot_df,
+            metric=metric,
+            consolidate=consolidate,
+            save_all_mods=save_all_mods,
         )
 
     # TODO: from_graph
