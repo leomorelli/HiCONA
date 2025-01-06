@@ -232,7 +232,7 @@ class BinTable(Table):
         """
         return BinTable([self.get_dataframe(region)], store_size=self._chunk_size)
 
-    def annotate(
+    def add_annotation(
         self,
         annot_df: "DataFrame",
         *,
@@ -706,7 +706,7 @@ class PixelTable(Table):
 
         """
 
-        self._bins = self._bins.annotate(
+        self._bins = self._bins.add_annotation(
             annot_df,
             metric=metric,
             consolidate=consolidate,
