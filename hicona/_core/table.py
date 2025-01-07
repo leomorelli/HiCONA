@@ -557,8 +557,11 @@ class PixelTable(Table):
 
         # NOTE: Not using pl.DataFrame.pivot because does not fill missing bin ids.
         selection_kwargs = selection_kwargs or {}
-        selection_kwargs.update({"region": region, "dtype": "polars"})
-        df: pl.DataFrame = self.get_dataframe(selection_kwargs=selection_kwargs)
+        selection_kwargs.update({"dtype": "polars"})
+        df: pl.DataFrame = self.get_dataframe(
+            region=region,
+            selection_kwargs=selection_kwargs,
+        )
 
         # Either use left and right bin most ids in the df or the region bounds (for comparison)
         bounds: tuple[int, int]
