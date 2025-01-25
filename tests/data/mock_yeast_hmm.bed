@@ -1,0 +1,7 @@
+chrom	start	end	hmm
+chrII	0	9000	A
+chrII	10000	30000	B
+chrII	30000	33000	A
+chrII	33000	37000	B
+chrII	37000	40000	A
+chrII	50000	90500	A
