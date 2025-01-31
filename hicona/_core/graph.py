@@ -17,7 +17,7 @@ needed by the user, therefore this way keep the namespace cleaner.
 from __future__ import annotations
 
 from functools import partial
-from typing import Any, cast, Generator, TYPE_CHECKING
+from typing import Any, cast, Generator, Literal, overload, TYPE_CHECKING
 
 import numpy as np
 import polars as pl
@@ -25,12 +25,19 @@ import graph_tool.all as gt  # type: ignore
 
 from .._utils.chunked_ops import convert, to_iterable
 from .._utils.dtype_conversion import NP_TO_GT, GT_TO_NP
-from .table import BinTable, PixelTable
 
 
 if TYPE_CHECKING:
-    from .._utils.df_dtypes import PlChunks, DataFrame, DfStream, Bool
+    from .._utils.df_dtypes import (
+        DataFrame,
+        DfChunks,
+        DfStream,
+        PdChunks,
+        PlChunks,
+        DfDtype,
+    )
     from .cooler import HiconaCooler
+    from .table import PixelTable
 
 
 __all__ = ["HiconaGraph"]
@@ -57,7 +64,9 @@ def _iter_item_chunks(
 
         if index == chunk_size:
             generator = zip(colnames, coltypes, np.array(buffer).T)
-            yield pl.DataFrame({n: v.astype(t) for n, t, v in generator})
+            yield pl.DataFrame(
+                {n: v.astype(t) for n, t, v in generator}, nan_to_null=True
+            )
 
             buffer = [None] * chunk_size
             index = 0
@@ -65,7 +74,7 @@ def _iter_item_chunks(
     if index:
         buffer = [b for b in buffer if b is not None]
         generator = zip(colnames, coltypes, np.array(buffer).T)
-        yield pl.DataFrame({n: v.astype(t) for n, t, v in generator})
+        yield pl.DataFrame({n: v.astype(t) for n, t, v in generator}, nan_to_null=True)
 
 
 def _iter_bin_chunks(graph: gt.Graph, chunk_size: int) -> "PlChunks":
@@ -155,15 +164,22 @@ def _add_genomic_link(graph: gt.Graph, link_val: int):
     """Add missing genomic links to avoid isolated nodes."""
     # NOTE: Assumes that the nodes are sorted, which should be the case
 
-    genomic: gt.EdgePropertyMap = graph.new_edge_property("bool", False)
+    graph.ep["genomic"] = graph.new_edge_property("bool", False)
+
     for i in range(graph.num_vertices() - 1):
         edge = graph.edge(i, i + 1)
-        if edge is None:
-            edge = graph.add_edge(i, i + 1)
-            graph.ep.count[edge] = link_val
-            graph.ep.genomic[edge] = True
 
-    graph.ep["genomic"] = genomic
+        # Skip if the node already exists
+        if edge:
+            continue
+
+        # Skip if the bins belong to different chroms
+        if graph.vp["chrom"][i] != graph.vp["chrom"][i + 1]:
+            continue
+
+        edge = graph.add_edge(i, i + 1)
+        graph.ep.count[edge] = link_val
+        graph.ep.genomic[edge] = True
 
 
 #########################################################################################
@@ -363,38 +379,70 @@ class HiconaGraph:
         """graph_tool.Graph instance associated with the HiconaGraph."""
         return self._graph
 
+    @overload
     def get_bins(
         self,
-        region: str | None = None,
         *,
-        drop_node_id: Bool = True,
-        bare: Bool = False,
-        store_size: int = 10_000_000,
-    ) -> "BinTable":
-        """Return the nodes as a BinTable instance.
+        drop_node_id: bool = ...,
+        bare: bool = ...,
+        chunk_size: int = ...,
+    ) -> "PlChunks": ...
 
-        Recreate the bin table from the graph by visiting all nodes and extracting all
-        vertex properties. The table can be subsetted to a genomic region of interest.
+    @overload
+    def get_bins(
+        self,
+        *,
+        drop_node_id: bool = ...,
+        bare: bool = ...,
+        chunk_size: int = ...,
+        dtype: Literal["polars"],
+    ) -> "PlChunks": ...
+
+    @overload
+    def get_bins(
+        self,
+        *,
+        drop_node_id: bool = ...,
+        bare: bool = ...,
+        chunk_size: int = ...,
+        dtype: Literal["pandas"],
+    ) -> "PdChunks": ...
+
+    def get_bins(
+        self,
+        *,
+        drop_node_id: bool = True,
+        bare: bool = False,
+        chunk_size: int = 10_000_000,
+        dtype: DfDtype = "polars",
+    ) -> "DfChunks":
+        """Return the nodes as an iterable of bins.
+
+        Return the nodes from the graph as an iterable of bed-like dataframes.
+        All vertex properties are saved as columns, both those with which the
+        graph was initially generated, as well as those added at runtime.
 
         Parameters
         ----------
-        region : str, optional
-            Genomic region of interest in the format "chr:start-end" or "chr".
         drop_node_id : bool, optional
             Whether to drop the `node_id` column. Default is True.
         bare : bool, optional
             Whether to return only the columns `bin_id`, `chrom`, `start` and `end`.
             Default is False.
-        store_size : int, optional
-            Max number of bins per parquet storage chunk. Default is 10_000_000.
+        chunk_size : int, optional
+            Max number of bins per chunk. Default is 10_000_000.
+        dtype : {"polars", "pandas"}, optional
+            Whether to return the chunks as polars or pandas dataframes.
+            Default is "polars".
 
         Returns
         -------
-        BinTable
-            Bin table handler.
+        A generator of pandas or polars dataframes.
+            Bin chunks.
+
         """
 
-        node_chunks: PlChunks = _iter_bin_chunks(self._graph, store_size)
+        node_chunks: PlChunks = _iter_bin_chunks(self._graph, chunk_size)
 
         if drop_node_id:
             node_chunks = (c.drop("node_id") for c in node_chunks)
@@ -403,57 +451,80 @@ class HiconaGraph:
             bare_cols: tuple[str, ...] = ("bin_id", "chrom", "start", "end")
             node_chunks = (c.select(bare_cols) for c in node_chunks)
 
-        table = BinTable(node_chunks, store_size)
-        return table if region is None else table.subset(region)
+        return convert(node_chunks, dtype)
+
+    @overload
+    def get_pixels(
+        self,
+        *,
+        keep_genomic: bool = ...,
+        chunk_size: int = ...,
+    ) -> "PlChunks": ...
+
+    @overload
+    def get_pixels(
+        self,
+        *,
+        keep_genomic: bool = ...,
+        chunk_size: int = ...,
+        dtype: Literal["polars"],
+    ) -> "PlChunks": ...
+
+    @overload
+    def get_pixels(
+        self,
+        *,
+        keep_genomic: bool = ...,
+        chunk_size: int = ...,
+        dtype: Literal["pandas"],
+    ) -> "PdChunks": ...
 
     def get_pixels(
         self,
-        region: str | None = None,
         *,
-        keep_genomic: Bool = False,
-        store_size: int = 10_000_000,
-    ) -> "PixelTable":
-        """Return the edges as a PixelTable instance.
+        keep_genomic: bool = False,
+        chunk_size: int = 10_000_000,
+        dtype: DfDtype = "polars",
+    ) -> "DfChunks":
+        """Return the edges as an iterable of pixels.
 
-        Recreate the pixel table from the graph by visiting all edges and extracting all
-        edge properties. The table can be subsetted to a genomic region of interest.
+        Return the edges from the graph as an iterable of bed-like dataframes.
+        All edge properties are saved as columns, both those with which the
+        graph was initially generated, as well as those added at runtime.
 
         Parameters
         ----------
-        region : str, optional
-            Genomic region of interest in the format "chr:start-end" or "chr".
         keep_genomic : bool, optional
-            Whether to keep the genomic links in the table. Default is False.
-        store_size : int, optional
-            Max number of pixels per parquet storage chunk. Default is 10_000_000.
+            Whether to keep the genomic-link pixels added during graph creation.
+            Default is False.
+        chunk_size : int, optional
+            Max number of pixels per chunk. Default is 10_000_000.
+        dtype : {"polars", "pandas"}, optional
+            Whether to return the chunks as polars or pandas dataframes.
+            Default is "polars".
 
         Returns
         -------
-        PixelTable
-            Pixel table handler.
+        A generator of pandas or polars dataframes.
+            Pixel chunks.
 
         """
 
-        id_table: pl.DataFrame = pl.concat(_iter_bin_chunks(self._graph, store_size))
-        edge_chunks: PlChunks = _iter_pix_chunks(self._graph, store_size)
+        id_table: pl.DataFrame = pl.concat(_iter_bin_chunks(self._graph, chunk_size))
+        edge_chunks: PlChunks = _iter_pix_chunks(self._graph, chunk_size)
         edge_chunks = (_node_to_bin_id(c, id_table) for c in edge_chunks)
         if not keep_genomic:
             edge_chunks = (
                 c.filter(pl.col("genomic") == 0).drop("genomic") for c in edge_chunks
             )
 
-        table = PixelTable(
-            edge_chunks,
-            bins=self.get_bins(store_size=store_size),
-            store_size=store_size,
-        )
-        return table if region is None else table.subset(region)
+        return convert(edge_chunks, dtype)
 
     @classmethod
     def from_pixel_table(
         cls, table: "PixelTable", *, region: str | None = None
     ) -> "HiconaGraph":
-        """Create a HiconaGraph from a HiconaTable instance.
+        """Create a HiconaGraph from a PixelTable instance.
 
         Parameters
         ----------
@@ -461,6 +532,10 @@ class HiconaGraph:
             PixelTable instance to create the graph from.
         region : str, optional
             Genomic region of interest in the format "chr:start-end" or "chr".
+
+        Returns
+        -------
+        HiconaGraph instance
 
         """
 
@@ -481,9 +556,13 @@ class HiconaGraph:
         region : str, optional
             Genomic region of interest in the format "chr:start-end" or "chr".
 
+        Returns
+        -------
+        HiconaGraph instance
+
         """
 
-        pixels: "PixelTable" = handle.get_pixels(region)
+        pixels: "PixelTable" = handle.get_pixel_table(region)
         return cls.from_pixel_table(pixels, region=region)
 
     def hierarchical_clustering(
