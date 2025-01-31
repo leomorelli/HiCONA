@@ -94,21 +94,14 @@ class HiconaCooler(cooler.Cooler):  # type: ignore  # Cooler is not exported exp
         # Mask deprecated root parameter from super-class
         super().__init__(store, **kwargs)
 
-    def get_bins(
-        self,
-        region: str | None = None,
-        *,
-        store_size: int = 10_000_000,
-    ) -> "BinTable":
-        """Returns a bin table handler.
+    def get_bin_table(self, *, store_size: int = 10_000_000) -> "BinTable":
+        """Returns a bin table containing all bins from the cooler.
 
-        Returns an instance of :class:`hicona.BinTable`, potentially subsetted to a
-        genomic region of interest.
+        Return an instance of the `BinTable` class. See `BinTable` class
+        documentation for more information.
 
         Parameters
         ----------
-        region : str, optional
-            Genomic region of interest in the format "chr:start-end" or "chr".
         store_size : int, optional
             Max number of bins per parquet storage chunk. Default is 10_000_000.
 
@@ -117,38 +110,24 @@ class HiconaCooler(cooler.Cooler):  # type: ignore  # Cooler is not exported exp
         BinTable
             Bin table handler.
 
-        Notes
-        -----
-        For small bin tables, which is often the case, this method is algorithmically
-        more expensive than using the ``bins()`` method from the cooler.Cooler class.
-        The advantage of this method is that it allows to read in chunks large bin
-        tables, which could be the case for very high resolution Hi-C data. Moreover,
-        for small bin tables, the difference in performance should be negligible but
-        with the advantage of being able to return the bins as polars.DataFrame objects.
-
         """
 
         chunks: "PlChunks" = _chunked_selector(self.bins(), store_size)
         chunks = add_ind_col(chunks, "bin_id")
-
-        if region:  # Slightly more efficient than subsetting the table
-            lower, upper = self.extent(region)
-            expr = (pl.col("bin_id") >= lower) & (pl.col("bin_id") < upper)
-            chunks = row_filter(chunks, expr, store_size)
-
         chunks = cast_dtypes(chunks, {"chrom": str})
+
         return BinTable(chunks, store_size=store_size)
 
-    def get_pixels(
+    def get_pixel_table(
         self,
         region: str | None = None,
         *,
         store_size: int = 10_000_000,
     ) -> "PixelTable":
-        """Returns a pixel table handler.
+        """Returns a pixel table containing all or part of the pixels in the cooler.
 
-        Returns an instance of :class:`hicona.PixelTable`, potentially subsetted to a
-        genomic region of interest.
+        Return an instance of the `PixelTable` class. See `PixelTable` class
+        documentation for more information.
 
         Parameters
         ----------
@@ -176,7 +155,7 @@ class HiconaCooler(cooler.Cooler):  # type: ignore  # Cooler is not exported exp
 
         return PixelTable(
             chunks,
-            bins=self.get_bins(region, store_size=store_size),
+            bins=self.get_bin_table(store_size=store_size),
             store_size=store_size,
         )
 
@@ -291,8 +270,3 @@ class HiconaCooler(cooler.Cooler):  # type: ignore  # Cooler is not exported exp
             raise ValueError("Cannot remove a base column (`chrom`, `start`, `end`).")
 
         _hdf5_deleter(self.store, path.join(self.root, "bins"), annot_name)
-
-    # TODO: Implement the following methods
-    # def get_graph(self, region: str | None) -> "HiconaGraph":
-    #     """Create and return an instance of HiconaGraph."""
-    #     return HiconaGraph.from_cooler(self, region=region)

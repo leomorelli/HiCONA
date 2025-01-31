@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import os
 from functools import partial
-from typing import Any, cast, Iterable, Literal, overload, TYPE_CHECKING, Union
+from typing import Any, cast, Iterable, Literal, overload, TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
@@ -44,11 +44,15 @@ BASE_PIX_COLS: tuple[str, str, str] = ("bin1_id", "bin2_id", "count")
 
 
 class Table(TmpStorage):
-    """Parquet table saved in a temporary storage.
+    """Parquet table saved in a temporary folder.
 
-    Creates a folder in the system's temporary directory to store the table data.
-    The folder is deleted when execution ends or the kernel is killed.
-    The table is saved in parquet format and can be accessed as a generator of chunks.
+    Creates a folder in the temporary directory of the system to store the table data.
+    The folder is deleted if the object is garbage collected, if the program execution
+    ends, or if the Jupyter kernel is shut down. The table is saved in a chunked
+    parquet format.
+
+    Methods to read and write chunks are not directly exposed to avoid accidental
+    improper usage.
 
     Parameters
     ----------
@@ -59,9 +63,9 @@ class Table(TmpStorage):
 
     """
 
-    def __init__(self, prefix: str, chunk_size: int = 10_000_000):
+    def __init__(self, prefix: str, store_size: int = 10_000_000):
         super().__init__(prefix)
-        self._chunk_size = chunk_size
+        self._store_size = store_size
 
     def _get_chunks(self, filt_expr: pl.Expr | None = None) -> "PlChunks":
         """Return the table as a generator of chunks."""
@@ -77,102 +81,101 @@ class Table(TmpStorage):
     def _save_chunks(self, chunks: "PlStream"):
         """Save the provided chunks into the tmp folder."""
 
-        for i, chunk in enumerate(rechunk(chunks, self._chunk_size)):
+        # TODO: add check that at least one chunk was written
+        for i, chunk in enumerate(rechunk(chunks, self._store_size)):
             chunk.write_parquet(
                 self.tmp_store / f"chunk_{str(i).zfill(4)}.parquet",
                 statistics=False,
             )
 
+    def _peek(self) -> dict[str, Any]:
+        """Return the first row of the dataframe as a dictionary."""
+
+        row_dict: dict[str, Any] | None = None
+        for chunk in self._get_chunks():
+            row_dict = chunk.row(0, named=True)
+            break
+
+        assert row_dict is not None, f"Table at {self.tmp_store} is empty."
+        return row_dict
+
+    @property
+    def store_size(self) -> int:
+        """Return the max number of rows of the individual store chunks.
+
+        Returns
+        -------
+        int
+            Max number of rows per storage chunk.
+
+        """
+        return self._store_size
+
+    @property
+    def col_names(self) -> tuple[str, ...]:
+        """Return the names of the columns of the table.
+
+        Returns
+        -------
+        tuple of strings
+            Names of all the columns in the table.
+
+        """
+        return tuple(self._peek().keys())
+
 
 class BinTable(Table):
     """Handler for bin data stored in a temporary folder.
 
-    The provided data is saved into a temporary parquet folder and can be accessed
-    as a dataframe or a generator of chunks. This is significantly faster when only
-    a subset of the data is needed and needs to be iterated multiple times.
+    A bin table is a disk backed version of the bins from the cooler file.
+    Bins are copied to disk to facilitate iteration, avoiding compression.
+    The storage format is a chunked parquet file in a temporaty directory.
+
+    It is assumed that the binning satisfies these properties:
+
+        - Bin size is constant among all bins.
+        - Bins belonging to the same chromosome are contiguous and sorted.
+        - Binning is complete, e.i. it covers the entire reference genome.
+
+    The last point is not fully mandatory, though not satisfying it might
+    result in unexpected behavior especially, but not exclusively, when plotting.
 
     Parameters
     ----------
-    bins : polars.DataFrame, pandas.DataFrame or a interable of either.
+    bins : polars.DataFrame, pandas.DataFrame or an interable of either.
         The bin data to save in the temporary storage.
     store_size : int, optional
         Max number of rows per parquet storage chunk. Default is 10_000_000.
 
+    Warning
+    -------
+    No check is performed on the validity of the provided bins. This is to allow
+    the usage of any assembly for any organism, as well as custom ones. You are
+    responsible for checking that your binning satisfies the above assumptions.
+
     """
 
-    def __init__(self, bins: "DfStream", store_size: int = 10_000_000):
-        super().__init__("hicona_bins", store_size)
-        self._save_chunks(convert(bins, "polars"))
+    def __init__(self, bins: "DataFrame | DfStream", store_size: int = 10_000_000):
+        super().__init__("hicona_bins_", store_size)
 
-        resolution: None | int = None
-        for chunk in self._get_chunks():
-            row_dict: dict[str, str | int] = chunk.row(0, named=True)
-            resolution = int(row_dict["end"]) - int(row_dict["start"])
-            break
-        assert resolution is not None
-        self._resolution: int = resolution
+        polars_stream: PlStream = convert(to_iterable(bins)[0], "polars")
+        self._save_chunks(add_ind_col(polars_stream, "bin_id"))
+
+        # NOTE: bin_size is defined here since it should not change overtime
+        first_row: dict[str, Any] = self._peek()
+        self._bin_size: int = int(first_row["end"]) - int(first_row["start"])
 
     @property
-    def resolution(self) -> int:
-        """Return the resolution of the bins."""
-        return self._resolution
-
-    def extent(self, region: str) -> tuple[int, int]:
-        """Return the lower and upper bin ids for a genomic region of interest.
-
-        Parameters
-        ----------
-        region : str
-            Genomic region of interest in the format "chr:start-end" or "chr".
+    def bin_size(self) -> int:
+        """Return the size of the bins in base pairs (resolution).
 
         Returns
         -------
-        tuple[int, int]
-            Lower and upper bin ids for the region.
+        int
+            Bin size in base pairs.
 
         """
-
-        def bins_filter(region: str, res: int) -> pl.Expr:
-            """Filter to apply on the bins to find boundary ids."""
-            parts = region.split(":")
-            bins_expr = pl.col("chrom") == parts[0]
-
-            if len(parts) == 2:
-                start, end = map(int, parts[1].split("-"))
-                start = (start // res) * res
-                end = (end // res + 1 if end % res else end // res) * res
-                bins_expr &= (pl.col("start") >= start) & (pl.col("end") <= end)
-
-            return bins_expr
-
-        lower_id: int | None = None
-        upper_id: int | None = None
-        bin_expr: pl.Expr = bins_filter(region, self._resolution)
-
-        # Filter the chunk and act according to how many rows are left
-        # This flowchart assumes that the bins are sorted and contiguous.
-        # TODO: maybe enforce that the bins are sorted and contiguous
-        # 0 rows:
-        #    - If the upper bound is set, you overshot the region and can stop.
-        #    - If the lower bound is not set, you are before the region.
-        # 0 < rows < chunk_size:
-        #    - You found the top of the region, set the upper bound.
-        # chunk_size rows:
-        #    - It might be the top of the region, but cannot be sure. Continue.
-        for chunk in self._get_chunks():
-            chunk = chunk.filter(bin_expr)
-
-            if chunk.height == 0:
-                if upper_id is not None:
-                    break
-                continue
-
-            if lower_id is None:
-                lower_id = int(chunk.get_column("bin_id").min())  # type: ignore
-            upper_id = int(chunk.get_column("bin_id").max())  # type: ignore
-
-        assert lower_id is not None and upper_id is not None
-        return lower_id, upper_id
+        return self._bin_size
 
     @overload
     def get_dataframe(self, region: str | None = ...) -> pl.DataFrame: ...
@@ -193,7 +196,10 @@ class BinTable(Table):
         *,
         dtype: DfDtype = "polars",
     ) -> "DataFrame":
-        """Return the bins as a dataframe.
+        """Return the bins in a dataframe.
+
+        Return the bins from the table in a dataframe. Any annotation column is
+        also returned alongside the default ones.
 
         Parameters
         ----------
@@ -210,16 +216,35 @@ class BinTable(Table):
 
         """
 
-        bin_filter: pl.Expr | None = None
-        if region:
-            lower, upper = self.extent(region)
-            bin_filter = (pl.col("bin_id") >= lower) & (pl.col("bin_id") < upper)
+        filt_expr: pl.Expr | None = None
 
-        df: pl.DataFrame = pl.concat(self._get_chunks(bin_filter))
+        if region:
+            parts: list[str] = region.split(":")
+            filt_expr = pl.col("chrom") == pl.lit(parts[0])
+
+            if len(parts) == 2:
+                chrom_range: list[str] = parts[1].split("-")
+
+                if len(chrom_range) != 2:
+                    raise ValueError("Genomic range must have one start and one end.")
+
+                try:
+                    start, end = map(int, chrom_range)
+                except ValueError:
+                    raise ValueError("At least one boundary is not convertible to int.")
+
+                filt_expr &= pl.col("start") >= pl.lit(start - self._bin_size + 1)
+                filt_expr &= pl.col("end") <= pl.lit(end + self._bin_size - 1)
+
+        df: pl.DataFrame = pl.concat(self._get_chunks(filt_expr))
         return df if dtype == "polars" else df.to_pandas()
 
-    def subset(self, region: str) -> "BinTable":
-        """Return a new HiconaTable instance with data from a genomic region.
+    def extent(self, region: str) -> tuple[int, int]:
+        """Return the lower and upper bin ids for a genomic region of interest.
+
+        Unlike `cooler.Cooler.extent`, no out of genomic range check is performed.
+        If the end point of the region lays outside a chromosome boundary, the last
+        bin of the chromosome is returned as end point.
 
         Parameters
         ----------
@@ -228,11 +253,24 @@ class BinTable(Table):
 
         Returns
         -------
-        BinTable
-            A new instance with data from the specified region.
+        tuple[int, int]
+            Lower and upper bin ids for the region.
 
         """
-        return BinTable([self.get_dataframe(region)], store_size=self._chunk_size)
+
+        # NOTE: Getting the filtered dataframe and extracting min and max from it is
+        # definitely not the most efficient way, but it avoids having to lug around
+        # chromsizes which could get real messy. If really needed, check lower and
+        # upper on individual chunks to avoid materializing the full table in memory.
+        df: pl.DataFrame = self.get_dataframe(region)
+        lower = df.get_column("bin_id").min()
+        upper = df.get_column("bin_id").max()
+
+        # Asserts are split for type checker
+        assert isinstance(lower, int)
+        assert isinstance(upper, int)
+
+        return (lower, upper + 1)
 
     def add_annotation(
         self,
@@ -335,35 +373,60 @@ class BinTable(Table):
 class PixelTable(Table):
     """Handler for pixel data stored in a temporary folder.
 
-    The provided data is saved into a temporary parquet folder and can be accessed
-    as a dataframe or a generator of chunks. This is significantly faster when only
-    a subset of the data is needed and needs to be iterated multiple times.
+    A pixel table is a disk backed version of the pixel from the cooler file.
+    Pixels are copied to disk to facilitate iteration, avoiding compression,
+    as well as subsetting and filtering operations.
+    A pixel table can be subsetted to a genomic region of interest.
+    The storage format is a chunked parquet file in a temporaty directory.
+
+    It is assumed that:
+        - All bin ids present in the pixel table appear in the bin table
+        - Pixels belonging to the same chromosome are contiguous and sorted.
+
+    The last point is not fully mandatory, though not satisfying it might
+    result in unexpected behavior especially, but not exclusively, when plotting.
 
     Parameters
     ----------
-    pixels : polars.DataFrame, pandas.DataFrame or a interable of either.
+    pixels : polars.DataFrame, pandas.DataFrame or an interable of either.
         The pixel data to save in the temporary storage.
     bins : BinTable
         The bin data associated with the pixels.
     store_size : int, optional
         Max number of rows per parquet storage chunk. Default is 10_000_000.
 
+    Warning
+    -------
+    No check is performed on the validity of the provided bins and pixels and
+    combination of them. This is to allow the usage of any assembly for any
+    organism, as well as custom ones. You are responsible for checking that
+    your inputs satisfy the assumptions.
+
     """
 
     def __init__(
         self,
-        pixels: "DfStream",
+        pixels: "DataFrame | DfStream",
         *,
-        bins: Union["DfStream", "BinTable"],
+        bins: "DataFrame | DfStream | BinTable",
         store_size: int = 10_000_000,
     ):
-        super().__init__("hicona_pixels", store_size)
-        self._save_chunks(convert(pixels, "polars"))
+        super().__init__("hicona_pixels_", store_size)
+        self._save_chunks(convert(to_iterable(pixels)[0], "polars"))
         self._bins = bins if isinstance(bins, BinTable) else BinTable(bins, store_size)
 
     @property
     def bins(self) -> BinTable:
-        """Return the BinTable instance."""
+        """Return the associated bin table.
+
+        Return the instance of the BinTable class associated to this object.
+
+        Returns
+        -------
+        BinTable
+            The associated bin table.
+
+        """
         return self._bins
 
     @overload
@@ -404,6 +467,10 @@ class PixelTable(Table):
         selection_kwargs: dict[str, Any] | None = None,
     ) -> "DataFrame":
         """Return the pixels as a dataframe.
+
+        Return the pixels from the table in a dataframe. The table can be subsetted
+        to a genomic region of interest. Optionally, the pixels can be annotated using
+        all annotation columns present in the pixels.
 
         Parameters
         ----------
@@ -486,6 +553,7 @@ class PixelTable(Table):
     ) -> "DfChunks":
         """Return the pixels as a generator of chunks.
 
+        Returns a generator of pixel chunks, where each chunk is a dataframe.
         The chunks can be returned as they are or modified using some default
         or custom strategies. A strategy is any function that takes a generator
         of `polars.DataFrame` instances and returns another generator of the same,
@@ -558,7 +626,9 @@ class PixelTable(Table):
     ) -> np.ndarray:
         """Return the pixel data as a contact matrix.
 
-        Convert the pixel data, usually stored as a list of edges, into a contact matrix.
+        Convert the pixel data, usually stored as a list of edges, into a full
+        contact matrix. The matrix can be optionally subsetted to a genomic
+        region of interest as well as filtered according to some strategy.
 
         Parameters
         ----------
@@ -585,7 +655,6 @@ class PixelTable(Table):
         This operation can create a large matrix in memory, use with caution.
 
         """
-
         # NOTE: Not using pl.DataFrame.pivot because does not fill missing bin ids.
         selection_kwargs = selection_kwargs or {}
         selection_kwargs.update({"dtype": "polars"})
@@ -601,7 +670,7 @@ class PixelTable(Table):
         else:
             bounds = (
                 cast(int, df.get_column("bin1_id").min()),
-                cast(int, df.get_column("bin2_id").max()),
+                cast(int, df.get_column("bin2_id").max()) + 1,
             )
 
         # Shift the bin ids to start from 0 and convert to numpy
@@ -614,15 +683,16 @@ class PixelTable(Table):
             .to_numpy()
         )
 
-        # TODO: ideally, speed this up somehow
         # Create an empty matrix with the right dimensions and fill it
-        # NOTE: Int conversion is needed since numpy uses a single type for the whole array,
-        # and having float value col casts the bin ids to float.
-        side: int = bounds[1] - bounds[0] + 1
-        # matrix: np.ndarray = np.zeros([side, side], dtype=float)  # TODO: maybe infer
+        side: int = bounds[1] - bounds[0]
         matrix: np.ndarray = np.empty([side, side], dtype=float)
         matrix.fill(np.nan)
+
+        # TODO: find a way to speed up
+        # NOTE: Int conversion is needed since numpy uses a single type for
+        # the whole array, and val is often float, making x, y floats too.
         for row in edge_list:
+            x, y, val = row
             matrix[int(row[0]), int(row[1])] = row[2]
 
         match mode:
@@ -639,12 +709,12 @@ class PixelTable(Table):
                 raise ValueError(f"Invalid mode: {mode}")
 
         if mask_diagonal:
-            np.fill_diagonal(matrix, 0)
+            np.fill_diagonal(matrix, np.NaN)
 
         return matrix
 
     def subset(self, region: str) -> "PixelTable":
-        """Return a new HiconaTable instance with data from a genomic region.
+        """Return a new pixel table with subsetted data from a genomic region.
 
         Parameters
         ----------
@@ -654,13 +724,15 @@ class PixelTable(Table):
         Returns
         -------
         PixelTable
-            A new instance with data from the specified region.
+            A new class instance with data from the specified region.
 
         """
-        return PixelTable(self.get_chunks(region), bins=self._bins.subset(region))
+        return PixelTable(self.get_chunks(region), bins=self._bins)
 
     def apply(self, strategies: Strategy | Iterable[Strategy]) -> "PixelTable":
-        """Return a new PixelTable modified according to the provided strategies.
+        """Return a new pixel table modified according to the provided strategies.
+
+        For details on strategies, see the documentation of the `get_chunks` method.
 
         Parameters
         ----------
@@ -686,7 +758,7 @@ class PixelTable(Table):
         return PixelTable(
             self.get_chunks(strategies=strategies),
             bins=self._bins,
-            store_size=self._chunk_size,
+            store_size=self._store_size,
         )
 
     def add_bin_annotation(
@@ -806,5 +878,3 @@ class PixelTable(Table):
         self._save_chunks(anno_chunks)
         )
 
-    # TODO: from_graph
-    # TODO: from_cooler
