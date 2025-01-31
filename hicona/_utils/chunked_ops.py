@@ -138,10 +138,23 @@ def add_ind_col(chunks: PlStream, ind_name: str, offset: int = 0) -> PlChunks:
     """Analogous to adding an index column in polars but works in chunks."""
 
     curr_offset: int = offset
+    stream_has_ind: bool | None = None
+
     for chunk in chunks:
-        yield chunk.with_row_index(ind_name, curr_offset).with_columns(
-            pl.col(ind_name).cast(pl.Int64)
-        )
+
+        chunk_has_ind: bool = ind_name in chunk.columns
+        stream_has_ind = stream_has_ind or chunk_has_ind
+
+        if stream_has_ind != chunk_has_ind:
+            raise ValueError("All chunks should have an index column or none of them.")
+
+        if chunk_has_ind:
+            yield chunk
+        else:
+            yield chunk.with_row_index(ind_name, curr_offset).with_columns(
+                pl.col(ind_name).cast(pl.Int64)
+            )
+
         curr_offset += chunk.height
 
 
