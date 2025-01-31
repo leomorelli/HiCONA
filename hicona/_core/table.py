@@ -22,6 +22,7 @@ from .._utils.chunked_ops import add_ind_col, convert, rechunk, to_iterable
 from .._utils.tmp_storage import TmpStorage
 from ._bin_annotation import get_annotated_bins
 from .strategies import annotate_pixels, balance_pixels, subset_region
+from .graph import HiconaGraph
 
 if TYPE_CHECKING:
     from .._utils.df_dtypes import (
@@ -712,6 +713,26 @@ class PixelTable(Table):
             np.fill_diagonal(matrix, np.NaN)
 
         return matrix
+
+    def get_graph(self, region: str | None = None) -> HiconaGraph:
+        """Return a graph object representing part of the pixel table.
+
+        Create an instance of HiconaGraph, possibily subsetted to a region of interest.
+        Default class constructor arguments are used. For customisation, pass bins and
+        pixels manually to the HiconaGraph class constructor.
+
+        Parameters
+        ----------
+        region : str, optional
+            Genomic region to subset the pixel table to, if any. Default is None.
+
+        Returns
+        -------
+        HiconaGraph
+            A graph representation of the pixel table (or part of it).
+
+        """
+        return HiconaGraph.from_pixel_table(self, region=region)
 
     def subset(self, region: str) -> "PixelTable":
         """Return a new pixel table with subsetted data from a genomic region.
