@@ -83,6 +83,7 @@ def bp_to_enrichment(df: pl.DataFrame) -> pl.DataFrame:
             .alias("chrom_enrich")
         )
         .drop("bp_overlap", "chrom_frac")
+        .with_columns(pl.col(annot_column).replace("None", None))
     )
 
 
@@ -115,7 +116,7 @@ def overlap_with_size(df_a: "DataFrame", df_b: "DataFrame") -> pl.DataFrame:
     # NOTE: The null annotation is therefore always consolidated.
 
     null_rows: pl.DataFrame = (
-        merged_df.group_by(BASE_BIN_COLS)
+        merged_df.group_by(BASE_BIN_COLS, maintain_order=True)
         .agg(pl.sum("bp_overlap"))
         .with_columns(bp_overlap=pl.col("end") - pl.col("start") - pl.col("bp_overlap"))
         .filter(pl.col("bp_overlap") != pl.lit(0))
@@ -123,11 +124,7 @@ def overlap_with_size(df_a: "DataFrame", df_b: "DataFrame") -> pl.DataFrame:
         .select([*BASE_BIN_COLS, annot_col, "bp_overlap"])
     )
 
-    return (
-        merged_df.filter(pl.col("bp_overlap").is_not_null())
-        .vstack(null_rows)
-        .sort(BASE_BIN_COLS)
-    )
+    return merged_df.filter(pl.col("bp_overlap").is_not_null()).vstack(null_rows)
 
 
 ########################################################################################
@@ -140,10 +137,11 @@ def get_annotated_bins(
     metric: AnnoMetric,
     consolidate: bool,
     save_all_mods: bool,
+    ignore_null_mode: bool | Literal["auto"],
 ) -> pl.DataFrame:
     """Return a bin table annotated according to a second dataframe.
 
-    Strategy refers to the function to use to resolve duplicate rows, since in a
+    Metric refers to the function to use to resolve duplicate rows, since in a
     bin table each bin can have at most one annotation per column.
     """
 
@@ -152,6 +150,9 @@ def get_annotated_bins(
         raise ValueError("Cannot use metric `chrom_enrich` if `consolidate = False`")
     if save_all_mods and not consolidate:
         raise ValueError("Cannot save all modalities if `consolidate = False`")
+
+    if ignore_null_mode == "auto":
+        ignore_null_mode = False if metric.endswith("enrich") else True
 
     # Ensure that initially you are working with pandas dataframes.
     bins_df = bins_df if isinstance(bins_df, pd.DataFrame) else bins_df.to_pandas()
@@ -186,6 +187,9 @@ def get_annotated_bins(
         case _:
             raise ValueError(f"{metric} is not a valid annotation metric.")
 
+    # Ensure bin sorting (not possible to simply order by BASE_BIN_COLS)
+    merge_df = pl.from_pandas(bins_df).join(merge_df, how="left", on=BASE_BIN_COLS)
+
     # Handle the multiple intersection issue by either returning them all in a
     # split manner or by taking the one with the highest metric for each bin.
     if save_all_mods:
@@ -193,6 +197,17 @@ def get_annotated_bins(
             lambda col: f"{col}_{metric}" if col not in BASE_BIN_COLS else col
         )
 
+    # Drop all rows where the annotation is null, but only if there is at least
+    # a non null annotation row for the bin.
+    if ignore_null_mode:
+        NUM_COL: str = "num_mods"
+        merge_df = (
+            merge_df.with_columns(
+                pl.col(annot_col).n_unique().over(BASE_BIN_COLS).alias(NUM_COL)
+            )
+            .filter((pl.col(NUM_COL) == 1) | (pl.col(annot_col).is_not_null()))
+            .drop(NUM_COL)
+        )
     return merge_df.group_by(BASE_BIN_COLS, maintain_order=True).agg(
         pl.col(annot_col).get(pl.col(metric).arg_max())
     )

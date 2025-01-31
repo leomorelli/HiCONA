@@ -18,7 +18,7 @@ import numpy as np
 import pandas as pd
 import polars as pl
 
-from .._utils.chunked_ops import rechunk, convert
+from .._utils.chunked_ops import add_ind_col, convert, rechunk, to_iterable
 from .._utils.tmp_storage import TmpStorage
 from ._bin_annotation import get_annotated_bins
 from .strategies import annotate_pixels, balance_pixels, subset_region
@@ -37,8 +37,10 @@ if TYPE_CHECKING:
 
 __all__ = ["BinTable", "PixelTable"]
 
+AnnoMetric = Literal["bp_overlap", "frac_overlap", "chrom_enrich"]
 MatrixMode = Literal["upper", "lower", "full"]
 BASE_BIN_COLS: tuple[str, str, str] = ("chrom", "start", "end")
+BASE_PIX_COLS: tuple[str, str, str] = ("bin1_id", "bin2_id", "count")
 
 
 class Table(TmpStorage):
@@ -236,9 +238,10 @@ class BinTable(Table):
         self,
         annot_df: "DataFrame",
         *,
-        metric: Literal["bp_overlap", "chrom_enrich", "frac_overlap"] = "frac_overlap",
+        metric: AnnoMetric = "frac_overlap",
         consolidate: bool = True,
         save_all_mods: bool = False,
+        ignore_null_mode: bool | Literal["auto"] = "auto",
     ) -> "BinTable":
         """Create a new bin table with some annotation column from a bed-like dataframe.
 
@@ -250,7 +253,7 @@ class BinTable(Table):
         annot_df: pandas.DataFrame or polars.DataFrame
             A bed-like dataframe to merge to the bin table. The dataframe must contain
             the columns "chrom", "start", "end" and 1 annotation column.
-        metric: one of ["bp_overlap", "chrom_enrich", "frac_overlap"]
+        metric: one of ["bp_overlap", "chrom_enrich", "frac_overlap"], optional
             In case of multiple intersections with a bin, metric used to decide which
             intersection to keep. Available strategies are:
 
@@ -264,16 +267,27 @@ class BinTable(Table):
             and the fraction of bp in the chromosome containing the bin assigned to
             the annotation. Only available if `consolidate = True`.
 
-        consolidate: bool
+            Default is `frac_overlap`.
+        consolidate: bool, optional
             When the annotation column is categorical with few repetitive modalities,
             if set to `True`, all intersections belonging to the same modality are
             considered jointly, summing all overlaps of the modality across the bin.
-        save_all_mods: bool
+            Default is True.
+        save_all_mods: bool, optional
             When the annotation column is categorical with few repetitive modalities,
             if set to `True`, instead of choosing the best modality for each bin
             according to the selected metric, create a column for each modality and
             save the metric for each modality for each bin. Only available if
-            `consolidate = True`.
+            `consolidate = True`. Default is False.
+        ignore_null_mode: bool or "auto", optional
+                Whether to consider no annotation (null) as an annotation modality. If
+                `True`, if the null modality is the one with the highest value according
+                to the chosen metric, it will be chosen for the annotation. In the same
+                scenarion, if `ignore_null_mode = False`, the modality with the second
+                highest value is chosen (if available, else null). `auto` defaults to
+                `False` if the metric is an enrichment, to `True` otherwise. This
+                parameter is ignored if `save_all_mods = True`. Default is `auto`.
+
 
         Returns
         -------
@@ -288,17 +302,34 @@ class BinTable(Table):
 
         """
 
-        new_df: pl.DataFrame = self.get_dataframe().hstack(
+        # TODO: Add option to make the annotation partial
+        # e.i. you can extend the annotation in a second moment (mostly for clustering)
+
+        # Join is needed in case there are previous annotation columns.
+        annot_bins = self.get_dataframe().join(
             get_annotated_bins(
                 self.get_dataframe().select(BASE_BIN_COLS),
                 annot_df,
                 metric,
                 consolidate,
                 save_all_mods,
-            ).select(pl.exclude(BASE_BIN_COLS))
+                ignore_null_mode,
+            ),
+            how="left",
+            on=BASE_BIN_COLS,
         )
 
-        return BinTable((new_df,), store_size=self._chunk_size)
+        # Fill `null` with `None` string if the annotation is string-like.
+        # This is to have a consistent result between tables stored in hdf5 (Nones)
+        # and those in parquet (nulls)
+        annot_col = [c for c in annot_df.columns if c not in BASE_BIN_COLS][0]
+        if annot_col in annot_bins.columns:
+            if annot_bins.get_column(annot_col).dtype == pl.String:
+                annot_bins = annot_bins.with_columns(
+                    pl.col(annot_col).fill_null("None")
+                )
+
+        return BinTable((annot_bins,), store_size=self._store_size)
 
 
 class PixelTable(Table):
@@ -662,9 +693,10 @@ class PixelTable(Table):
         self,
         annot_df: "DataFrame",
         *,
-        metric: Literal["bp_overlap", "chrom_enrich", "frac_overlap"] = "frac_overlap",
+        metric: AnnoMetric = "frac_overlap",
         consolidate: bool = True,
         save_all_mods: bool = False,
+        ignore_null_mode: bool | Literal["auto"] = "auto",
     ) -> None:
         """Add some annotation columns from a bed-like dataframe to the bin table.
 
@@ -676,7 +708,7 @@ class PixelTable(Table):
         annot_df: pandas.DataFrame or polars.DataFrame
             A bed-like dataframe to merge to the bin table. The dataframe must contain
             the columns "chrom", "start", "end" and 1 annotation column.
-        metric: one of ["bp_overlap", "chrom_enrich", "frac_overlap"]
+        metric: one of ["bp_overlap", "chrom_enrich", "frac_overlap"], optional
             In case of multiple intersections with a bin, metric used to decide which
             intersection to keep. Available strategies are:
 
@@ -690,16 +722,27 @@ class PixelTable(Table):
             and the fraction of bp in the chromosome containing the bin assigned to
             the annotation. Only available if `consolidate = True`.
 
-        consolidate: bool
+            Default is "frac_overlap".
+        consolidate: bool, optional
             When the annotation column is categorical with few repetitive modalities,
             if set to `True`, all intersections belonging to the same modality are
             considered jointly, summing all overlaps of the modality across the bin.
-        save_all_mods: bool
+            Default is True.
+        save_all_mods: bool, optional
             When the annotation column is categorical with few repetitive modalities,
             if set to `True`, instead of choosing the best modality for each bin
             according to the selected metric, create a column for each modality and
             save the metric for each modality for each bin. Only available if
-            `consolidate = True`.
+            `consolidate = True`. Default is False.
+        ignore_null_mode: bool or "auto", optional
+            Whether to consider no annotation (null) as an annotation modality. If
+            `True`, if the null modality is the one with the highest value according
+            to the chosen metric, it will be chosen for the annotation. In the same
+            scenarion, if `ignore_null_mode = False`, the modality with the second
+            highest value is chosen (if available, else null). `auto` defaults to
+            `False` if the metric is an enrichment, to `True` otherwise. This
+            parameter is ignored if `save_all_mods = True`. Default is `auto`.
+
 
         Note
         ----
@@ -714,6 +757,53 @@ class PixelTable(Table):
             metric=metric,
             consolidate=consolidate,
             save_all_mods=save_all_mods,
+            ignore_null_mode=ignore_null_mode,
+        )
+
+    def add_pix_annotation(self, annot_df: DataFrame) -> None:
+        """Add some annotation columns from a bed-like dataframe to the pixel table.
+
+        Add pixel annotations to the table by merging against both `bin1_id` and
+        `bin2_id` at the same time. The annotation is stored and is automatically
+        retrieved when fetching data using `get_chunks`, `get_dataframe` and
+        `get_graph`.
+
+        Parameters
+        ----------
+        annot_df : polars.DataFrame of pandas.DataFrame
+            The bed-like file from which to fetch the annotations.
+
+        Warning
+        -------
+        The current implementation is unstable and it will likely be changed in the
+        future. The main limitations of the current implementation are the following:
+
+        -  The annotation must come from a single DataFrame, which is not ideal for
+           large pixel tables.
+        -  Partial annotations (maybe due to clustering) cannot be modified
+        -  The table is updated directly in its storage, which might lead to
+           corruption if the process is halted abruptly.
+
+        """
+
+        if isinstance(annot_df, pd.DataFrame):
+            annot_df = pl.from_pandas(annot_df)
+
+        overlap: list[str] = [
+            c
+            for c in annot_df.columns
+            if c not in BASE_PIX_COLS and c in self.col_names
+        ]
+        if overlap:  # TODO: implement
+            raise NotImplementedError(
+                "Using tables with column names already present in the pixel table "
+                "is currently not supported."
+            )
+
+        anno_chunks = (
+            c.join(annot_df, on=("bin1_id", "bin2_id")) for c in self._get_chunks()
+        )
+        self._save_chunks(anno_chunks)
         )
 
     # TODO: from_graph

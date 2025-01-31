@@ -31,6 +31,7 @@ if TYPE_CHECKING:
 
 __all__ = ["HiconaCooler"]
 BASE_BIN_COLS: tuple[str, str, str] = ("chrom", "start", "end")
+AnnoMetric = Literal["bp_overlap", "frac_overlap", "chrom_enrich"]
 
 
 def _chunked_selector(selector, chunk_size) -> "PlChunks":
@@ -50,7 +51,7 @@ def _hdf5_writer(store: str, path: str, data: pl.Series) -> None:
         group: h5py.Group = h5_handle.require_group(path)
 
         if data.name in group.keys():
-            raise KeyError(f"An annotation called {data.name} already exists.")
+            raise KeyError(f"An column called {data.name} already exists.")
 
         # h5py does not recognize polars dtypes, so convert to pandas before.
         # String columns are still not recognized since they become of type "O".
@@ -59,7 +60,7 @@ def _hdf5_writer(store: str, path: str, data: pl.Series) -> None:
         dtype = (
             data.to_pandas().dtype
             if data.dtype != pl.String
-            else h5py.string_dtype(length=data.str.len_chars().max())
+            else h5py.string_dtype(length=data.fill_null("None").str.len_chars().max())
         )
 
         group.create_dataset(
@@ -183,9 +184,10 @@ class HiconaCooler(cooler.Cooler):  # type: ignore  # Cooler is not exported exp
         self,
         annot_df: "DataFrame",
         *,
-        metric: Literal["bp_overlap", "chrom_enrich", "frac_overlap"] = "frac_overlap",
+        metric: AnnoMetric = "frac_overlap",
         consolidate: bool = True,
         save_all_mods: bool = False,
+        ignore_null_mode: bool | Literal["auto"] = "auto",
     ) -> None:
         """Add a new bin annotation column to the bin table in the file.
 
@@ -197,30 +199,40 @@ class HiconaCooler(cooler.Cooler):  # type: ignore  # Cooler is not exported exp
         annot_df: pandas.DataFrame or polars.DataFrame
             A bed-like dataframe to merge to the bin table. The dataframe must contain
             the columns "chrom", "start", "end" and 1 annotation column.
-        metric: one of ["bp_overlap", "chrom_enrich", "frac_overlap"]
+        metric: one of ["bp_overlap", "chrom_enrich", "frac_overlap"], optional
             In case of multiple intersections with a bin, metric used to decide which
             intersection to keep. Available strategies are:
 
             - `bp_overlap`: keep the intersection with highest overlap in base pairs.
             - `frac_overlap`: same as `bp_overlap` but as fraction of bin size.
             - `chrom_enrich`: Requires a categorical annotation covering the entire
-              genome (initially designed for chromHMM style annotations). For each
+              genome (initially designed for chromHMM-style annotations). For each
               bin, assign the modality which is most enriched with respect to its
               own chromosome. Enrichment for a modality is computed as the log2 fold
-              change between the fraction of bp in the bin assigned to the annotation
-              and the fraction of bp in the chromosome containing the bin assigned to
-              the annotation. Only available if `consolidate = True`.
+              change between the fraction of bp in the bin assigned to the modality
+              and the fraction of bp in the chromosome (containing the bin) assigned to
+              the modality. Only available if `consolidate = True`.
 
-        consolidate: bool
+            Default is `frac_overlap`.
+        consolidate: bool, optional
             When the annotation column is categorical with few repetitive modalities,
             if set to `True`, all intersections belonging to the same modality are
             considered jointly, summing all overlaps of the modality across the bin.
-        save_all_mods: bool
+            Default is True.
+        save_all_mods: bool, optional
             When the annotation column is categorical with few repetitive modalities,
             if set to `True`, instead of choosing the best modality for each bin
             according to the selected metric, create a column for each modality and
             save the metric for each modality for each bin. Only available if
-            `consolidate = True`.
+            `consolidate = True`. Default is False.
+        ignore_null_mode: bool or "auto", optional
+            Whether to consider no annotation (null) as an annotation modality. If
+            `True`, if the null modality is the one with the highest value according
+            to the chosen metric, it will be chosen for the annotation. In the same
+            scenarion, if `ignore_null_mode = False`, the modality with the second
+            highest value is chosen (if available, else null). `auto` defaults to
+            `False` if the metric is an enrichment, to `True` otherwise. This
+            parameter is ignored if `save_all_mods = True`. Default is `auto`.
 
         Warning
         -------
@@ -236,7 +248,7 @@ class HiconaCooler(cooler.Cooler):  # type: ignore  # Cooler is not exported exp
 
         """
 
-        # Only fetch bare bins to avoid erroneous splits on alreadyt saved columns
+        # Only fetch bare bins to avoid erroneous splits on already saved columns
         bins_df: pd.DataFrame = cast(pd.DataFrame, self.bins()[:])
         bins_df = bins_df[[*BASE_BIN_COLS]]
 
@@ -246,6 +258,7 @@ class HiconaCooler(cooler.Cooler):  # type: ignore  # Cooler is not exported exp
             metric,
             consolidate,
             save_all_mods,
+            ignore_null_mode,
         )
 
         for col in annot_df:
@@ -256,6 +269,9 @@ class HiconaCooler(cooler.Cooler):  # type: ignore  # Cooler is not exported exp
 
     def bin_annot_del(self, annot_name: str) -> None:
         """Delete a bin annotation column from the bin table in the file.
+
+        Permanently remove a bin annotation column present from the bin table,
+        as long as it is not one of the default ones (e.i. "chrom", "start", "end")
 
         Parameters
         ----------
@@ -268,6 +284,7 @@ class HiconaCooler(cooler.Cooler):  # type: ignore  # Cooler is not exported exp
         the link to it; the dataset is actually still there, just not reachable. To
         actually reduce the dimension of the file, it is currently necessary to use
         an external tool, such as `h5repack`.
+
         """
 
         if annot_name in BASE_BIN_COLS:
