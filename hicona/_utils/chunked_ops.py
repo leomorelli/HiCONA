@@ -23,18 +23,15 @@ from .df_dtypes import (
     PlStream,
     Bool,
     DfDtype,
-    PdStream,
 )
 
 
 @overload
-def convert(chunks: PlStream, to: Literal["polars"]) -> PlChunks: ...
+def convert(chunks: DfStream, to: Literal["polars"]) -> PlChunks: ...
+
+
 @overload
-def convert(chunks: PlStream, to: Literal["pandas"]) -> PdChunks: ...
-@overload
-def convert(chunks: PdStream, to: Literal["polars"]) -> PlChunks: ...
-@overload
-def convert(chunks: PdStream, to: Literal["pandas"]) -> PdChunks: ...
+def convert(chunks: DfStream, to: Literal["pandas"]) -> PdChunks: ...
 
 
 def convert(chunks: DfStream, to: DfDtype) -> DfChunks:
@@ -53,18 +50,24 @@ def format_stream(
     to: Literal["polars"],
     as_chunks: Literal[True],
 ) -> PlChunks: ...
+
+
 @overload
 def format_stream(
     stream: DfStream,
     to: Literal["polars"],
     as_chunks: Literal[False],
 ) -> pl.DataFrame: ...
+
+
 @overload
 def format_stream(
     stream: DfStream,
     to: Literal["pandas"],
     as_chunks: Literal[True],
 ) -> PdChunks: ...
+
+
 @overload
 def format_stream(
     stream: DfStream,
@@ -80,22 +83,15 @@ def format_stream(
 ) -> DataFrame | DfChunks:
     """Convert an iterable of DataFrames to a DataFrame or an iterable of DataFrames."""
 
-    # TODO: The list comprehensions are needed because for some reason mypy does not
-    #       recognize the type of the generator expression as homogeneous. In theory,
-    #       the generator expression should be enough if passed to a normal list.
     match to, as_chunks:
         case "polars", True:
             return convert(stream, to)
         case "pandas", True:
             return convert(stream, to)
         case "polars", False:
-            return pl.concat(  # TODO: Fix
-                [f for f in convert(stream, to) if isinstance(f, pl.DataFrame)]
-            )
+            return pl.concat(convert(stream, to))
         case "pandas", False:
-            return pd.concat(  # TODO: Fix
-                [f for f in convert(stream, to) if isinstance(f, pd.DataFrame)]
-            )
+            return pd.concat(convert(stream, to))
         case _:
             raise ValueError("Invalid conversion target.")
 
@@ -142,10 +138,23 @@ def add_ind_col(chunks: PlStream, ind_name: str, offset: int = 0) -> PlChunks:
     """Analogous to adding an index column in polars but works in chunks."""
 
     curr_offset: int = offset
+    stream_has_ind: bool | None = None
+
     for chunk in chunks:
-        yield chunk.with_row_index(ind_name, curr_offset).with_columns(
-            pl.col(ind_name).cast(pl.Int64)
-        )
+
+        chunk_has_ind: bool = ind_name in chunk.columns
+        stream_has_ind = stream_has_ind or chunk_has_ind
+
+        if stream_has_ind != chunk_has_ind:
+            raise ValueError("All chunks should have an index column or none of them.")
+
+        if chunk_has_ind:
+            yield chunk
+        else:
+            yield chunk.with_row_index(ind_name, curr_offset).with_columns(
+                pl.col(ind_name).cast(pl.Int64)
+            )
+
         curr_offset += chunk.height
 
 

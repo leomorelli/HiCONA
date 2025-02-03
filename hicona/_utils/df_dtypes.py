@@ -1,6 +1,6 @@
 """Custom data types for type hinting."""
 
-from collections.abc import Generator, Iterator, Iterable
+from collections.abc import Callable, Generator, Iterator, Iterable
 from typing import Literal
 
 import pandas as pd
@@ -18,6 +18,8 @@ DfStream = PlStream | PdStream
 
 Bool = Literal[True] | Literal[False]
 DfDtype = Literal["pandas"] | Literal["polars"]
+
+Strategy = Callable[[PlChunks], PlChunks]
 
 # PlCollection = Iterable[pl.DataFrame] | Iterator[pl.DataFrame]
 # PdCollection = Iterable[pd.DataFrame] | Iterator[pd.DataFrame]

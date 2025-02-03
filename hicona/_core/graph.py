@@ -8,7 +8,7 @@ as the pixel count.
 
 Rather than directly inheriting from graph_tool.Graph, the graph object is
 stored as an attribute of the class. This avoids mixing the new methods and
-attributes with the methods and attributes from graph_tool.Graph. 
+attributes with the methods and attributes from graph_tool.Graph.
 This is relevant since most of the graph_tool.Graph methods will likely not be
 needed by the user, therefore this way keep the namespace cleaner.
 
@@ -17,7 +17,7 @@ needed by the user, therefore this way keep the namespace cleaner.
 from __future__ import annotations
 
 from functools import partial
-from typing import Any, cast, Generator, TYPE_CHECKING
+from typing import Any, cast, Generator, Literal, overload, TYPE_CHECKING
 
 import numpy as np
 import polars as pl
@@ -25,12 +25,19 @@ import graph_tool.all as gt  # type: ignore
 
 from .._utils.chunked_ops import convert, to_iterable
 from .._utils.dtype_conversion import NP_TO_GT, GT_TO_NP
-from .table import BinTable, PixelTable
 
 
 if TYPE_CHECKING:
-    from .._utils.df_dtypes import PlChunks, DataFrame, DfStream, Bool
+    from .._utils.df_dtypes import (
+        DataFrame,
+        DfChunks,
+        DfStream,
+        PdChunks,
+        PlChunks,
+        DfDtype,
+    )
     from .cooler import HiconaCooler
+    from .table import PixelTable
 
 
 __all__ = ["HiconaGraph"]
@@ -47,6 +54,7 @@ def _iter_item_chunks(
     coltypes: list[str],
     chunk_size: int,
 ) -> Generator[pl.DataFrame]:
+    """Convert a generator of numpy arrays into a generator of polars DataFrames."""
 
     buffer: list[np.ndarray | None] = [None] * chunk_size
     index: int = 0
@@ -56,7 +64,9 @@ def _iter_item_chunks(
 
         if index == chunk_size:
             generator = zip(colnames, coltypes, np.array(buffer).T)
-            yield pl.DataFrame({n: v.astype(t) for n, t, v in generator})
+            yield pl.DataFrame(
+                {n: v.astype(t) for n, t, v in generator}, nan_to_null=True
+            )
 
             buffer = [None] * chunk_size
             index = 0
@@ -64,7 +74,7 @@ def _iter_item_chunks(
     if index:
         buffer = [b for b in buffer if b is not None]
         generator = zip(colnames, coltypes, np.array(buffer).T)
-        yield pl.DataFrame({n: v.astype(t) for n, t, v in generator})
+        yield pl.DataFrame({n: v.astype(t) for n, t, v in generator}, nan_to_null=True)
 
 
 def _iter_bin_chunks(graph: gt.Graph, chunk_size: int) -> "PlChunks":
@@ -154,15 +164,22 @@ def _add_genomic_link(graph: gt.Graph, link_val: int):
     """Add missing genomic links to avoid isolated nodes."""
     # NOTE: Assumes that the nodes are sorted, which should be the case
 
-    genomic: gt.EdgePropertyMap = graph.new_edge_property("bool", False)
+    graph.ep["genomic"] = graph.new_edge_property("bool", False)
+
     for i in range(graph.num_vertices() - 1):
         edge = graph.edge(i, i + 1)
-        if edge is None:
-            edge = graph.add_edge(i, i + 1)
-            graph.ep.count[edge] = link_val
-            graph.ep.genomic[edge] = True
 
-    graph.ep["genomic"] = genomic
+        # Skip if the node already exists
+        if edge:
+            continue
+
+        # Skip if the bins belong to different chroms
+        if graph.vp["chrom"][i] != graph.vp["chrom"][i + 1]:
+            continue
+
+        edge = graph.add_edge(i, i + 1)
+        graph.ep.count[edge] = link_val
+        graph.ep.genomic[edge] = True
 
 
 #########################################################################################
@@ -178,7 +195,6 @@ def _get_callback_func() -> tuple[partial, list[gt.Graph], list]:
         graph: list[gt.Graph],
         parts: list[gt.PropertyArray],
     ):
-
         new_graph = state.collect_marginal(graph[0] if len(graph) > 0 else None)
         try:
             graph[0] = new_graph
@@ -275,6 +291,7 @@ def _add_vertex_clusters(graph: gt.Graph, state: gt.MixedMeasuredBlockState) -> 
 
 
 def _add_edge_clusters(graph: gt.Graph) -> None:
+    """Project node clusters on the edges where both nodes are in the same cluster."""
 
     # Compute the number of levels and initialize that many edge property maps
     num_levels: int = len([c for c in graph.vp.keys() if c.startswith("level_")])
@@ -294,7 +311,33 @@ def _add_edge_clusters(graph: gt.Graph) -> None:
 
 
 class HiconaGraph:
-    """Graph representation of a portion of 3D chromatin conformation data."""
+    """Graph representation of a portion of 3D chromatin conformation data.
+
+    A wrapper class for the :class:`graph_tool.Graph` class, implementing methods
+    which are specific for Hi-C-like data, which avoids having to directly interface
+    with the graph object for specialized operations.
+
+    Parameters
+    ----------
+    bins : polars.DataFrame, pandas.DataFrame or a interable of either.
+        A dataframe containing bin information, provided in full or in chunks.
+        The dataframe must contain at least the columns `node_id`, `chrom`, `start`
+        and `end`.
+    pixels: polars.DataFrame, pandas.DataFrame or a interable of either.
+        A dataframe containing pixel information, provided in full or in chunks.
+        The dataframe must contain at least the columns `bin1_id`, `bin2_id` and
+        `count`.
+    default_link : int, optional
+        Default value for the genomic link property, e.i. default values for
+        genomically contiguous bins if they do not have an edge already. Default is 1.
+
+
+    Warning
+    -------
+    This class requires loading all the bins and pixels into memory, which can be
+    memory-intensive, especially at high resolutions. Consider subsetting the data
+    to a chromosome or a region of interest before creating the class instance.
+    """
 
     def __init__(
         self,
@@ -303,7 +346,6 @@ class HiconaGraph:
         pixels: "DataFrame" | "DfStream",
         default_link: int = 1,
     ):
-
         bins, pixels = to_iterable(bins, pixels)
         bins = (
             pl.concat(convert(bins, "polars"))
@@ -337,17 +379,70 @@ class HiconaGraph:
         """graph_tool.Graph instance associated with the HiconaGraph."""
         return self._graph
 
+    @overload
     def get_bins(
         self,
-        region: str | None = None,
         *,
-        drop_node_id: Bool = True,
-        bare: Bool = False,
-        store_size: int = 10_000_000,
-    ) -> "BinTable":
-        """Return the bins as a dataframe."""
+        drop_node_id: bool = ...,
+        bare: bool = ...,
+        chunk_size: int = ...,
+    ) -> "PlChunks": ...
 
-        node_chunks: PlChunks = _iter_bin_chunks(self._graph, store_size)
+    @overload
+    def get_bins(
+        self,
+        *,
+        drop_node_id: bool = ...,
+        bare: bool = ...,
+        chunk_size: int = ...,
+        dtype: Literal["polars"],
+    ) -> "PlChunks": ...
+
+    @overload
+    def get_bins(
+        self,
+        *,
+        drop_node_id: bool = ...,
+        bare: bool = ...,
+        chunk_size: int = ...,
+        dtype: Literal["pandas"],
+    ) -> "PdChunks": ...
+
+    def get_bins(
+        self,
+        *,
+        drop_node_id: bool = True,
+        bare: bool = False,
+        chunk_size: int = 10_000_000,
+        dtype: DfDtype = "polars",
+    ) -> "DfChunks":
+        """Return the nodes as an iterable of bins.
+
+        Return the nodes from the graph as an iterable of bed-like dataframes.
+        All vertex properties are saved as columns, both those with which the
+        graph was initially generated, as well as those added at runtime.
+
+        Parameters
+        ----------
+        drop_node_id : bool, optional
+            Whether to drop the `node_id` column. Default is True.
+        bare : bool, optional
+            Whether to return only the columns `bin_id`, `chrom`, `start` and `end`.
+            Default is False.
+        chunk_size : int, optional
+            Max number of bins per chunk. Default is 10_000_000.
+        dtype : {"polars", "pandas"}, optional
+            Whether to return the chunks as polars or pandas dataframes.
+            Default is "polars".
+
+        Returns
+        -------
+        A generator of pandas or polars dataframes.
+            Bin chunks.
+
+        """
+
+        node_chunks: PlChunks = _iter_bin_chunks(self._graph, chunk_size)
 
         if drop_node_id:
             node_chunks = (c.drop("node_id") for c in node_chunks)
@@ -356,53 +451,118 @@ class HiconaGraph:
             bare_cols: tuple[str, ...] = ("bin_id", "chrom", "start", "end")
             node_chunks = (c.select(bare_cols) for c in node_chunks)
 
-        table = BinTable(node_chunks, store_size)
-        return table if region is None else table.subset(region)
+        return convert(node_chunks, dtype)
+
+    @overload
+    def get_pixels(
+        self,
+        *,
+        keep_genomic: bool = ...,
+        chunk_size: int = ...,
+    ) -> "PlChunks": ...
+
+    @overload
+    def get_pixels(
+        self,
+        *,
+        keep_genomic: bool = ...,
+        chunk_size: int = ...,
+        dtype: Literal["polars"],
+    ) -> "PlChunks": ...
+
+    @overload
+    def get_pixels(
+        self,
+        *,
+        keep_genomic: bool = ...,
+        chunk_size: int = ...,
+        dtype: Literal["pandas"],
+    ) -> "PdChunks": ...
 
     def get_pixels(
         self,
-        region: str | None = None,
         *,
-        keep_genomic: Bool = False,
-        store_size: int = 10_000_000,
-    ) -> "PixelTable":
-        """Return the pixels as a dataframe."""
+        keep_genomic: bool = False,
+        chunk_size: int = 10_000_000,
+        dtype: DfDtype = "polars",
+    ) -> "DfChunks":
+        """Return the edges as an iterable of pixels.
 
-        # TODO: Remove type ignore once the type checker is fixed
-        id_table: pl.DataFrame = pl.concat(_iter_bin_chunks(self._graph, store_size))
-        edge_chunks: PlChunks = _iter_pix_chunks(self._graph, store_size)
-        edge_chunks = (_node_to_bin_id(c, id_table) for c in edge_chunks)  # type: ignore
+        Return the edges from the graph as an iterable of bed-like dataframes.
+        All edge properties are saved as columns, both those with which the
+        graph was initially generated, as well as those added at runtime.
+
+        Parameters
+        ----------
+        keep_genomic : bool, optional
+            Whether to keep the genomic-link pixels added during graph creation.
+            Default is False.
+        chunk_size : int, optional
+            Max number of pixels per chunk. Default is 10_000_000.
+        dtype : {"polars", "pandas"}, optional
+            Whether to return the chunks as polars or pandas dataframes.
+            Default is "polars".
+
+        Returns
+        -------
+        A generator of pandas or polars dataframes.
+            Pixel chunks.
+
+        """
+
+        id_table: pl.DataFrame = pl.concat(_iter_bin_chunks(self._graph, chunk_size))
+        edge_chunks: PlChunks = _iter_pix_chunks(self._graph, chunk_size)
+        edge_chunks = (_node_to_bin_id(c, id_table) for c in edge_chunks)
         if not keep_genomic:
             edge_chunks = (
                 c.filter(pl.col("genomic") == 0).drop("genomic") for c in edge_chunks
             )
 
-        table = PixelTable(
-            edge_chunks,
-            bins=self.get_bins(store_size=store_size),
-            store_size=store_size,
-        )
-        return table if region is None else table.subset(region)
+        return convert(edge_chunks, dtype)
 
     @classmethod
     def from_pixel_table(
         cls, table: "PixelTable", *, region: str | None = None
     ) -> "HiconaGraph":
-        """Create a HiconaGraph from a HiconaTable instance."""
+        """Create a HiconaGraph from a PixelTable instance.
 
-        # TODO: Remove type ignore once the type checker is fixed
-        pixels: "PlChunks" = table.get_chunks(region, dtype="polars")  # type: ignore
-        bins: pl.DataFrame = table.bins.get_dataframe(region, dtype="polars")  # type: ignore
+        Parameters
+        ----------
+        table : PixelTable
+            PixelTable instance to create the graph from.
+        region : str, optional
+            Genomic region of interest in the format "chr:start-end" or "chr".
 
+        Returns
+        -------
+        HiconaGraph instance
+
+        """
+
+        pixels: "PlChunks" = table.get_chunks(region, dtype="polars")
+        bins: pl.DataFrame = table.bins.get_dataframe(region, dtype="polars")
         return cls(bins=bins, pixels=pixels)
 
     @classmethod
     def from_cooler(
         cls, handle: "HiconaCooler", *, region: str | None = None
     ) -> "HiconaGraph":
-        """Create a HiconaGraph from a HiconaCooler instance."""
+        """Create a HiconaGraph from a HiconaCooler instance.
 
-        pixels: "PixelTable" = handle.get_pixels(region)
+        Parameters
+        ----------
+        handle : HiconaCooler
+            Cooler file handler.
+        region : str, optional
+            Genomic region of interest in the format "chr:start-end" or "chr".
+
+        Returns
+        -------
+        HiconaGraph instance
+
+        """
+
+        pixels: "PixelTable" = handle.get_pixel_table(region)
         return cls.from_pixel_table(pixels, region=region)
 
     def hierarchical_clustering(
@@ -410,8 +570,18 @@ class HiconaGraph:
         force_niter: int = 50_000,
         mcmc_niter: int = 50,
         equil_kwargs: dict[str, Any] | None = None,
+        rand_seed: int = 42,
     ) -> None:
-        """Compute hierarchical clustering of the bins based on the pixels."""
+        """Compute hierarchical clustering of the bins based on the pixels.
+
+        Perform network reconstruction and hierarchical clustering of the bins.
+        The method uses a :class:`graph_tool.MixedMeasuredBlockState` object to
+        represent the state of the Markov chain, therefore assuming independent
+        edge noise when modeling.
+        # TODO: Explain better and add citation to paper.
+
+        # TODO: Document parameters once the interface becomes stable.
+        """
 
         # Create initial block state
         max_value: int = self._graph.ep.count.get_array().max()
@@ -433,6 +603,10 @@ class HiconaGraph:
         # X = self.graph.ep.count.fa.sum()
         # print(N)
         # print(X)
+
+        # Set random state for reproducibility
+        np.random.seed(rand_seed)
+        gt.seed_rng(rand_seed)
 
         # Calibrate the state
         equil_kwargs = equil_kwargs or {"wait": 1000, "mcmc_args": {"niter": 10}}
