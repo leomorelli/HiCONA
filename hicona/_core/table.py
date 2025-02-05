@@ -10,8 +10,8 @@ Temporary storages are torn down when the instance is deleted.
 
 from __future__ import annotations
 
-import os
 from functools import partial
+import os
 from typing import Any, cast, Iterable, Literal, overload, TYPE_CHECKING
 
 import numpy as np
@@ -19,7 +19,7 @@ import pandas as pd
 import polars as pl
 
 from .._utils.chunked_ops import add_ind_col, convert, rechunk, to_iterable
-from .._utils.tmp_storage import TmpStorage
+from .._utils.tmp_parquet import TmpParquet
 from ._bin_annotation import get_annotated_bins
 from .strategies import annotate_pixels, balance_pixels, subset_region
 from .graph import HiconaGraph
@@ -31,7 +31,6 @@ if TYPE_CHECKING:
         DfStream,
         PdChunks,
         PlChunks,
-        PlStream,
         DfDtype,
         Strategy,
     )
@@ -44,7 +43,7 @@ BASE_BIN_COLS: tuple[str, str, str] = ("chrom", "start", "end")
 BASE_PIX_COLS: tuple[str, str, str] = ("bin1_id", "bin2_id", "count")
 
 
-class Table(TmpStorage):
+class Table:
     """Parquet table saved in a temporary folder.
 
     Creates a folder in the temporary directory of the system to store the table data.
@@ -64,41 +63,18 @@ class Table(TmpStorage):
 
     """
 
-    def __init__(self, prefix: str, store_size: int = 10_000_000):
-        super().__init__(prefix)
+    def __init__(self, store_size: int = 10_000_000):
+        self._store = TmpParquet()
         self._store_size = store_size
 
     def _get_chunks(self, filt_expr: pl.Expr | None = None) -> "PlChunks":
         """Return the table as a generator of chunks."""
 
-        files = os.listdir(self.tmp_store)
-        files.sort()
+        for chunk in self._store.get():
+            yield chunk.filter(filt_expr if isinstance(filt_expr, pl.Expr) else True)
 
-        for file in files:
-            yield pl.read_parquet(os.path.join(self.tmp_store, file)).filter(
-                filt_expr if isinstance(filt_expr, pl.Expr) else True
-            )
-
-    def _save_chunks(self, chunks: "PlStream"):
-        """Save the provided chunks into the tmp folder."""
-
-        # TODO: add check that at least one chunk was written
-        for i, chunk in enumerate(rechunk(chunks, self._store_size)):
-            chunk.write_parquet(
-                self.tmp_store / f"chunk_{str(i).zfill(4)}.parquet",
-                statistics=False,
-            )
-
-    def _peek(self) -> dict[str, Any]:
-        """Return the first row of the dataframe as a dictionary."""
-
-        row_dict: dict[str, Any] | None = None
-        for chunk in self._get_chunks():
-            row_dict = chunk.row(0, named=True)
-            break
-
-        assert row_dict is not None, f"Table at {self.tmp_store} is empty."
-        return row_dict
+    def _put_chunks(self, chunks: "PlChunks"):
+        self._store.put(rechunk(chunks, self._store_size))
 
     @property
     def store_size(self) -> int:
@@ -122,7 +98,7 @@ class Table(TmpStorage):
             Names of all the columns in the table.
 
         """
-        return tuple(self._peek().keys())
+        return tuple(self._store.peek().keys())
 
 
 class BinTable(Table):
@@ -157,14 +133,9 @@ class BinTable(Table):
     """
 
     def __init__(self, bins: "DataFrame | DfStream", store_size: int = 10_000_000):
-        super().__init__("hicona_bins_", store_size)
 
-        polars_stream: PlStream = convert(to_iterable(bins)[0], "polars")
-        self._save_chunks(add_ind_col(polars_stream, "bin_id"))
-
-        # NOTE: bin_size is defined here since it should not change overtime
-        first_row: dict[str, Any] = self._peek()
-        self._bin_size: int = int(first_row["end"]) - int(first_row["start"])
+        super().__init__(store_size)
+        self._put_chunks(add_ind_col(convert(to_iterable(bins)[0], "polars"), "bin_id"))
 
     @property
     def bin_size(self) -> int:
@@ -176,7 +147,9 @@ class BinTable(Table):
             Bin size in base pairs.
 
         """
-        return self._bin_size
+
+        first_row: dict[str, Any] = self._store.peek()
+        return int(first_row["end"]) - int(first_row["start"])
 
     @overload
     def get_dataframe(self, region: str | None = ...) -> pl.DataFrame: ...
@@ -234,8 +207,8 @@ class BinTable(Table):
                 except ValueError:
                     raise ValueError("At least one boundary is not convertible to int.")
 
-                filt_expr &= pl.col("start") >= pl.lit(start - self._bin_size + 1)
-                filt_expr &= pl.col("end") <= pl.lit(end + self._bin_size - 1)
+                filt_expr &= pl.col("start") >= pl.lit(start - self.bin_size + 1)
+                filt_expr &= pl.col("end") <= pl.lit(end + self.bin_size - 1)
 
         df: pl.DataFrame = pl.concat(self._get_chunks(filt_expr))
         return df if dtype == "polars" else df.to_pandas()
@@ -281,7 +254,7 @@ class BinTable(Table):
         consolidate: bool = True,
         save_all_mods: bool = False,
         ignore_null_mode: bool | Literal["auto"] = "auto",
-    ) -> "BinTable":
+    ):
         """Create a new bin table with some annotation column from a bed-like dataframe.
 
         Given a dataframe containing some annotation in bed-like format, intersect
@@ -327,12 +300,6 @@ class BinTable(Table):
                 `False` if the metric is an enrichment, to `True` otherwise. This
                 parameter is ignored if `save_all_mods = True`. Default is `auto`.
 
-
-        Returns
-        -------
-        BinTable
-            A new bin table with one (or more) new annotation column(s).
-
         Note
         ----
         Currently it is assumed that the entire bin table fits into memory. If extremely
@@ -368,7 +335,10 @@ class BinTable(Table):
                     pl.col(annot_col).fill_null("None")
                 )
 
-        return BinTable((annot_bins,), store_size=self._store_size)
+        new_store = TmpParquet()
+        new_store.put(c for c in (annot_bins,))
+        self._store = new_store
+
 
 
 class PixelTable(Table):
@@ -412,8 +382,8 @@ class PixelTable(Table):
         bins: "DataFrame | DfStream | BinTable",
         store_size: int = 10_000_000,
     ):
-        super().__init__("hicona_pixels_", store_size)
-        self._save_chunks(convert(to_iterable(pixels)[0], "polars"))
+        super().__init__(store_size)
+        self._put_chunks(convert(to_iterable(pixels)[0], "polars"))
         self._bins = bins if isinstance(bins, BinTable) else BinTable(bins, store_size)
 
     @property
@@ -845,7 +815,7 @@ class PixelTable(Table):
 
         """
 
-        self._bins = self._bins.add_annotation(
+        self._bins.add_annotation(
             annot_df,
             metric=metric,
             consolidate=consolidate,
@@ -896,6 +866,9 @@ class PixelTable(Table):
         anno_chunks = (
             c.join(annot_df, on=("bin1_id", "bin2_id")) for c in self._get_chunks()
         )
-        self._save_chunks(anno_chunks)
+
+        new_store = TmpParquet()
+        new_store.put(anno_chunks)
+        self._store = new_store
         )
 

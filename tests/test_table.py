@@ -64,14 +64,16 @@ def test_bin_table_add_annotation(mock_bin_table, mock_yeast_hmm, params, expect
 
     # Save all mods == False
     if isinstance(expected, list):
-        annot_table = mock_bin_table.add_annotation(mock_yeast_hmm, **params)
-        out_arr = annot_table.get_dataframe(test_region).get_column(anno_name).to_list()
+        mock_bin_table.add_annotation(mock_yeast_hmm, **params)
+        out_arr = (
+            mock_bin_table.get_dataframe(test_region).get_column(anno_name).to_list()
+        )
         assert out_arr == expected
 
     # Save all mods == True
     elif isinstance(expected, pl.DataFrame):
-        annot_table = mock_bin_table.add_annotation(mock_yeast_hmm, **params)
-        out_arr = annot_table.get_dataframe(test_region).drop(
+        mock_bin_table.add_annotation(mock_yeast_hmm, **params)
+        out_arr = mock_bin_table.get_dataframe(test_region).drop(
             ["bin_id", "chrom", "start", "end", "weight"]
         )
 
