@@ -339,6 +339,60 @@ class BinTable(Table):
         new_store.put(c for c in (annot_bins,))
         self._store = new_store
 
+    def save(self, path: str) -> None:
+        """Save the table to a persistent storage.
+
+        BinTables are stored in the tmp folder and are deleted when execution
+        is halted or the go out of scope. This saves the table to a persistent
+        storage from which it can be loaded using the `load` class method.
+
+        Parameters
+        ----------
+        path : str
+            Path where to save the table. Must be a non-existent folder.
+
+        """
+
+        if os.path.exists(path):
+            raise OSError(f"{path} directory already exists.")
+
+        os.makedirs(path)
+        self._store.save(os.path.join(path, "bins"))
+
+    @classmethod
+    def load(cls, path: str) -> "BinTable":
+        """Load a previously saved table.
+
+        Creates a copy of a previously saved BinTable into the tmp folder to
+        be able to further work on it.
+
+        Parameters
+        ----------
+        path : str
+            Path to the previously saved BinTable instance.
+
+        Returns
+        -------
+        BinTable
+            A BinTable instance backed by a copy of the data in the tmp folder.
+
+        Note
+        ----
+        This method creates a tmp copy and does not modify the persistent one.
+        If you wish to save changes to the new tmp copy, explicitely save it
+        again using the `save` method.
+
+        """
+
+        if not os.path.isdir(path):
+            raise OSError(f"{path} is not a valid directory.")
+
+        unexpected = [f for f in os.listdir(path) if f not in ("bins", "pixels")]
+        if any(unexpected) or "bins" not in os.listdir(path):
+            raise ValueError(f"{path} does not seem to be a bin or pixel table.")
+
+        storage = TmpParquet.load(os.path.join(path, "bins"))
+        return BinTable(storage.get())
 
 
 class PixelTable(Table):
@@ -872,3 +926,54 @@ class PixelTable(Table):
         self._store = new_store
         )
 
+    def save(self, path: str) -> None:
+        """Save the table to a persistent storage.
+
+        PixelTables are stored in the tmp folder and are deleted when execution
+        is halted or the go out of scope. This saves the table to a persistent
+        storage from which it can be loaded using the `load` class method.
+
+        Parameters
+        ----------
+        path : str
+            Path where to save the table. Must be a non-existent folder.
+
+        """
+
+        self._bins.save(path)  # Let BinTable.save handle validity check
+        self._store.save(os.path.join(path, "pixels"))
+
+    @classmethod
+    def load(cls, path: str) -> "PixelTable":
+        """Load a previously saved table.
+
+        Creates a copy of a previously saved PixelTable (and associated
+        BinTable) into the tmp folder to be able to further work on it.
+
+        Parameters
+        ----------
+        path : str
+            Path to the previously saved PixelTable instance.
+
+        Returns
+        -------
+        PixelTable
+            A PixelTable instance backed by a copy of the data in the tmp folder.
+
+        Note
+        ----
+        This method creates a tmp copy and does not modify the persistent one.
+        If you wish to save changes to the new tmp copy, explicitely save it
+        again using the `save` method.
+
+        """
+
+        if not os.path.isdir(path):
+            raise OSError(f"{path} is not a valid directory.")
+
+        unexpected = [f for f in os.listdir(path) if f not in ("bins", "pixels")]
+        if any(unexpected) or "pixels" not in os.listdir(path):
+            raise ValueError(f"{path} does not seem to be a pixel table.")
+
+        storage = TmpParquet.load(os.path.join(path, "pixels"))
+        return PixelTable(storage.get(), bins=BinTable.load(path))
