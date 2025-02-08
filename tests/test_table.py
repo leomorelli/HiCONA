@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import pandas as pd
 import polars as pl
@@ -5,11 +7,18 @@ import polars.testing as pt
 import pytest
 
 from hicona import BinTable, PixelTable
+from _common import isolated_filesystem
 from _test_grids import bin_annot_test_grid
 
 
 def test_bin_table_bin_size(mock_bin_table):
     assert mock_bin_table.bin_size == 10_000
+
+
+def test_bin_table_store_size(mock_bin_table):
+    resized_tab = BinTable(mock_bin_table.get_dataframe(), store_size=50_000)
+    assert resized_tab.store_size == 50_000
+    assert mock_bin_table.store_size == 10_000_000
 
 
 @pytest.mark.parametrize(
@@ -64,14 +73,16 @@ def test_bin_table_add_annotation(mock_bin_table, mock_yeast_hmm, params, expect
 
     # Save all mods == False
     if isinstance(expected, list):
-        annot_table = mock_bin_table.add_annotation(mock_yeast_hmm, **params)
-        out_arr = annot_table.get_dataframe(test_region).get_column(anno_name).to_list()
+        mock_bin_table.add_annotation(mock_yeast_hmm, **params)
+        out_arr = (
+            mock_bin_table.get_dataframe(test_region).get_column(anno_name).to_list()
+        )
         assert out_arr == expected
 
     # Save all mods == True
     elif isinstance(expected, pl.DataFrame):
-        annot_table = mock_bin_table.add_annotation(mock_yeast_hmm, **params)
-        out_arr = annot_table.get_dataframe(test_region).drop(
+        mock_bin_table.add_annotation(mock_yeast_hmm, **params)
+        out_arr = mock_bin_table.get_dataframe(test_region).drop(
             ["bin_id", "chrom", "start", "end", "weight"]
         )
 
@@ -86,8 +97,39 @@ def test_bin_table_add_annotation(mock_bin_table, mock_yeast_hmm, params, expect
             mock_bin_table.add_annotation(mock_yeast_hmm, **params)
 
 
+def test_bin_table_save_and_load(mock_bin_table):
+    TEST_PATH = "test_bin_table"
+
+    with isolated_filesystem():
+        mock_bin_table.save(TEST_PATH)
+        new_table = BinTable.load(TEST_PATH)
+        pt.assert_frame_equal(mock_bin_table.get_dataframe(), new_table.get_dataframe())
+
+        with pytest.raises(OSError):
+            mock_bin_table.save(TEST_PATH)
+
+        with pytest.raises(OSError):
+            BinTable.load("some_random_path_that_does_not_exist")
+
+        os.makedirs("empty_folder")
+        with pytest.raises(ValueError):
+            BinTable.load("empty_folder")
+
+
 def test_pix_table_bins(mock_pix_table):
     assert isinstance(mock_pix_table.bins, BinTable)
+
+
+def test_pix_table_store_size(mock_pix_table):
+    resized_tab = PixelTable(
+        mock_pix_table.get_chunks(),
+        bins=mock_pix_table.bins.get_dataframe(),
+        store_size=50_000,
+    )
+    assert resized_tab.store_size == 50_000
+    assert resized_tab.bins.store_size == 50_000
+    assert mock_pix_table.store_size == 10_000_000
+    assert mock_pix_table.bins.store_size == 10_000_000
 
 
 def test_pix_table_colnames(mock_pix_table):
@@ -292,6 +334,29 @@ def test_pix_table_add_pix_annotation(mock_pix_table):
     # Test for repetitive name annotations
     with pytest.raises(NotImplementedError):
         mock_pix_table.add_pix_annotation(mock_pix_anno.to_pandas())
+
+
+def test_pix_table_save_and_load(mock_pix_table):
+    TEST_PATH = "test_pix_table"
+
+    with isolated_filesystem():
+        mock_pix_table.save(TEST_PATH)
+        new_table = PixelTable.load(TEST_PATH)
+        pt.assert_frame_equal(mock_pix_table.get_dataframe(), new_table.get_dataframe())
+        pt.assert_frame_equal(
+            mock_pix_table.bins.get_dataframe(),
+            new_table.bins.get_dataframe(),
+        )
+
+        with pytest.raises(OSError):
+            mock_pix_table.save(TEST_PATH)
+
+        with pytest.raises(OSError):
+            PixelTable.load("some_random_path_that_does_not_exist")
+
+        os.makedirs("empty_folder")
+        with pytest.raises(ValueError):
+            PixelTable.load("empty_folder")
 
 
 def test_pix_table_add_clustering():
