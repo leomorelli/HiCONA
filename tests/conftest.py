@@ -22,7 +22,9 @@ def mock_yeast_hmm():
 @pytest.fixture
 def mock_bin_table():
     return BinTable(
-        pl.read_csv(op.join(datadir, "yeast.10kb.bins.tsv"), separator="\t")
+        pl.read_csv(op.join(datadir, "yeast.10kb.bins.tsv"), separator="\t").cast(
+            {"start": pl.Int32, "end": pl.Int32}
+        )
     )
 
 
@@ -30,7 +32,9 @@ def mock_bin_table():
 def mock_pix_table():
     return PixelTable(
         pl.read_csv(op.join(datadir, "yeast.10kb.pixels.tsv"), separator="\t"),
-        bins=pl.read_csv(op.join(datadir, "yeast.10kb.bins.tsv"), separator="\t"),
+        bins=pl.read_csv(op.join(datadir, "yeast.10kb.bins.tsv"), separator="\t").cast(
+            {"start": pl.Int32, "end": pl.Int32}
+        ),
     )
 
 
