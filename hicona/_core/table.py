@@ -924,7 +924,6 @@ class PixelTable(Table):
         new_store = TmpParquet()
         new_store.put(anno_chunks)
         self._store = new_store
-        )
 
     def save(self, path: str) -> None:
         """Save the table to a persistent storage.
