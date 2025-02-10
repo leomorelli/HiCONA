@@ -78,7 +78,10 @@ def test_expected_normalized_cooler(mock_cooler, mock_pix_table):
     NEW_COOL_PATH = "norm_cool.cool"
 
     exp_counts = pl.read_csv(PATH_EXP_COUNTS, separator="\t")
-    pixels = mock_pix_table.get_dataframe(annotate=True)
+    pixels = mock_pix_table.get_dataframe(
+        annotate=True,
+        selection_kwargs={"balance": True},
+    )
     old_pix = pl.concat(expected_normalized_pixels(pixels, exp_counts))
 
     with isolated_filesystem():

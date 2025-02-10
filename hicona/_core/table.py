@@ -621,14 +621,14 @@ class PixelTable(Table):
             strats.append(partial(subset_region, extent=self._bins.extent(region)))
 
         if balance:
-            bins = bins or self._bins.get_dataframe(region)
+            bins = bins if bins is not None else self._bins.get_dataframe(region)
             strats.append(partial(balance_pixels, bins_df=bins))
 
         strategies = [strategies] if callable(strategies) else strategies
         strats.extend(strategies or [])  # Add user-defined strategies
 
         if annotate:
-            bins = bins or self._bins.get_dataframe(region)
+            bins = bins if bins is not None else self._bins.get_dataframe(region)
             strats.append(partial(annotate_pixels, bins_df=bins))
 
         strats.append(partial(rechunk, size=chunk_size))
