@@ -101,7 +101,7 @@ def expected_normalized_pixels(
     Parameters
     ----------
     pixels : polars.DataFrame, pandas.DataFrame or an interable of either.
-        The pixels to normalize. Must be annotated.
+        The pixels to normalize. Must be annotated and balanced.
     expected : polars.DataFrame or pandas.DataFrame
         Dataframe containing the expected counts. Columns must be "chrom1",
         "chrom2", "dist" and "expected".
@@ -175,7 +175,7 @@ def expected_normalized_cooler(handle: HiconaCooler, path: str, *, nproc: int = 
 
     expected_df: pl.DataFrame = get_expected_counts(handle, nproc=nproc)
     bins: pd.DataFrame = handle.get_bin_table().get_dataframe().to_pandas()
-    pixels: PlChunks = handle.get_pixel_table().get_chunks(annotate=True)
+    pixels: PlChunks = handle.get_pixel_table().get_chunks(annotate=True, balance=True)
 
     # Convert annotated polar chunks into bare pandas chunks
     norm_pixels: PdChunks = (
