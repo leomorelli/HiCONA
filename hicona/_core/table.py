@@ -137,6 +137,9 @@ class BinTable(Table):
         super().__init__(store_size)
         self._put_chunks(add_ind_col(convert(to_iterable(bins)[0], "polars"), "bin_id"))
 
+    def __copy__(self) -> "BinTable":
+        return BinTable(bins=self.get_dataframe(), store_size=self.store_size)
+
     @property
     def bin_size(self) -> int:
         """Return the size of the bins in base pairs (resolution).
@@ -439,6 +442,13 @@ class PixelTable(Table):
         super().__init__(store_size)
         self._put_chunks(convert(to_iterable(pixels)[0], "polars"))
         self._bins = bins if isinstance(bins, BinTable) else BinTable(bins, store_size)
+
+    def __copy__(self) -> "PixelTable":
+        return PixelTable(
+            self.get_chunks(),
+            bins=self.bins.get_dataframe(),
+            store_size=self.store_size,
+        )
 
     @property
     def bins(self) -> BinTable:
