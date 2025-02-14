@@ -140,6 +140,20 @@ class BinTable(Table):
     def __copy__(self) -> "BinTable":
         return BinTable(bins=self.get_dataframe(), store_size=self.store_size)
 
+    def copy(self) -> "BinTable":
+        """Returns a deep copy of itself.
+
+        A new temporary copy of all the data present in the table is created and the
+        handle to it is returned.
+
+        Returns
+        -------
+        BinTable
+            A deep copy of this object.
+        """
+
+        return self.__copy__()
+
     @property
     def bin_size(self) -> int:
         """Return the size of the bins in base pairs (resolution).
@@ -449,6 +463,20 @@ class PixelTable(Table):
             bins=self.bins.get_dataframe(),
             store_size=self.store_size,
         )
+
+    def copy(self) -> "PixelTable":
+        """Returns a deep copy of itself.
+
+        A new temporary copy of all the data present in the table is created and the
+        handle to it is returned.
+
+        Returns
+        -------
+        PixelTable
+            A deep copy of this object.
+        """
+
+        return self.__copy__()
 
     @property
     def bins(self) -> BinTable:
