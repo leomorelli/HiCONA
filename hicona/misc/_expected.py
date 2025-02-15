@@ -146,7 +146,12 @@ def expected_normalized_pixels(
     return pixel_stream
 
 
-def expected_normalized_cooler(handle: HiconaCooler, path: str, *, nproc: int = 4):
+def expected_normalized_cooler(
+    handle: HiconaCooler,
+    path: str,
+    *,
+    nproc: int = 4,
+) -> pl.DataFrame:
     f"""Create a new cooler with counts normalized by expected counts.
 
     Using cooltools, compute both expected count for intra chromosomal interactions
@@ -160,6 +165,11 @@ def expected_normalized_cooler(handle: HiconaCooler, path: str, *, nproc: int = 
         Open handle for the cooler to normalize.
     nproc : int
         Number of processes to spawn when using cooltools.
+
+    Returns
+    -------
+    pl.DataFrame
+        The normalization curves used to create the file.
 
     Warning
     -------
@@ -184,3 +194,5 @@ def expected_normalized_cooler(handle: HiconaCooler, path: str, *, nproc: int = 
     )
 
     cooler.create_cooler(path, bins, norm_pixels, dtypes={"count": float})
+
+    return expected_df
