@@ -30,8 +30,13 @@ def test_bin_table_store_size(mock_bin_table):
     ),
 )
 def test_bin_table_extent(mock_bin_table, query, expected):
-    print(mock_bin_table.get_dataframe(query))
     assert mock_bin_table.extent(query) == expected
+
+
+def test_bin_table_copy(mock_bin_table):
+    table_copy = mock_bin_table.copy()
+    pt.assert_frame_equal(table_copy.get_dataframe(), mock_bin_table.get_dataframe())
+    assert id(mock_bin_table) != id(table_copy)
 
 
 @pytest.mark.parametrize(
@@ -130,6 +135,22 @@ def test_pix_table_store_size(mock_pix_table):
     assert resized_tab.bins.store_size == 50_000
     assert mock_pix_table.store_size == 10_000_000
     assert mock_pix_table.bins.store_size == 10_000_000
+
+
+def test_pix_table_copy(mock_pix_table):
+
+    table_copy = mock_pix_table.copy()
+
+    pt.assert_frame_equal(
+        table_copy.bins.get_dataframe(),
+        mock_pix_table.bins.get_dataframe(),
+    )
+    pt.assert_frame_equal(
+        table_copy.get_dataframe(),
+        mock_pix_table.get_dataframe(),
+    )
+    assert id(mock_pix_table) != id(table_copy)
+    assert id(mock_pix_table.bins) != id(table_copy.bins)
 
 
 def test_pix_table_colnames(mock_pix_table):
