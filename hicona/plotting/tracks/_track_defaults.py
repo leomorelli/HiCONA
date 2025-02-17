@@ -15,8 +15,9 @@ _TRACK_DEFAULTS: dict[str, dict] = {
     "BinTrack": {},
     "PixelClusters": {
         "transform": False,
-        "cmap": Palettes.WHITE_ZERO_CLUST.value,
+        "cmap": Palettes.CLUST.value,
         "color_bar": "no",
+        "min_value": 1,
     },
     "PixelCounts": {
         "title": "Pixel\ncounts",
