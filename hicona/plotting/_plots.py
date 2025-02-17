@@ -25,7 +25,7 @@ _CLUSTER_STYLES: dict[str, tuple[Callable, Callable]] = {
     "lane": (BinClusters, lambda x: x.bins),
     "matrix": (PixelClusters, lambda x: x),
 }
-_DPIS: int = 300
+_DPIS: int = 450
 
 
 def plot_clustering(
