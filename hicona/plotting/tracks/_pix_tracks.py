@@ -45,7 +45,12 @@ class PixelTrack(cp.HicMatBase):
         self._table: PixelTable = pixel_table
         self._value_col: str = value_col
 
-    def fetch_data(self, gr: str | cp.GenomeRange, **kwargs) -> "np.ndarray":
+    def fetch_data(
+        self,
+        gr: str | cp.GenomeRange,
+        gr2: str | cp.GenomeRange | None = None,
+        **kwargs,
+    ) -> "np.ndarray":
         """Fetch the pixels corresponding to the genomic region in a dense matrix.
 
         Added for compatibility with CoolBox API. When not plotting, use
@@ -55,8 +60,10 @@ class PixelTrack(cp.HicMatBase):
         ----------
         gr : str or GenomeRange
             Genomic region of interest.
+        gr2 : str or GenomeRange or None
+            Useless, currently present only for signature compatibility with CoolBox API.
         **kwargs
-            Currently present only for signature compatibility with CoolBox API.
+            Useless, currently present only for signature compatibility with CoolBox API.
 
         Returns
         -------
@@ -64,6 +71,9 @@ class PixelTrack(cp.HicMatBase):
             Dense matrix of pixel values.
 
         """
+
+        if gr2 or kwargs:
+            raise NotImplementedError("Currently, `gr` is the only supported parameter")
 
         if isinstance(gr, cp.GenomeRange):
             gr = f"{gr.chrom}:{gr.start}-{gr.end}"
