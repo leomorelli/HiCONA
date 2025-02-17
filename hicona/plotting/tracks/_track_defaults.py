@@ -30,7 +30,6 @@ _TRACK_DEFAULTS: dict[str, dict] = {
     },
     "PixelTrack": {
         "depth_ratio": 0.5,
-        "height": 13.0,
     },
 }
 
