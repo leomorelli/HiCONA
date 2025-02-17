@@ -2,17 +2,14 @@
 
 import re
 from functools import partial
-
 from typing import Callable, Iterable
 
 import coolbox.api as ca
 from matplotlib.figure import Figure
 
-from hicona.plotting.tracks._pix_tracks import PixelProbs
-
 from .._core.table import PixelTable
 from ._dtypes import ClusterStyle, MatrixStyle
-from .tracks import BinClusters, PixelClusters, PixelCounts
+from .coolbox_api import BinClusters, PixelClusters, PixelCounts, PixelProbs
 
 
 __all__ = ("plot_comparison", "plot_clustering", "plot_table")
