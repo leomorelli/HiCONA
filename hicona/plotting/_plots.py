@@ -2,109 +2,39 @@
 
 import re
 from functools import partial
-
-from typing import Callable, Iterable
+from typing import Callable, Iterable, Literal
 
 import coolbox.api as ca
+import matplotlib as mpl
 from matplotlib.figure import Figure
 
-from hicona.plotting.tracks._pix_tracks import PixelProbs
-
 from .._core.table import PixelTable
-from ._dtypes import ClusterStyle, MatrixStyle
-from .tracks import BinClusters, PixelClusters, PixelCounts
+from ._styling import get_rc_style
+from .coolbox_api import (
+    XAxis,
+    BinClusters,
+    ChromName,
+    PixelClusters,
+    PixelCounts,
+    PixelProbs,
+)
 
 
 __all__ = ("plot_comparison", "plot_clustering", "plot_table")
 
 
-# Mapping from plotting cluster modality to objects to use. In the tuple, in order:
-# - Class of the track to use for each level
-# - Lambda function to obtain the data input for the class starting from a PixelTable
-_CLUSTER_STYLES: dict[str, tuple[Callable, Callable]] = {
-    "lane": (BinClusters, lambda x: x.bins),
-    "matrix": (PixelClusters, lambda x: x),
+_DEFAULT_PLOT_STYLE_WIDTH: dict[str, int] = {
+    "publication": 9,
+    "slides": 25,
 }
-_DPIS: int = 450
 
+_HEADER_RATIO = 16  # width/x is the height of header tracks
+_BIN_CLUST_RATIO = 20  # width/x is the height of bin cluster tracks
+# Maybe make height function of font size? Else rescaling breaks too much
 
-def plot_clustering(
-    table: "PixelTable",
-    region: str,
-    *,
-    style: ClusterStyle = "lane",
-    min_level: int = 0,
-    max_level: int | None = None,
-    tracks: ca.Track | Iterable[ca.Track] | None = None,
-    path: str | None = None,
-) -> Figure:
-    """Plot hierarchical clustering results for a pixel table.
-
-    Given a pixel table on which hierarchical clustering was performed, create a
-    plot displaying the results below the count matrix.
-
-    Parameters
-    ----------
-    table : PixelTable
-        Table on which hierachical clustering was performed.
-    region : str
-        Genomic region of interest.
-    style : "lane" or "matrix", optional
-        Style in which to display the results of the clustering.
-
-        - "lane": display the bin cluster levels as rows below the count matrix. Default.
-        - "matrix": display the clustering levels using pixel matrices, where each pixel
-          is colored according to its cluster if both bins belong to the same cluster.
-
-    min_level : int, optional
-        First level of the clustering hierarchy to plot. Default is 0.
-    max_level : int, optional
-        Lase level of the clustering hierarchy to plot. Default is 1.
-    tracks : coolbox Tracks or an iterable of them, optional
-        Any additional Track object (or instance of a class inheriting from it) to add
-        below the clustering ones.
-    path : str, optional
-        If provided, save the figure at that position.
-
-    Returns
-    -------
-    Figure
-        The composite figure.
-    """
-
-    _BIG_NUMBER: int = 10_000  # Unreasonably big number for cluster level
-
-    try:
-        mod_class, mod_data = _CLUSTER_STYLES[style]
-    except KeyError:
-        raise KeyError(f"`{style}` is not a valid modality.")
-
-    # Base plot
-    frame: ca.Frame = ca.ChromName(fontsize=20) + ca.XAxis()  # type: ignore
-    frame += PixelCounts(table)  # type: ignore
-
-    # Clustering part
-    max_level = max_level if max_level is not None else _BIG_NUMBER
-    for lev in range(min_level, max_level + 1):
-        try:
-            frame += mod_class(mod_data(table), lev)  # type: ignore
-            frame += ca.Spacer(0.1)  # type: ignore
-        except KeyError:
-            break
-
-    # Add any additional user provided track
-    if tracks:
-        tracks = [tracks] if isinstance(tracks, ca.Track) else tracks
-        for track in tracks:
-            frame += track  # type: ignore
-
-    assert isinstance(frame, ca.Frame)
-    figure: Figure = frame.plot(region)
-
-    if path:
-        figure.savefig(path, dpi=_DPIS)
-
-    return figure
+ClusterStyle = Literal["bins", "pixels"]
+MatrixStyle = Literal["matrix", "triangular", "window"]
+PlotStyle = Literal["publication", "slides"]
 
 
 def _infer_pix_track(col_name: str) -> Callable:
@@ -125,13 +55,162 @@ def _infer_pix_track(col_name: str) -> Callable:
         raise ValueError(f"Cannot infer track type for column `{col_name}`.")
 
 
+def _get_frame_width(width: float | None, style: str) -> float:
+    """Return the actual float value of the width."""
+
+    if not width:
+        width = _DEFAULT_PLOT_STYLE_WIDTH.get(style)
+    if not width:
+        raise ValueError("Must provide a width value for custom formats.")
+    return width
+
+
+def _plot_figure(
+    region: str,
+    *,
+    main_tracks: list[ca.Track],
+    user_tracks: None | ca.Track | Iterable[ca.Track],
+    width: float | None,
+    style: str,
+    path: str | None
+):
+    """Generalized function to set aspects which are shared by all types of plots."""
+
+    # Header tracks
+    width = _get_frame_width(width, style)
+    height_unit = width / _HEADER_RATIO
+    frame: ca.Frame = ChromName(height=height_unit) + XAxis(height=height_unit)  # type: ignore
+    frame.properties["width"] = width
+
+    # Additional user provided tracks
+    user_tracks = [] if user_tracks is None else user_tracks
+    user_tracks = [user_tracks] if isinstance(user_tracks, ca.Track) else user_tracks
+    # NOTE: uncomment this code if you decide to go back to the idea of arbitrary units
+    # for track in user_tracks:
+    #     if not hasattr(track, "get_track_height"):
+    #         if not track.properties.get("height"):
+    #             track.properties["height"] = 1
+    #         track.properties["height"] *= UNIT_RATIO
+    main_tracks.extend(user_tracks)
+
+    # Add all tracks
+    for track in main_tracks:
+        frame += track  # type: ignore
+    assert isinstance(frame, ca.Frame)
+
+    # Plot using a style sheet
+    with mpl.rc_context(fname=get_rc_style(style)):
+        figure: Figure = frame.plot(region)
+
+    # Save figure
+    if path:
+        figure.savefig(path)
+
+    return figure
+
+
+def plot_clustering(
+    table: "PixelTable",
+    region: str,
+    *,
+    modality: ClusterStyle = "pixels",
+    min_level: int = 0,
+    max_level: int | None = None,
+    depth_ratio: float = 0.5,
+    tracks: ca.Track | Iterable[ca.Track] | None = None,
+    style: PlotStyle | str = "slides",
+    width: float | None = None,
+    path: str | None = None,
+) -> Figure:
+    """Plot hierarchical clustering results for a pixel table.
+
+    Given a pixel table on which hierarchical clustering was performed, create a
+    plot displaying the results below the count matrix.
+
+    Parameters
+    ----------
+    table : PixelTable
+        Table on which hierachical clustering was performed.
+    region : str
+        Genomic region of interest.
+    modality : "lane" or "matrix", optional
+        Modality in which to display the results of the clustering.
+
+        - "lane": display the bin cluster levels as rows below the count matrix. Default.
+        - "matrix": display the clustering levels using pixel matrices, where each pixel
+          is colored according to its cluster if both bins belong to the same cluster.
+
+    min_level : int, optional
+        First level of the clustering hierarchy to plot. Default is 0.
+    max_level : int, optional
+        Lase level of the clustering hierarchy to plot. Default is 1.
+    depth_ratio : float, optional
+        Fraction of the height of the pixels to display. Default is 0.5.
+    tracks : coolbox Tracks or an iterable of them, optional
+        Any additional Track object (or instance of a class inheriting from it) to add
+        below the default ones. Track height is treated as centimeters.
+    style : "slides", "publication" or path string, optional
+        Name of a default plotting style or path to a valid mplstyle file.
+        Default is `slides`.
+    width : float, optional
+        Width of the plot in centimeters. Required when using a custom plotting style,
+        otherwise default width for the default style.
+    path : str, optional
+        If provided, save the figure at that position. Default is None.
+
+    Returns
+    -------
+    Figure
+        The composite figure.
+
+    """
+
+    _BIG_NUMBER: int = 10_000  # Unreasonably big number for cluster level
+
+    # How to plot clustering tracks
+    match modality:
+        case "bins":
+            track_height = _get_frame_width(width, style) / _BIN_CLUST_RATIO
+            factory = partial(
+                BinClusters,
+                table.bins,
+                depth_ratio=depth_ratio,
+                height=track_height,
+            )
+        case "pixels":
+            factory = partial(PixelClusters, table, depth_ratio=depth_ratio)
+        case _:
+            raise ValueError(f"`{modality}` is not a valid modality.")
+
+    # Main tracks definition
+    main_tracks: list[ca.Track] = [PixelCounts(table, depth_ratio=depth_ratio)]
+    max_level = max_level if max_level is not None else _BIG_NUMBER
+    for lev in range(min_level, max_level + 1):
+        try:
+            main_tracks.append(factory(lev))
+        except KeyError:
+            break
+
+    return _plot_figure(
+        region,
+        main_tracks=main_tracks,
+        user_tracks=tracks,
+        width=width,
+        style=style,
+        path=path,
+    )
+
+
 def plot_table(
     table: "PixelTable",
     region: str,
     *,
     value_col: str = "count",
-    style: MatrixStyle = "triangular",
+    modality: MatrixStyle = "triangular",
+    depth_ratio: float = 0.5,
     tracks: ca.Track | Iterable[ca.Track] | None = None,
+    style: PlotStyle | str = "slides",
+    width: float | None = None,
     path: str | None = None,
 ) -> Figure:
     """Plot some column from a pixel table.
@@ -145,12 +224,21 @@ def plot_table(
     value_col : str, optional
         Column from the pixel table to use as values for the plot. Column name is also
         used to infer the type of track to use for plotting. Default is "count".
-    style : "matrix", "triangular" or "window", optional
+    modality : "matrix", "triangular" or "window", optional
         Display modality of the matrix track. See coolbox documentation for more
         information. Default is "window".
+    depth_ratio : float, optional
+        Fraction of the height of the pixels to display. Ignored if `modality = matrix`.
+        Default is 0.5.
     tracks : coolbox Tracks or an iterable of them, optional
         Any additional Track object (or instance of a class inheriting from it) to add
-        below the clustering ones.
+        below the default ones. Track height is treated as centimeters.
+    style : "slides", "publication" or path string, optional
+        Name of a default plotting style or path to a valid mplstyle file.
+        Default is `slides`.
+    width : float, optional
+        Width of the plot in centimeters. Required when using a custom plotting style,
+        otherwise default width for the default style.
     path : str, optional
         If provided, save the figure at that position.
 
@@ -161,24 +249,18 @@ def plot_table(
 
     """
 
-    main_track: ca.Track = _infer_pix_track(value_col)(table, style=style)
+    main_track: ca.Track = _infer_pix_track(value_col)(
+        table, style=modality, depth_ratio=depth_ratio
+    )
 
-    frame: ca.Frame = ca.ChromName(fontsize=20) + ca.XAxis()  # type: ignore
-    frame += main_track  # type: ignore
-
-    # Add any additional user provided track
-    if tracks:
-        tracks = [tracks] if isinstance(tracks, ca.Track) else tracks
-        for track in tracks:
-            frame += track  # type: ignore
-
-    assert isinstance(frame, ca.Frame)
-    figure: Figure = frame.plot(region)
-
-    if path:
-        figure.savefig(path, dpi=_DPIS)
-
-    return figure
+    return _plot_figure(
+        region,
+        main_tracks=[main_track],
+        user_tracks=tracks,
+        width=width,
+        style=style,
+        path=path,
+    )
 
 
 def plot_comparison(
@@ -186,7 +268,10 @@ def plot_comparison(
     region: str,
     *,
     value_cols: str | Iterable[str] = "count",
+    depth_ratio: float = 0.5,
     tracks: ca.Track | Iterable[ca.Track] | None = None,
+    style: PlotStyle | str = "slides",
+    width: float | None = None,
     path: str | None = None,
 ) -> Figure:
     """Plot the comparison of pixel tables and value columns.
@@ -203,10 +288,18 @@ def plot_comparison(
         Genomic region of interest.
     value_cols : str or iterable of them, optional
         Column(s) from the pixel table(s) to use as values for the tracks in the plot.
+    depth_ratio : float, optional
+        Fraction of the height of the pixels to display. Default is 0.5.
         Default is "count".
     tracks : coolbox Tracks or an iterable of them, optional
         Any additional Track object (or instance of a class inheriting from it) to add
-        below the clustering ones.
+        below the default ones. Track height is treated as centimeters.
+    style : "slides", "publication" or path string, optional
+        Name of a default plotting style or path to a valid mplstyle file.
+        Default is `slides`.
+    width : float, optional
+        Width of the plot in centimeters. Required when using a custom plotting style,
+        otherwise default width for the default style.
     path : str, optional
         If provided, save the figure at that position.
 
@@ -217,6 +310,7 @@ def plot_comparison(
 
     """
 
+    # Input checks
     tables = [tables] if isinstance(tables, PixelTable) else [*tables]
     value_cols = [value_cols] if isinstance(value_cols, str) else [*value_cols]
 
@@ -226,32 +320,41 @@ def plot_comparison(
     if any([len(value_cols) == 0, len(tables) == 0]):
         raise ValueError("Expected at least one table and one value column.")
 
-    # Create all tracks and their orientations
-    frame: ca.Frame = ca.ChromName(fontsize=20) + ca.XAxis()  # type: ignore
+    # Main tracks definition
+    main_tracks: list[ca.Track]
     match len(tables), len(value_cols):
         case 1, 2:
-            frame += _infer_pix_track(value_cols[0])(tables[0])  # type: ignore
-            frame += _infer_pix_track(value_cols[1])(tables[0], orientation="inverted")  # type: ignore
+            main_tracks = [
+                _infer_pix_track(value_cols[0])(tables[0], depth_ratio=depth_ratio),
+                _infer_pix_track(value_cols[1])(
+                    tables[0], orientation="inverted", depth_ratio=depth_ratio
+                ),
+            ]
         case 2, 1:
-            frame += _infer_pix_track(value_cols[0])(tables[0])  # type: ignore
-            frame += _infer_pix_track(value_cols[0])(tables[1], orientation="inverted")  # type: ignore
+            main_tracks = [
+                _infer_pix_track(value_cols[0])(tables[0], depth_ratio=depth_ratio),
+                _infer_pix_track(value_cols[0])(
+                    tables[1], orientation="inverted", depth_ratio=depth_ratio
+                ),
+            ]
         case 1, _:
-            for col in value_cols:
-                frame += _infer_pix_track(col)(tables[0])  # type: ignore
+            main_tracks = [
+                _infer_pix_track(col)(tables[0], depth_ratio=depth_ratio)
+                for col in value_cols
+            ]
         case _, 1:
-            for tab in tables:
-                frame += _infer_pix_track(value_cols[0])(tab)  # type: ignore
+            main_tracks = [
+                _infer_pix_track(value_cols[0])(tab, depth_ratio=depth_ratio)
+                for tab in tables
+            ]
+        case _, _:
+            raise ValueError("This branch should not be reachable, some check failed.")
 
-    # Add any additional user provided track
-    if tracks:
-        tracks = [tracks] if isinstance(tracks, ca.Track) else tracks
-        for track in tracks:
-            frame += track  # type: ignore
-
-    assert isinstance(frame, ca.Frame)
-    figure: Figure = frame.plot(region)
-
-    if path:
-        figure.savefig(path, dpi=_DPIS)
-
-    return figure
+    return _plot_figure(
+        region,
+        main_tracks=main_tracks,
+        user_tracks=tracks,
+        width=width,
+        style=style,
+        path=path,
+    )
