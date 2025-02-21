@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 import coolbox.api as cp
 import numpy as np
 
+from ._compatibility import HicMatBase
 from ._track_defaults import get_updated_defaults
 
 if TYPE_CHECKING:
@@ -13,7 +14,7 @@ if TYPE_CHECKING:
 __all__ = ("PixelTrack", "PixelCounts", "PixelProbs", "PixelClusters")
 
 
-class PixelTrack(cp.HicMatBase):
+class PixelTrack(HicMatBase):
     """Multi-purpose track for data coming from a PixelTable.
 
     Subclass of :class:`coolbox.api.HicMatBase`, designed to fetch data from a
@@ -30,7 +31,6 @@ class PixelTrack(cp.HicMatBase):
     **kwargs
         Additional parameters to be passed to the HicMatBase constructor.
 
-    # TODO: Add see also
     """
 
     def __init__(
@@ -93,6 +93,7 @@ class PixelCounts(PixelTrack):
     **kwargs
         Additional parameters to be passed to the HicMatBase constructor. These will
         override any declaration of the same parameter from the default values.
+
     """
 
     def __init__(
@@ -125,6 +126,7 @@ class PixelProbs(PixelTrack):
     **kwargs
         Additional parameters to be passed to the HicMatBase constructor. These will
         override any declaration of the same parameter from the default values.
+
     """
 
     def __init__(
@@ -160,6 +162,7 @@ class PixelClusters(PixelTrack):
     **kwargs
         Additional parameters to be passed to the HicMatBase constructor. These will
         override any declaration of the same parameter from the default values.
+
     """
 
     def __init__(

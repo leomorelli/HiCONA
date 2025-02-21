@@ -1,9 +1,9 @@
 """Custom CoolBox tracks for the visualization of bin table features."""
 
-from typing import Any, Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 
 import coolbox.api as cp
-from coolbox.core.track.base import Track
+from matplotlib.axes import Axes
 import polars as pl
 import seaborn as sns
 
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 __all__ = ("BinTrack", "BinClusters")
 
 
-class BinTrack(Track):
+class BinTrack(cp.Track):
     """Base class for BinTable-based tracks.
 
     Implements data fetching from a BinTable. Return the data corresponding to the
@@ -29,6 +29,8 @@ class BinTrack(Track):
     ----------
     bin_table : BinTable
         Bin table containing the data to be displayed.
+    **kargs
+        Additional keyword arguments passed to cooltools.api.Track class constructor.
 
     """
 
@@ -67,8 +69,26 @@ class BinTrack(Track):
             return None
 
 
+# TODO: maybe change constructor to take name directly for compatibility purposes
 class BinClusters(BinTrack):
-    """Track to visualize a level of bin hierarchical clustering."""
+    """Track to visualize a level of bin hierarchical clustering.
+
+    Displays a track-like heatmap with information on a bin clustering level.
+    Clustering must be already present in the table.
+
+    Parameters
+    ----------
+    bin_table : BinTable
+        Bin table containing the clustering data to be displayed.
+    level : int
+        Level of the clustering hierarchy to display
+    col_name_pattern : str
+        Level naming pattern which, when formatted with level argument, returns the
+        hierarchy level column name to display. Default is "level_({})".
+    **kargs
+        Additional keyword arguments passed to cooltools.api.Track class constructor.
+
+    """
 
     def __init__(
         self,
@@ -94,10 +114,23 @@ class BinClusters(BinTrack):
         self._level = level
         self._col_name_pattern = col_name_pattern
 
-    def plot(self, ax: Any, gr: str | cp.GenomeRange, **kwargs) -> None:
-        """Plot"""
+    def plot(self, ax: Axes, gr: str | cp.GenomeRange, **kwargs) -> None:
+        """Plot the bin clustering hierarchy level.
 
-        TITLE_PATTERN: str = "level {}"
+        Display the bin clustering hierarchy level at the provided axes using a heatmap.
+
+        Parameters
+        ----------
+        ax : matplotlib.axes.Axes
+            Axes in which to plot the data.
+        gr : str or GenomicRange
+            Genomic region to plot.
+        **kwargs
+            Useless, currently present only for signature compatibility with CoolBox API.
+
+        """
+
+        TITLE_PATTERN: str = "Level {}"
 
         data: pl.DataFrame | None = self.fetch_data(gr)
         if data is None:
@@ -114,7 +147,7 @@ class BinClusters(BinTrack):
             0.05,
             0.5,
             TITLE_PATTERN.format(self._level),
-            size="large",
+            size="small",
             horizontalalignment="left",
             verticalalignment="center",
         )
