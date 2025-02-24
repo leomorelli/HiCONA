@@ -13,6 +13,7 @@ test_script.py
 test.py
 
 # Ignore test files
+.coverage
 */.coverage
 
 # Ignore misc
@@ -29,4 +30,3 @@ mprofile*
 # Ignore mypy
 .mypy_cache
 mypy.ini
-
