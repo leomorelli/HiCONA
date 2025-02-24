@@ -1,11 +1,11 @@
 HiCONA - Hi-C Organization Network Analysis
 ===========================================
 
-**HiCONA** is a Python3 package whose aim is to provide the tools to perform 
+**HiCONA** is a Python3 package whose aim is to provide the tools to perform
 network analysis on Hi-C contact matrices. A Hi-C contact matrix is in fact
-an adjacency matrix, and thus a natural representation for a graph, but 
-despite this fact it is hardly ever used as such. This is mostly due to 
-how difficult it can be to handle these huge sparse matrices. 
+an adjacency matrix, and thus a natural representation for a graph, but
+despite this fact it is hardly ever used as such. This is mostly due to
+how difficult it can be to handle these huge sparse matrices.
 
 HiCONA tries to address these needs by building on top of two main packages:
 
@@ -16,41 +16,39 @@ HiCONA adheres as much as possible to the cooler format specifications,
 striving to maintain full compatibility and the ability to be integrated with
 other tools.
 
-Moreover HiCONA implements other algorithms, especially for preprocessing, 
+Moreover HiCONA implements other algorithms, especially for preprocessing,
 optimized for both computational and memory efficiency.
-
-Documentation
--------------
 
 Installation
 ------------
-*This does not actually work, it is placeholder text.*
 
-Due to the usage of graph-tool as a dependency, the installation of HiCONA in
-a dedicated environment is highly incentivised. Via Conda, create a new 
-environment, and activate it, by running:
+From source
+-----------
 
-.. code-block::
+Currently, HiCONA can only be installed from source. To do so, first create a new
+conda environment; this is required for one of the dependencies (graph-tool). We
+strongly encourage the use of mamba as solver, since conda can take hours solving
+the environment.
 
-    conda create -n HiCONA
-    conda activate HiCONA
+```
+mamba create -n hicona_env python=3.11
+mamba activate hicona_env
+```
 
-Currently, due to some compatibility issues, it is required to manually
-install Cooler and graph-tool **in this order** (despite graph-tool
-documentation suggesting to install graph-tool first):
+Install the required dependency graph-tool.
 
-.. code-block::
+```
+mamba install graph-tool
+```
 
-    conda install -c conda-forge -c bioconda cooler
-    conda install -c conda-forge graph-tool
+**NOTE**: graph-tool **MUST** be installed first (due to numpy dependency conflicts)
+Then, simply clone the repository and install using pip
 
-Then one can finally install HiCONA:
-
-.. code-block::
-
-    conda install -c conda-forge hicona
-
-In the future the whole procedure will be streamlined.
+```
+git clone git@github.com:leomorelli/HiCONA.git hicona
+cd hicona
+pip install .
+```
 
 
 Citing
