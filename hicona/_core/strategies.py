@@ -14,7 +14,10 @@ if TYPE_CHECKING:
     from .._utils.df_dtypes import PlChunks
 
 
-def subset_region(chunks: "PlChunks", extent: tuple[int, int]) -> "PlChunks":
+__all__ = ("annotate_pixels", "balance_pixels", "subset_region")
+
+
+def subset_region(chunks: "PlChunks", *, extent: tuple[int, int]) -> "PlChunks":
     """Subset the chunks to a genomic region.
 
     Parameters
@@ -43,7 +46,7 @@ def subset_region(chunks: "PlChunks", extent: tuple[int, int]) -> "PlChunks":
         yield chunk.filter(pix_filt)
 
 
-def annotate_pixels(chunks: "PlChunks", bins_df: pl.DataFrame) -> "PlChunks":
+def annotate_pixels(chunks: "PlChunks", *, bins_df: pl.DataFrame) -> "PlChunks":
     """Annotate the pixels with bin information.
 
     Parameters
@@ -69,7 +72,12 @@ def annotate_pixels(chunks: "PlChunks", bins_df: pl.DataFrame) -> "PlChunks":
         )
 
 
-def balance_pixels(chunks: "PlChunks", bins_df: pl.DataFrame) -> "PlChunks":
+def balance_pixels(
+    chunks: "PlChunks",
+    *,
+    bins_df: pl.DataFrame,
+    drop_nulls: bool = True,
+) -> "PlChunks":
     """Balance the pixel counts by the bin weights.
 
     It is assumed that the bin weights are stored in the 'weight' column.
@@ -81,6 +89,8 @@ def balance_pixels(chunks: "PlChunks", bins_df: pl.DataFrame) -> "PlChunks":
         Iterable of polars chunks.
     bins_df : pl.DataFrame
         DataFrame containing the bin information.
+    drop_nulls : bool
+        Whether to remove pixels whose count column became null during balancing.
 
     Returns
     -------
@@ -100,4 +110,5 @@ def balance_pixels(chunks: "PlChunks", bins_df: pl.DataFrame) -> "PlChunks":
             .join(weights, how="left", left_on="bin2_id", right_on="bin_id", suffix="2")
             .with_columns((pl.col("count") * pl.col("weight2")).alias("count"))
             .drop("weight", "weight2")
+            .filter(pl.col("count").is_not_null() if drop_nulls else pl.lit(True))
         )

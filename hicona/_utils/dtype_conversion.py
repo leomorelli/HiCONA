@@ -32,7 +32,7 @@ NP_TO_GT: dict[str, str] = {
     "float128": "long double",
     # "uint8": "",
     # "uint16": "",
-    # "uint32": "",
+    "uint32": "int32_t",
     # "uint64": "",
     # "complex64": "",
     # "complex128": "",

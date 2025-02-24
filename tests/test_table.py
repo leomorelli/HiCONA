@@ -10,6 +10,8 @@ from hicona import BinTable, PixelTable
 from _common import isolated_filesystem
 from _test_grids import bin_annot_test_grid
 
+CLUST_REGION = "chr1:0-100000"
+
 
 def test_bin_table_bin_size(mock_bin_table):
     assert mock_bin_table.bin_size == 10_000
@@ -380,5 +382,83 @@ def test_pix_table_save_and_load(mock_pix_table):
             PixelTable.load("empty_folder")
 
 
-def test_pix_table_add_clustering():
-    pass
+@pytest.mark.parametrize("mode", ("no", "bins", "pixels"))
+def test_pix_table_add_clustering_modes(mock_small_pix_table, mode):
+    # NOTE: no check is performed on the actual values, no reasonable way to do it
+
+    mock_small_pix_table.add_clustering(CLUST_REGION, marginals=mode)
+
+    match mode:
+        case "no":
+            assert "pix_prob" not in mock_small_pix_table.col_names
+            assert "pix_group" not in mock_small_pix_table.col_names
+            assert "bin_prob" not in mock_small_pix_table.bins.col_names
+        case "bins":
+            assert "pix_prob" not in mock_small_pix_table.col_names
+            assert "pix_group" not in mock_small_pix_table.col_names
+            assert "bin_prob" in mock_small_pix_table.bins.col_names
+        case "pixels":
+            assert "pix_prob" in mock_small_pix_table.col_names
+            assert "pix_group" in mock_small_pix_table.col_names
+            assert "bin_prob" in mock_small_pix_table.bins.col_names
+
+
+def test_pix_table_add_clustering_invalid_mode(mock_small_pix_table):
+    INVALID_MODE = "Resistance is futile, you will be assimilated"
+
+    with pytest.raises(ValueError):
+        mock_small_pix_table.add_clustering(CLUST_REGION, marginals=INVALID_MODE)
+
+
+def test_pix_table_add_clustering_seed(mock_small_pix_table):
+
+    rep1 = mock_small_pix_table.copy()
+    rep1.add_clustering(CLUST_REGION, seed=23, marginals="bins")
+
+    rep2 = mock_small_pix_table.copy()
+    rep2.add_clustering(CLUST_REGION, seed=23, marginals="bins")
+
+    diff = mock_small_pix_table.copy()
+    diff.add_clustering(CLUST_REGION, seed=42, marginals="bins")
+
+    pt.assert_frame_equal(rep1.bins.get_dataframe(), rep2.bins.get_dataframe())
+    pt.assert_frame_equal(rep1.get_dataframe(), rep1.get_dataframe())
+
+    pt.assert_frame_not_equal(rep1.bins.get_dataframe(), diff.bins.get_dataframe())
+
+
+def test_pix_table_add_clustering_float_counts(mock_pix_table):
+    # NOTE: no check is performed on the actual values, no reasonable way to do it
+
+    table = PixelTable(
+        mock_pix_table.get_chunks(balance=True),
+        bins=mock_pix_table.bins.get_dataframe(),
+    )
+    table.add_clustering("chrI:0-100000", marginals="pixels")
+
+    assert "pix_prob" in table.col_names
+    assert "pix_group" in table.col_names
+    assert "bin_prob" in table.bins.col_names
+
+
+def test_pix_table_add_clustering_all_bins_and_pixels_kept(mock_small_pix_table):
+
+    init_bin = mock_small_pix_table.bins.get_dataframe()
+    init_pix = mock_small_pix_table.get_dataframe()
+
+    mock_small_pix_table.add_clustering(CLUST_REGION, marginals="pixels")
+
+    after_bin = mock_small_pix_table.bins.get_dataframe()
+    after_pix = mock_small_pix_table.get_dataframe()
+
+    # All bins kept
+    assert init_bin.height == after_bin.height
+    # All bins assigned to a cluster
+    assert init_bin.height == after_bin.select("level_(0)").drop_nans().height
+    # All pixels kept
+    assert (
+        init_pix.height
+        == init_pix.join(after_pix, on=("bin1_id", "bin2_id"), how="inner").height
+    )
+    # All pixels have a class
+    assert after_pix.height == after_pix.select("pix_group").drop_nans().height

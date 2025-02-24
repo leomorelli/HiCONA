@@ -100,6 +100,7 @@ def overlap_with_size(df_a: "DataFrame", df_b: "DataFrame") -> pl.DataFrame:
     df_a = df_a if isinstance(df_a, pd.DataFrame) else df_a.to_pandas()
     df_b = df_b if isinstance(df_b, pd.DataFrame) else df_b.to_pandas()
     annot_col: str = [c for c in df_b.columns if c not in BASE_BIN_COLS].pop()
+    # TODO: this can break if there is more than one annotation column
 
     merged_df: pl.DataFrame = (
         pl.from_pandas(bf.overlap(df_a, df_b, return_overlap=True))
@@ -162,7 +163,8 @@ def get_annotated_bins(
     # Check to prevent exploding the number of columns in the file due to
     # a categorical-like variable with too many modalities.
     if save_all_mods:
-        num_mods: int = anno_df[annot_col].nunique()
+        num_mods: int | pd.Series = anno_df[annot_col].nunique()
+        assert isinstance(num_mods, int)
         if num_mods > MAX_MODS_COLS:
             raise ValueError(f"Trying to generate too many columns: {num_mods}")
 
