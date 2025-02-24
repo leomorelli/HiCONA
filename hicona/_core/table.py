@@ -258,6 +258,7 @@ class BinTable(Table):
         upper = df.get_column("bin_id").max()
 
         # Asserts are split for type checker
+        # TODO: Fix unclear return when given a chromosome which is not in the table
         assert isinstance(lower, int)
         assert isinstance(upper, int)
 
@@ -961,6 +962,81 @@ class PixelTable(Table):
 
         new_store = TmpParquet()
         new_store.put(anno_chunks)
+        self._store = new_store
+
+    def add_clustering(
+        self,
+        region: str | None = None,  # TODO: make mandatory when added inter region
+        *,
+        marginals: Literal["no", "bins", "pixels"] = "no",
+        seed: int = 42,
+        logging_level: str = "INFO",  # TODO: create logging level type
+    ) -> None:
+        """
+        # TODO Add detailed explanation.
+
+        Parameters
+        ----------
+        region : str, optional
+            Genomic region for which to compute the clustering. If none, defaults
+            to whole genome. Default is None.
+        marginals : "no", "bins", "pixels"
+            Which probabilites to compute. Default is "no".
+        seed : int
+            Rng seed for reproducibility. Default is 42
+        logging_level : valid logging level string
+            Console log verbosity level. Default is "INFO".
+
+        Returns
+        -------
+        gt.NestedBlockState
+            The last nested block state computed during clustering.
+
+        Warning
+        -------
+        Not setting a genomic region might make clustering run indefinitely.
+
+        """
+
+        def drop_existing_cols(df, all_names, base_names) -> pl.DataFrame:
+            """Rm columns who are already present in another df, excluding base ones."""
+            to_drop = [c for c in df.columns if c not in base_names and c in all_names]
+            return df.drop(to_drop)
+
+        graph: HiconaGraph = self.get_graph(region)
+        graph.compute_clustering(
+            marginals=marginals,
+            seed=seed,
+            logging_level=logging_level,
+        )
+
+        bins: pl.DataFrame = pl.concat(graph.get_bins())
+        bins = drop_existing_cols(bins, self.bins.col_names, BASE_BIN_COLS)
+        self._bins = BinTable(
+            self._bins.get_dataframe().join(bins, on=BASE_BIN_COLS, how="left"),
+            store_size=self._bins.store_size,
+        )
+
+        # TODO: Below this comment, operations are done on full frames rather than
+        # on iterators. This is because there is no easy way to perform full join
+        # on chunked tables. This means high memory cost. Try to fix using some
+        # some fancy genomic coordinates based merge, look into bioframe
+
+        pixels: pl.DataFrame = pl.concat(graph.get_pixels(keep_genomic=False))
+        pixels = drop_existing_cols(pixels, self.col_names, BASE_PIX_COLS)
+
+        # TODO: might need fill_nan with 2 in pix_group
+        new_store = TmpParquet()
+        new_store.put(
+            rechunk(
+                [
+                    self.get_dataframe()
+                    .join(pixels, on=BASE_PIX_COLS, how="full", coalesce=True)
+                    .sort(BASE_PIX_COLS)
+                ],
+                self.store_size,
+            )
+        )
         self._store = new_store
 
     def save(self, path: str) -> None:

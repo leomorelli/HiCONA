@@ -43,3 +43,13 @@ def mock_graph(mock_pix_table):
     pixels = mock_pix_table.get_dataframe()
     bins = mock_pix_table.bins.get_dataframe()
     return HiconaGraph(bins=bins, pixels=pixels)
+
+
+@pytest.fixture
+def mock_small_pix_table():
+    return PixelTable.load(op.join(datadir, "4DNFIIG4IWKW_10k_chr1_0_1000000"))
+
+
+@pytest.fixture
+def mock_small_graph(mock_small_pix_table):
+    return mock_small_pix_table.get_graph("chr1:0-100000")

@@ -3,6 +3,7 @@
 from collections.abc import Callable, Generator, Iterator, Iterable
 from typing import Literal
 
+import numpy as np
 import pandas as pd
 import polars as pl
 
@@ -10,6 +11,7 @@ DataFrame = pd.DataFrame | pl.DataFrame
 
 PlChunks = Generator[pl.DataFrame, None, None]
 PdChunks = Generator[pd.DataFrame, None, None]
+NpChunks = Generator[np.ndarray, None, None]
 DfChunks = PlChunks | PdChunks
 
 PlStream = PlChunks | Iterable[pl.DataFrame] | Iterator[pl.DataFrame]

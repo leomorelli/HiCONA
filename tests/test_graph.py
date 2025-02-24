@@ -1,9 +1,17 @@
+import os.path as op
+
 import graph_tool.all as gt
 import pandas as pd
 import polars as pl
 import polars.testing as pt
+import pytest
 
-from hicona import HiconaGraph
+from hicona import HiconaGraph, PixelTable
+
+testdir = op.realpath(op.dirname(__file__))
+datadir = op.join(testdir, "data")
+
+CLUST_REGION = "chr1:0-100000"
 
 
 def test_graph_init(mock_pix_table):
@@ -18,8 +26,7 @@ def test_graph_init(mock_pix_table):
     assert no_self_loop_pix.equals(pl.concat(graph.get_pixels()))
     pt.assert_frame_equal(bins, pl.concat(graph.get_bins()))
 
-
-# TODO: add explicit test for genomic link
+    # TODO: add explicit test for genomic link
 
 
 def test_graph_get_bins(mock_graph, mock_bin_table):
@@ -154,5 +161,96 @@ def test_graph_from_pixel_table(mock_pix_table):
     )
 
 
-def test_graph_hierarchical_clustering():
-    pass
+@pytest.mark.parametrize("mode", ("no", "bins", "pixels"))
+def test_graph_compute_clustering_modes(mock_small_graph, mode):
+    # NOTE: no check is performed on the actual values, no reasonable way to do it
+
+    mock_small_graph.compute_clustering(marginals=mode)
+    table = PixelTable(mock_small_graph.get_pixels(), bins=mock_small_graph.get_bins())
+
+    match mode:
+        case "no":
+            assert "pix_prob" not in table.col_names
+            assert "pix_group" not in table.col_names
+            assert "bin_prob" not in table.bins.col_names
+        case "bins":
+            assert "pix_prob" not in table.col_names
+            assert "pix_group" not in table.col_names
+            assert "bin_prob" in table.bins.col_names
+        case "pixels":
+            assert "pix_prob" in table.col_names
+            assert "pix_group" in table.col_names
+            assert "bin_prob" in table.bins.col_names
+
+
+def test_graph_compute_clustering_invalid_mode(mock_small_graph):
+    INVALID_MODE = "Resistance is futile, you will be assimilated"
+
+    with pytest.raises(ValueError):
+        mock_small_graph.compute_clustering(marginals=INVALID_MODE)
+
+
+def test_graph_compute_clustering_seed(mock_small_graph):
+
+    def graph_copy():
+        return HiconaGraph(
+            bins=mock_small_graph.get_bins(),
+            pixels=mock_small_graph.get_pixels(),
+        )
+
+    rep1 = graph_copy()
+    rep1.compute_clustering(seed=23, marginals="bins")
+
+    rep2 = graph_copy()
+    rep2.compute_clustering(seed=23, marginals="bins")
+
+    diff = graph_copy()
+    diff.compute_clustering(seed=42, marginals="bins")
+
+    pt.assert_frame_equal(pl.concat(rep1.get_bins()), pl.concat(rep2.get_bins()))
+    pt.assert_frame_equal(pl.concat(rep1.get_pixels()), pl.concat(rep2.get_pixels()))
+
+    pt.assert_frame_not_equal(
+        pl.concat(rep1.get_bins()),
+        pl.concat(diff.get_bins()),
+    )
+
+
+def test_graph_compute_clustering_float_counts(mock_pix_table):
+    # NOTE: no check is performed on the actual values, no reasonable way to do it
+
+    table = PixelTable(
+        mock_pix_table.get_chunks(balance=True),
+        bins=mock_pix_table.bins.get_dataframe(),
+    )
+    graph = table.get_graph("chrI:0-100000")
+    graph.compute_clustering(marginals="pixels")
+
+    table = PixelTable(graph.get_pixels(), bins=graph.get_bins())
+
+    assert "pix_prob" in table.col_names
+    assert "pix_group" in table.col_names
+    assert "bin_prob" in table.bins.col_names
+
+
+def test_graph_compute_clustering_all_bins_and_pixels_kept(mock_small_graph):
+
+    init_bin = pl.concat(mock_small_graph.get_bins())
+    init_pix = pl.concat(mock_small_graph.get_pixels())
+
+    mock_small_graph.compute_clustering(marginals="pixels")
+
+    after_bin = pl.concat(mock_small_graph.get_bins())
+    after_pix = pl.concat(mock_small_graph.get_pixels())
+
+    # All bins kept
+    assert init_bin.height == after_bin.height
+    # All bins assigned to a cluster
+    assert init_bin.height == after_bin.select("level_(0)").drop_nans().height
+    # All pixels kept
+    assert (
+        init_pix.height
+        == init_pix.join(after_pix, on=("bin1_id", "bin2_id"), how="inner").height
+    )
+    # All pixels have a class
+    assert after_pix.height == after_pix.select("pix_group").drop_nans().height
