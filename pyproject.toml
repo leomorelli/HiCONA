@@ -43,3 +43,6 @@ dependencies = ["pip"]
 
 [tool.hatch.metadata]
 allow-direct-references = true
+
+[tool.coverage.report]
+exclude_also = ["if TYPE_CHECKING:"]

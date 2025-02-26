@@ -2,6 +2,7 @@
 */.ipynb_checkpoints/
 *__pycache__
 */*/__pycache__
+*_cache
 
 # Ignore notebooks
 *.ipynb
@@ -15,6 +16,7 @@ test.py
 # Ignore test files
 .coverage
 */.coverage
+htmlcov
 
 # Ignore misc
 statistical_test
