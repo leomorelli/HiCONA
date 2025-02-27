@@ -78,12 +78,16 @@ class Table:
 
     @property
     def store_size(self) -> int:
-        """Return the max number of rows of the individual store chunks.
+        """Return the number of rows of the biggest storage chunk.
+
+        The data is stored in a chunked parquet storage. This attribute returns
+        the size (in number or rows) of the biggest chunk. This does number
+        does not directly affect the size of the chunks retrieved from the table.
 
         Returns
         -------
         int
-            Max number of rows per storage chunk.
+            Number of rows of the biggest storage chunk.
 
         """
         return self._store_size
@@ -91,6 +95,9 @@ class Table:
     @property
     def col_names(self) -> tuple[str, ...]:
         """Return the names of the columns of the table.
+
+        Peek the first rows of the first chunk in memory and return
+        the names of its columns.
 
         Returns
         -------
@@ -104,8 +111,8 @@ class Table:
 class BinTable(Table):
     """Handler for bin data stored in a temporary folder.
 
-    A bin table is a disk backed version of the bins from the cooler file.
-    Bins are copied to disk to facilitate iteration, avoiding compression.
+    A bin table is a disk backed version of the bins table from a cooler file.
+    Bins are copied to disk to facilitate repetitive iteration and manipulation.
     The storage format is a chunked parquet file in a temporaty directory.
 
     It is assumed that the binning satisfies these properties:
@@ -114,21 +121,19 @@ class BinTable(Table):
         - Bins belonging to the same chromosome are contiguous and sorted.
         - Binning is complete, e.i. it covers the entire reference genome.
 
-    The last point is not fully mandatory, though not satisfying it might
-    result in unexpected behavior especially, but not exclusively, when plotting.
-
     Parameters
     ----------
     bins : polars.DataFrame, pandas.DataFrame or an interable of either.
         The bin data to save in the temporary storage.
     store_size : int, optional
-        Max number of rows per parquet storage chunk. Default is 10_000_000.
+        Max number of rows per parquet storage chunk. Default is ``10_000_000``.
 
     Warning
     -------
-    No check is performed on the validity of the provided bins. This is to allow
-    the usage of any assembly for any organism, as well as custom ones. You are
-    responsible for checking that your binning satisfies the above assumptions.
+    Currently, no check is performed on the validity of the provided bins.
+    This is to allow the usage of any assembly for any organism, as well as custom ones.
+    You are fully responsible for checking that your binning satisfies the above
+    assumptions. Failing to comply might affect your results significantly.
 
     """
 
@@ -148,15 +153,19 @@ class BinTable(Table):
 
         Returns
         -------
-        BinTable
+        :py:class:`BinTable`
             A deep copy of this object.
-        """
 
+        """
         return self.__copy__()
 
     @property
     def bin_size(self) -> int:
         """Return the size of the bins in base pairs (resolution).
+
+        Return the number of base pairs for each bin the genome has been divided into.
+        It is assumed that all bins have the same size, with the exception of the
+        last one of each chromosomes which might be shorter.
 
         Returns
         -------
@@ -195,14 +204,22 @@ class BinTable(Table):
         Parameters
         ----------
         region : str, optional
-            Genomic region of interest in the format "chr:start-end" or "chr".
-        dtype : {"polars", "pandas"}, optional
+            Genomic region of interest in the format ``chr:start-end`` or ``chr``. If
+            not provided, fetch all bins. Default is ``None``.
+        dtype : one of {"polars", "pandas"}, optional
             Whether to return the dataframe as a polars or pandas dataframe.
-            Default is "polars".
+            Default is ``polars``.
+
+        Warning
+        -------
+        The possibility to subset the binning is given mostly for visualization
+        purposes. In general, try to work with a full genome binning, rather than
+        a subset of it (subsetting may lead to issues, especially when comparing
+        tables).
 
         Returns
         -------
-        polars.DataFrame or pandas.DataFrame
+        ``polars.DataFrame`` or ``pandas.DataFrame``
             The bins as a dataframe.
 
         """
@@ -233,19 +250,25 @@ class BinTable(Table):
     def extent(self, region: str) -> tuple[int, int]:
         """Return the lower and upper bin ids for a genomic region of interest.
 
-        Unlike `cooler.Cooler.extent`, no out of genomic range check is performed.
-        If the end point of the region lays outside a chromosome boundary, the last
-        bin of the chromosome is returned as end point.
+        Return the boundary bins for a genomic region, where the lower bin is
+        included in the region, the upper is excluded (e.i. ``["bin1, bin2)``.)
 
         Parameters
         ----------
         region : str
-            Genomic region of interest in the format "chr:start-end" or "chr".
+            Genomic region of interest in the format ``chr:start-end`` or ``chr``.
 
         Returns
         -------
         tuple[int, int]
             Lower and upper bin ids for the region.
+
+        Note
+        ----
+        Unlike :py:func:`cooler.Cooler.extent`, no out of genomic range check is performed.
+        If the provided end point of the region falls outside the highest bin for the
+        specified chromosome, the highest bin for that chromosome is returned instead.
+        No error or warning is raised. A check might be added in the future.
 
         """
 
@@ -273,50 +296,50 @@ class BinTable(Table):
         save_all_mods: bool = False,
         ignore_null_mode: bool | Literal["auto"] = "auto",
     ):
-        """Create a new bin table with some annotation column from a bed-like dataframe.
+        """Add some annotation column from a bed-like dataframe to the :py:class:`BinTable`.
 
         Given a dataframe containing some annotation in bed-like format, intersect
-        it with the BinTable and return a new instance with the annotation added.
+        it with the :py:class:`BinTable` and add it as new columns.
 
         Parameters
         ----------
         annot_df: pandas.DataFrame or polars.DataFrame
             A bed-like dataframe to merge to the bin table. The dataframe must contain
-            the columns "chrom", "start", "end" and 1 annotation column.
-        metric: one of ["bp_overlap", "chrom_enrich", "frac_overlap"], optional
+            the columns ``chrom``, ``start``, ``end`` and 1 annotation column.
+        metric: one of {``bp_overlap``, ``chrom_enrich``, ``frac_overlap``}, optional
             In case of multiple intersections with a bin, metric used to decide which
             intersection to keep. Available strategies are:
 
-            - `bp_overlap`: keep the intersection with highest overlap in base pairs.
-            - `frac_overlap`: same as `bp_overlap` but as fraction of bin size.
-            - `chrom_enrich`: Requires a categorical annotation covering the entire
-            genome (initially designed for chromHMM style annotations). For each
-            bin, assign the modality which is most enriched with respect to its
-            own chromosome. Enrichment for a modality is computed as the log2 fold
-            change between the fraction of bp in the bin assigned to the annotation
-            and the fraction of bp in the chromosome containing the bin assigned to
-            the annotation. Only available if `consolidate = True`.
+            - ``bp_overlap``: keep the intersection with highest overlap in base pairs.
+            - ``frac_overlap``: same as ``bp_overlap`` but as fraction of bin size.
+            - ``chrom_enrich``: Requires a categorical annotation covering the entire
+              genome (initially designed for chromHMM-style annotations). For each
+              bin, assign the modality which is most enriched with respect to its
+              own chromosome. Enrichment for a modality is computed as the log2 fold
+              change between the fraction of bp in the bin assigned to the modality
+              and the fraction of bp in the chromosome (containing the bin) assigned to
+              the modality. Only available if ``consolidate = True``.
 
-            Default is `frac_overlap`.
+            Default is ``frac_overlap``.
         consolidate: bool, optional
             When the annotation column is categorical with few repetitive modalities,
-            if set to `True`, all intersections belonging to the same modality are
+            if set to ``True``, all intersections belonging to the same modality are
             considered jointly, summing all overlaps of the modality across the bin.
-            Default is True.
+            Default is ``True``.
         save_all_mods: bool, optional
             When the annotation column is categorical with few repetitive modalities,
-            if set to `True`, instead of choosing the best modality for each bin
+            if set to ``True``, instead of choosing the best modality for each bin
             according to the selected metric, create a column for each modality and
             save the metric for each modality for each bin. Only available if
-            `consolidate = True`. Default is False.
-        ignore_null_mode: bool or "auto", optional
-                Whether to consider no annotation (null) as an annotation modality. If
-                `True`, if the null modality is the one with the highest value according
-                to the chosen metric, it will be chosen for the annotation. In the same
-                scenarion, if `ignore_null_mode = False`, the modality with the second
-                highest value is chosen (if available, else null). `auto` defaults to
-                `False` if the metric is an enrichment, to `True` otherwise. This
-                parameter is ignored if `save_all_mods = True`. Default is `auto`.
+            ``consolidate = True``. Default is ``False``.
+        ignore_null_mode: bool or ``auto``, optional
+            Whether to consider no annotation (null) as an annotation modality. If
+            ``True``, if the null modality is the one with the highest value according
+            to the chosen metric, it will be chosen for the annotation. In the same
+            scenario, if ``ignore_null_mode = False``, the modality with the second
+            highest value is chosen (if available, else null). ``auto`` defaults to
+            ``False`` if the metric is an enrichment, to ``True`` otherwise. This
+            parameter is ignored if ``save_all_mods = True``. Default is ``auto``.
 
         Note
         ----
@@ -360,9 +383,10 @@ class BinTable(Table):
     def save(self, path: str) -> None:
         """Save the table to a persistent storage.
 
-        BinTables are stored in the tmp folder and are deleted when execution
-        is halted or the go out of scope. This saves the table to a persistent
-        storage from which it can be loaded using the `load` class method.
+        :py:class:`BinTable` instances are stored in the tmp folder and are
+        deleted when execution is halted or they go out of scope.
+        This method saves the table to a persistent storage from which it
+        can be loaded using the :py:func:`BinTable.load` class method.
 
         Parameters
         ----------
@@ -381,24 +405,25 @@ class BinTable(Table):
     def load(cls, path: str) -> "BinTable":
         """Load a previously saved table.
 
-        Creates a copy of a previously saved BinTable into the tmp folder to
-        be able to further work on it.
+        Copies a previously saved :py:class:`BinTable` into the tmp folder
+        to be able to further work on it.
 
         Parameters
         ----------
         path : str
-            Path to the previously saved BinTable instance.
+            Path to the previously saved :py:class:`BinTable` instance.
 
         Returns
         -------
-        BinTable
-            A BinTable instance backed by a copy of the data in the tmp folder.
+        :py:class:`BinTable`
+            A :py:class:`BinTable` instance backed by a copy of the data in
+            the tmp folder.
 
         Note
         ----
         This method creates a tmp copy and does not modify the persistent one.
         If you wish to save changes to the new tmp copy, explicitely save it
-        again using the `save` method.
+        again using the :py:func:`BinTable.save` method.
 
         """
 
