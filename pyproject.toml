@@ -28,7 +28,13 @@ dependencies = [
     "cooltools",
 ]
 
-# [project.optional-dependencies]
+[project.optional-dependencies]
+docs = [
+    "nbsphinx",
+    "sphinx=7.2",       # Temporary version pin to prevent nbsphinx error
+    "sphinx_rtd_theme",
+]
+
 # [project.urls]
 
 [tool.pytest.ini_options]
