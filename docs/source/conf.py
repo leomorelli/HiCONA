@@ -47,7 +47,7 @@ autosummary_generate = True  # Ensure stub .rst files are created
 autodoc_default_options = {
     # "members": True,
     # "undoc-members": True,
-    "show-inheritance": True,
+    # "show-inheritance": True,
     # "exclude-members": "__init__",
 }
 autodoc_typehints = "none"

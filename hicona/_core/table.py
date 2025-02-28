@@ -3,7 +3,7 @@ Class to handle data subsets from a cooler file which are temporarily saved to d
 
 HiconaTable creates two temporary storages, one for the bins and one for the pixels.
 These storages are used to store the data from a specific region of the cooler file
-without having to iterate through (and decompress) the whole file every time.
+without having to iterate through the whole file every time.
 Temporary storages are torn down when the instance is deleted.
 
 """
