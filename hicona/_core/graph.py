@@ -104,7 +104,7 @@ def _add_genomic_link(graph: gt.Graph, link_val: int):
 
 
 class HiconaGraph:
-    """Graph representation of a portion of 3D chromatin conformation data.
+    """Graph representation of 3D chromatin conformation data.
 
     A wrapper class for the :class:`graph_tool.Graph` class, implementing methods
     which are specific for Hi-C-like data, which avoids having to directly interface

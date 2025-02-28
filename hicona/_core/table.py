@@ -78,12 +78,16 @@ class Table:
 
     @property
     def store_size(self) -> int:
-        """Return the max number of rows of the individual store chunks.
+        """Return the number of rows of the biggest storage chunk.
+
+        The data is stored in a chunked parquet storage. This attribute returns
+        the size (in number or rows) of the biggest chunk. This does number
+        does not directly affect the size of the chunks retrieved from the table.
 
         Returns
         -------
         int
-            Max number of rows per storage chunk.
+            Number of rows of the biggest storage chunk.
 
         """
         return self._store_size
@@ -91,6 +95,9 @@ class Table:
     @property
     def col_names(self) -> tuple[str, ...]:
         """Return the names of the columns of the table.
+
+        Peek the first rows of the first chunk in memory and return
+        the names of its columns.
 
         Returns
         -------
@@ -104,8 +111,8 @@ class Table:
 class BinTable(Table):
     """Handler for bin data stored in a temporary folder.
 
-    A bin table is a disk backed version of the bins from the cooler file.
-    Bins are copied to disk to facilitate iteration, avoiding compression.
+    A bin table is a disk backed version of the bins table from a cooler file.
+    Bins are copied to disk to facilitate repetitive iteration and manipulation.
     The storage format is a chunked parquet file in a temporaty directory.
 
     It is assumed that the binning satisfies these properties:
@@ -114,21 +121,19 @@ class BinTable(Table):
         - Bins belonging to the same chromosome are contiguous and sorted.
         - Binning is complete, e.i. it covers the entire reference genome.
 
-    The last point is not fully mandatory, though not satisfying it might
-    result in unexpected behavior especially, but not exclusively, when plotting.
-
     Parameters
     ----------
     bins : polars.DataFrame, pandas.DataFrame or an interable of either.
         The bin data to save in the temporary storage.
     store_size : int, optional
-        Max number of rows per parquet storage chunk. Default is 10_000_000.
+        Max number of rows per parquet storage chunk. Default is ``10_000_000``.
 
     Warning
     -------
-    No check is performed on the validity of the provided bins. This is to allow
-    the usage of any assembly for any organism, as well as custom ones. You are
-    responsible for checking that your binning satisfies the above assumptions.
+    Currently, no check is performed on the validity of the provided bins.
+    This is to allow the usage of any assembly for any organism, as well as custom ones.
+    You are fully responsible for checking that your binning satisfies the above
+    assumptions. Failing to comply might affect your results significantly.
 
     """
 
@@ -141,22 +146,26 @@ class BinTable(Table):
         return BinTable(bins=self.get_dataframe(), store_size=self.store_size)
 
     def copy(self) -> "BinTable":
-        """Returns a deep copy of itself.
+        """Return a deep copy of itself.
 
         A new temporary copy of all the data present in the table is created and the
         handle to it is returned.
 
         Returns
         -------
-        BinTable
+        :py:class:`BinTable`
             A deep copy of this object.
-        """
 
+        """
         return self.__copy__()
 
     @property
     def bin_size(self) -> int:
         """Return the size of the bins in base pairs (resolution).
+
+        Return the number of base pairs for each bin the genome has been divided into.
+        It is assumed that all bins have the same size, with the exception of the
+        last one of each chromosomes which might be shorter.
 
         Returns
         -------
@@ -195,15 +204,23 @@ class BinTable(Table):
         Parameters
         ----------
         region : str, optional
-            Genomic region of interest in the format "chr:start-end" or "chr".
-        dtype : {"polars", "pandas"}, optional
+            Genomic region of interest in the format ``chr:start-end`` or ``chr``. If
+            not provided, fetch all bins. Default is ``None``.
+        dtype : one of {"polars", "pandas"}, optional
             Whether to return the dataframe as a polars or pandas dataframe.
-            Default is "polars".
+            Default is ``polars``.
 
         Returns
         -------
-        polars.DataFrame or pandas.DataFrame
+        ``polars.DataFrame`` or ``pandas.DataFrame``
             The bins as a dataframe.
+
+        Warning
+        -------
+        The possibility to subset the binning is given mostly for visualization
+        purposes. In general, try to work with a full genome binning, rather than
+        a subset of it (subsetting may lead to issues, especially when comparing
+        tables).
 
         """
 
@@ -233,19 +250,25 @@ class BinTable(Table):
     def extent(self, region: str) -> tuple[int, int]:
         """Return the lower and upper bin ids for a genomic region of interest.
 
-        Unlike `cooler.Cooler.extent`, no out of genomic range check is performed.
-        If the end point of the region lays outside a chromosome boundary, the last
-        bin of the chromosome is returned as end point.
+        Return the boundary bins for a genomic region, where the lower bin is
+        included in the region, the upper is excluded (e.i. ``["bin1, bin2)``.)
 
         Parameters
         ----------
         region : str
-            Genomic region of interest in the format "chr:start-end" or "chr".
+            Genomic region of interest in the format ``chr:start-end`` or ``chr``.
 
         Returns
         -------
         tuple[int, int]
             Lower and upper bin ids for the region.
+
+        Note
+        ----
+        Unlike :py:func:`cooler.Cooler.extent`, no out of genomic range check is performed.
+        If the provided end point of the region falls outside the highest bin for the
+        specified chromosome, the highest bin for that chromosome is returned instead.
+        No error or warning is raised. A check might be added in the future.
 
         """
 
@@ -273,50 +296,50 @@ class BinTable(Table):
         save_all_mods: bool = False,
         ignore_null_mode: bool | Literal["auto"] = "auto",
     ):
-        """Create a new bin table with some annotation column from a bed-like dataframe.
+        """Add some annotation column from a bed-like dataframe to the :py:class:`BinTable`.
 
         Given a dataframe containing some annotation in bed-like format, intersect
-        it with the BinTable and return a new instance with the annotation added.
+        it with the :py:class:`BinTable` and add it as new columns.
 
         Parameters
         ----------
         annot_df: pandas.DataFrame or polars.DataFrame
             A bed-like dataframe to merge to the bin table. The dataframe must contain
-            the columns "chrom", "start", "end" and 1 annotation column.
-        metric: one of ["bp_overlap", "chrom_enrich", "frac_overlap"], optional
+            the columns ``chrom``, ``start``, ``end`` and 1 annotation column.
+        metric: one of {``bp_overlap``, ``chrom_enrich``, ``frac_overlap``}, optional
             In case of multiple intersections with a bin, metric used to decide which
             intersection to keep. Available strategies are:
 
-            - `bp_overlap`: keep the intersection with highest overlap in base pairs.
-            - `frac_overlap`: same as `bp_overlap` but as fraction of bin size.
-            - `chrom_enrich`: Requires a categorical annotation covering the entire
-            genome (initially designed for chromHMM style annotations). For each
-            bin, assign the modality which is most enriched with respect to its
-            own chromosome. Enrichment for a modality is computed as the log2 fold
-            change between the fraction of bp in the bin assigned to the annotation
-            and the fraction of bp in the chromosome containing the bin assigned to
-            the annotation. Only available if `consolidate = True`.
+            - ``bp_overlap``: keep the intersection with highest overlap in base pairs.
+            - ``frac_overlap``: same as ``bp_overlap`` but as fraction of bin size.
+            - ``chrom_enrich``: Requires a categorical annotation covering the entire
+              genome (initially designed for chromHMM-style annotations). For each
+              bin, assign the modality which is most enriched with respect to its
+              own chromosome. Enrichment for a modality is computed as the log2 fold
+              change between the fraction of bp in the bin assigned to the modality
+              and the fraction of bp in the chromosome (containing the bin) assigned to
+              the modality. Only available if ``consolidate = True``.
 
-            Default is `frac_overlap`.
+            Default is ``frac_overlap``.
         consolidate: bool, optional
             When the annotation column is categorical with few repetitive modalities,
-            if set to `True`, all intersections belonging to the same modality are
+            if set to ``True``, all intersections belonging to the same modality are
             considered jointly, summing all overlaps of the modality across the bin.
-            Default is True.
+            Default is ``True``.
         save_all_mods: bool, optional
             When the annotation column is categorical with few repetitive modalities,
-            if set to `True`, instead of choosing the best modality for each bin
+            if set to ``True``, instead of choosing the best modality for each bin
             according to the selected metric, create a column for each modality and
             save the metric for each modality for each bin. Only available if
-            `consolidate = True`. Default is False.
-        ignore_null_mode: bool or "auto", optional
-                Whether to consider no annotation (null) as an annotation modality. If
-                `True`, if the null modality is the one with the highest value according
-                to the chosen metric, it will be chosen for the annotation. In the same
-                scenarion, if `ignore_null_mode = False`, the modality with the second
-                highest value is chosen (if available, else null). `auto` defaults to
-                `False` if the metric is an enrichment, to `True` otherwise. This
-                parameter is ignored if `save_all_mods = True`. Default is `auto`.
+            ``consolidate = True``. Default is ``False``.
+        ignore_null_mode: bool or ``auto``, optional
+            Whether to consider no annotation (null) as an annotation modality. If
+            ``True``, if the null modality is the one with the highest value according
+            to the chosen metric, it will be chosen for the annotation. In the same
+            scenario, if ``ignore_null_mode = False``, the modality with the second
+            highest value is chosen (if available, else null). ``auto`` defaults to
+            ``False`` if the metric is an enrichment, to ``True`` otherwise. This
+            parameter is ignored if ``save_all_mods = True``. Default is ``auto``.
 
         Note
         ----
@@ -360,9 +383,10 @@ class BinTable(Table):
     def save(self, path: str) -> None:
         """Save the table to a persistent storage.
 
-        BinTables are stored in the tmp folder and are deleted when execution
-        is halted or the go out of scope. This saves the table to a persistent
-        storage from which it can be loaded using the `load` class method.
+        :py:class:`BinTable` instances are stored in the tmp folder and are
+        deleted when execution is halted or they go out of scope.
+        This method saves the table to a persistent storage from which it
+        can be loaded using the :py:func:`BinTable.load` class method.
 
         Parameters
         ----------
@@ -381,24 +405,25 @@ class BinTable(Table):
     def load(cls, path: str) -> "BinTable":
         """Load a previously saved table.
 
-        Creates a copy of a previously saved BinTable into the tmp folder to
-        be able to further work on it.
+        Copies a previously saved :py:class:`BinTable` into the tmp folder
+        to be able to further work on it.
 
         Parameters
         ----------
         path : str
-            Path to the previously saved BinTable instance.
+            Path to the previously saved :py:class:`BinTable` instance.
 
         Returns
         -------
-        BinTable
-            A BinTable instance backed by a copy of the data in the tmp folder.
+        :py:class:`BinTable`
+            A :py:class:`BinTable` instance backed by a copy of the data in
+            the tmp folder.
 
         Note
         ----
         This method creates a tmp copy and does not modify the persistent one.
         If you wish to save changes to the new tmp copy, explicitely save it
-        again using the `save` method.
+        again using the :py:func:`BinTable.save` method.
 
         """
 
@@ -417,17 +442,14 @@ class PixelTable(Table):
     """Handler for pixel data stored in a temporary folder.
 
     A pixel table is a disk backed version of the pixel from the cooler file.
-    Pixels are copied to disk to facilitate iteration, avoiding compression,
-    as well as subsetting and filtering operations.
-    A pixel table can be subsetted to a genomic region of interest.
+    Pixels are copied to disk to facilitate repetitive iteration and
+    manipulation (such as subsetting and filtering).
     The storage format is a chunked parquet file in a temporaty directory.
 
     It is assumed that:
         - All bin ids present in the pixel table appear in the bin table
-        - Pixels belonging to the same chromosome are contiguous and sorted.
-
-    The last point is not fully mandatory, though not satisfying it might
-    result in unexpected behavior especially, but not exclusively, when plotting.
+          (or in general, that the bin table contains a full genome binning).
+        - Pixels are sorted by ``bin1_id``, then ``bin2_id``.
 
     Parameters
     ----------
@@ -436,14 +458,14 @@ class PixelTable(Table):
     bins : BinTable
         The bin data associated with the pixels.
     store_size : int, optional
-        Max number of rows per parquet storage chunk. Default is 10_000_000.
+        Max number of rows per parquet storage chunk. Default is ``10_000_000``.
 
     Warning
     -------
-    No check is performed on the validity of the provided bins and pixels and
-    combination of them. This is to allow the usage of any assembly for any
-    organism, as well as custom ones. You are responsible for checking that
-    your inputs satisfy the assumptions.
+    Currently, no check is performed on the validity of the provided bins and pixels.
+    This is to allow the usage of any assembly for any organism, as well as custom ones.
+    You are fully responsible for checking that your binning satisfies the above
+    assumptions. Failing to comply might affect your results significantly.
 
     """
 
@@ -466,28 +488,28 @@ class PixelTable(Table):
         )
 
     def copy(self) -> "PixelTable":
-        """Returns a deep copy of itself.
+        """Return a deep copy of itself.
 
         A new temporary copy of all the data present in the table is created and the
         handle to it is returned.
 
         Returns
         -------
-        PixelTable
+        :py:class:`PixelTable`
             A deep copy of this object.
-        """
 
+        """
         return self.__copy__()
 
     @property
     def bins(self) -> BinTable:
         """Return the associated bin table.
 
-        Return the instance of the BinTable class associated to this object.
+        Return the instance of the :py:class:`BinTable` class associated to this object.
 
         Returns
         -------
-        BinTable
+        :py:class:`BinTable`
             The associated bin table.
 
         """
@@ -534,26 +556,32 @@ class PixelTable(Table):
 
         Return the pixels from the table in a dataframe. The table can be subsetted
         to a genomic region of interest. Optionally, the pixels can be annotated using
-        all annotation columns present in the pixels.
+        all annotation columns present in the pixels. Further customization of the
+        fetched pixels can be performed using the ``selection_kwargs`` argument.
 
         Parameters
         ----------
         region : str, optional
-            Genomic region of interest in the format "chr:start-end" or "chr".
+            Genomic region of interest in the format ``chr:start-end`` or ``chr``.
+            If not provided, fetch all pixels in the table. Default is ``None``.
         annotate : bool, optional
-            Whether to annotate the pixel data with bin information. Default is False.
-        dtype : {"polars", "pandas"}, optional
+            Whether to annotate the pixels with bin information. Default is ``False``.
+        dtype : one of {"polars", "pandas"}, optional
             Whether to return the dataframe as a polars or pandas dataframe.
-            Default is "polars".
+            Default is ``polars``.
         selection_kwargs : dict, optional
-            Additional arguments to pass to the internally called `get_chunks` method.
-            If explicitely passed, `region`, `annotate` and `dtype` will override the
+            Additional arguments to pass to the internally called :py:func:`get_chunks` method.
+            If explicitely passed, ``region``, ``annotate`` and ``dtype`` will override the
             values declared in this dictionary.
 
         Returns
         -------
-        polars.DataFrame or pandas.DataFrame
+        :py:class:`polars.DataFrame` or :py:class:`pandas.DataFrame`
             The pixels as a dataframe.
+
+        Warning
+        -------
+        Data is loaded into memory, which can be quite expensive on a non-subsetted table.
 
         """
 
@@ -617,38 +645,42 @@ class PixelTable(Table):
     ) -> "DfChunks":
         """Return the pixels as a generator of chunks.
 
-        Returns a generator of pixel chunks, where each chunk is a dataframe.
-        The chunks can be returned as they are or modified using some default
-        or custom strategies. A strategy is any function that takes a generator
-        of `polars.DataFrame` instances and returns another generator of the same,
-        therefore applying some function to each chunk in the stream.
+        Returns a generator of pixel chunks, where each chunk is a dataframe of
+        the specified type. The chunks can be returned as they are or modified using
+        some default or custom strategies.
+
+        A strategy is any function that takes a generator of :py:class:`polars.DataFrame`
+        instances and returns another generator of the same, therefore applying some
+        function to each chunk in the stream.
+
+        Parameters
+        ----------
+        region : str, optional
+            Genomic region of interest in the format ``chr:start-end`` or ``chr``.
+            If not provided, fetch all pixels in the table. Default is ``None``.
+        annotate : bool, optional
+            Whether to annotate the pixels with bin information. Default is ``False``.
+        balance : bool, optional
+            Whether to balance count column by bin weights. Default is ``False``.
+        chunk_size : int, optional
+            Max number of rows per chunk. Default is ``10_000_000``.
+        dtype : one of {"polars", "pandas"}, optional
+            Whether to return the chunks as a polars or pandas dataframes.
+            Default is ``polars``.
+        strategies : Strategy or Iterable of Strategy, optional
+            List of strategies to apply to the chunks. Default is ``None``.
+
+        Returns
+        -------
+        Generator of :py:class:`polars.DataFrame` or :py:class:`pandas.DataFrame`
+            The pixels as a generator of chunks.
 
         Note
         ----
         Strategies should take only one argument, the generator of chunks, and
         return another generator of chunks. If your function requires more arguments,
-        use `functools.partial` to create a partial function with the extra arguments.
-
-        Parameters
-        ----------
-        region : str, optional
-            Genomic region of interest in the format "chr:start-end" or "chr".
-        annotate : bool, optional
-            Whether to annotate the pixel data with bin information. Default is False.
-        balance : bool, optional
-            Whether to balance count column by bin weights. Default is False.
-        chunk_size : int, optional
-            Max number of rows per chunk. Default is 10_000_000.
-        dtype : {"polars", "pandas"}, optional
-            Whether to return the chunks as polars or pandas dataframes.
-            Default is "polars".
-        strategies : Strategy or Iterable of Strategy, optional
-            List of strategies to apply to the chunks. Default is None.
-
-        Returns
-        -------
-        Generator of polars.DataFrame or pandas.DataFrame
-            The pixels as a generator of chunks.
+        use :py:func:`functools.partial` to create a partial function with the extra
+        arguments.
 
         """
 
@@ -697,28 +729,29 @@ class PixelTable(Table):
         Parameters
         ----------
         region : str, optional
-            Genomic region of interest in the format "chr:start-end" or "chr".
+            Genomic region of interest in the format ``chr:start-end`` or ``chr``.
+            If not provided, fetch all pixels in the table. Default is ``None``.
         value_col : str, optional
-            Pixels column to use as the value for the matrix. Default is "count".
-        mode : {"upper", "lower", "full"}, optional
-            Whether to return the upper, lower or full matrix. Default is "full".
+            Pixels column to use as the value in the matrix. Default is ``count``.
+        mode : one of {``upper``, ``lower``, ``full``}, optional
+            Whether to return the upper, lower or full matrix. Default is ``full``.
         mask_diagonal : bool, optional
-            Whether to mask the diagonal of the matrix. Default is False.
+            Whether to mask (= fill with NaNs) the diagonal of the matrix. Default is ``False``.
         selection_kwargs : dict, optional
-            Additional arguments to pass to the internally called `get_chunks` method.
-            If explicitely passed, `region`, will override the values declared in this
-            dictionary.
+            Additional arguments to pass to the internally called :py:func:`get_chunks` method.
+            If explicitely passed, ``region`` will override the values declared in this dictionary.
 
         Returns
         -------
-        numpy.ndarray
+        :py:class:`numpy.ndarray`
             The contact matrix.
 
         Warning
         -------
-        This operation can create a large matrix in memory, use with caution.
+        This operation can create a huge matrix in memory, use with caution.
 
         """
+
         # NOTE: Not using pl.DataFrame.pivot because does not fill missing bin ids.
         selection_kwargs = selection_kwargs or {}
         selection_kwargs.update({"dtype": "polars"})
@@ -778,21 +811,30 @@ class PixelTable(Table):
         return matrix
 
     def get_graph(self, region: str | None = None) -> HiconaGraph:
-        """Return a graph object representing part of the pixel table.
+        """Return a graph representation of the pixel table (or part of it).
 
-        Create an instance of HiconaGraph, possibily subsetted to a region of interest.
-        Default class constructor arguments are used. For customisation, pass bins and
-        pixels manually to the HiconaGraph class constructor.
+        Create an instance of :py:class:`HiconaGraph`, possibily subsetted to
+        a region of interest. Default class constructor arguments are used.
+        For customisation, instantiate the :py:class:`HiconaGraph` directly.
 
         Parameters
         ----------
         region : str, optional
-            Genomic region to subset the pixel table to, if any. Default is None.
+            Genomic region of interest in the format ``chr:start-end`` or ``chr``.
+            If not provided, fetch all bins and pixels in the table.
+            Default is ``None``.
 
         Returns
         -------
-        HiconaGraph
+        :py:class:`HiconaGraph`
             A graph representation of the pixel table (or part of it).
+
+        Note
+        ----
+        If no genomic region is provided, the entire binning will be included
+        in the graph. This means that even bins without any associated pixel
+        are included. Be mindful of it, as it can drastically increase the
+        time required to process the graph.
 
         """
         return HiconaGraph.from_pixel_table(self, region=region)
@@ -800,15 +842,19 @@ class PixelTable(Table):
     def subset(self, region: str) -> "PixelTable":
         """Return a new pixel table with subsetted data from a genomic region.
 
+        Create a new table with a subset of the pixels from the original one.
+        The bin table is not subsetted. All bin and pixel annotations are
+        preserved.
+
         Parameters
         ----------
-        region : str
-            Genomic region of interest in the format "chr:start-end" or "chr".
+        region : str, optional
+            Genomic region of interest in the format ``chr:start-end`` or ``chr``.
 
         Returns
         -------
-        PixelTable
-            A new class instance with data from the specified region.
+        :py:class:`PixelTable`
+            A new class instance with pixel data from the specified region.
 
         """
         return PixelTable(self.get_chunks(region), bins=self._bins)
@@ -816,7 +862,11 @@ class PixelTable(Table):
     def apply(self, strategies: Strategy | Iterable[Strategy]) -> "PixelTable":
         """Return a new pixel table modified according to the provided strategies.
 
-        For details on strategies, see the documentation of the `get_chunks` method.
+        A strategy is any function that takes a generator of :py:class:`polars.DataFrame`
+        instances and returns another generator of the same, therefore applying some
+        function to each chunk in the stream.
+
+        The binning is not changed in any way.
 
         Parameters
         ----------
@@ -825,20 +875,20 @@ class PixelTable(Table):
 
         Returns
         -------
-        PixelTable
+        :py:class:`PixelTable`
             A new instance with modified data.
 
         Note
         ----
-        Using this method followed by `get_chunks` or `get_dataframe` on the new instance
-        without passing any strategy yields the same result as passing the strategies to
-        the `get_chunks` or `get_dataframe` method of the original instance. The key
-        difference is that `apply` creates a new instance in memory; this means a higher
-        overhead for the first use, but it becomes faster if that specific subset needs
-        to be iterated multiple times.
+        Using this method followed by :py:func:`get_chunks` or :py:func:`get_dataframe`
+        on the new instance without passing any strategy yields the same result as
+        passing the strategies to the :py:func:`get_chunks` or :py:func:`get_dataframe`
+        method of the original instance.
+        The key difference is that :py:func:`apply` creates a new instance in memory;
+        this means a higher overhead for the first use, but it becomes faster if that
+        specific subset needs to be iterated multiple times.
 
         """
-
         return PixelTable(
             self.get_chunks(strategies=strategies),
             bins=self._bins,
@@ -857,48 +907,47 @@ class PixelTable(Table):
         """Add some annotation columns from a bed-like dataframe to the bin table.
 
         Given a dataframe containing some annotation in bed-like format, intersect
-        it and add the information to the bin table.
+        it with the associated :py:class:`BinTable` and add it as new columns.
 
         Parameters
         ----------
         annot_df: pandas.DataFrame or polars.DataFrame
             A bed-like dataframe to merge to the bin table. The dataframe must contain
-            the columns "chrom", "start", "end" and 1 annotation column.
-        metric: one of ["bp_overlap", "chrom_enrich", "frac_overlap"], optional
+            the columns ``chrom``, ``start``, ``end`` and 1 annotation column.
+        metric: one of {``bp_overlap``, ``chrom_enrich``, ``frac_overlap``}, optional
             In case of multiple intersections with a bin, metric used to decide which
             intersection to keep. Available strategies are:
 
-            - `bp_overlap`: keep the intersection with highest overlap in base pairs.
-            - `frac_overlap`: same as `bp_overlap` but as fraction of bin size.
-            - `chrom_enrich`: Requires a categorical annotation covering the entire
-            genome (initially designed for chromHMM style annotations). For each
-            bin, assign the modality which is most enriched with respect to its
-            own chromosome. Enrichment for a modality is computed as the log2 fold
-            change between the fraction of bp in the bin assigned to the annotation
-            and the fraction of bp in the chromosome containing the bin assigned to
-            the annotation. Only available if `consolidate = True`.
+            - ``bp_overlap``: keep the intersection with highest overlap in base pairs.
+            - ``frac_overlap``: same as ``bp_overlap`` but as fraction of bin size.
+            - ``chrom_enrich``: Requires a categorical annotation covering the entire
+              genome (initially designed for chromHMM-style annotations). For each
+              bin, assign the modality which is most enriched with respect to its
+              own chromosome. Enrichment for a modality is computed as the log2 fold
+              change between the fraction of bp in the bin assigned to the modality
+              and the fraction of bp in the chromosome (containing the bin) assigned to
+              the modality. Only available if ``consolidate = True``.
 
-            Default is "frac_overlap".
+            Default is ``frac_overlap``.
         consolidate: bool, optional
             When the annotation column is categorical with few repetitive modalities,
-            if set to `True`, all intersections belonging to the same modality are
+            if set to ``True``, all intersections belonging to the same modality are
             considered jointly, summing all overlaps of the modality across the bin.
-            Default is True.
+            Default is ``True``.
         save_all_mods: bool, optional
             When the annotation column is categorical with few repetitive modalities,
-            if set to `True`, instead of choosing the best modality for each bin
+            if set to ``True``, instead of choosing the best modality for each bin
             according to the selected metric, create a column for each modality and
             save the metric for each modality for each bin. Only available if
-            `consolidate = True`. Default is False.
-        ignore_null_mode: bool or "auto", optional
+            ``consolidate = True``. Default is ``False``.
+        ignore_null_mode: bool or ``auto``, optional
             Whether to consider no annotation (null) as an annotation modality. If
-            `True`, if the null modality is the one with the highest value according
+            ``True``, if the null modality is the one with the highest value according
             to the chosen metric, it will be chosen for the annotation. In the same
-            scenarion, if `ignore_null_mode = False`, the modality with the second
-            highest value is chosen (if available, else null). `auto` defaults to
-            `False` if the metric is an enrichment, to `True` otherwise. This
-            parameter is ignored if `save_all_mods = True`. Default is `auto`.
-
+            scenario, if ``ignore_null_mode = False``, the modality with the second
+            highest value is chosen (if available, else null). ``auto`` defaults to
+            ``False`` if the metric is an enrichment, to ``True`` otherwise. This
+            parameter is ignored if ``save_all_mods = True``. Default is ``auto``.
 
         Note
         ----
@@ -907,7 +956,6 @@ class PixelTable(Table):
         will be changed to work in chunks.
 
         """
-
         self._bins.add_annotation(
             annot_df,
             metric=metric,
@@ -917,28 +965,26 @@ class PixelTable(Table):
         )
 
     def add_pix_annotation(self, annot_df: DataFrame) -> None:
-        """Add some annotation columns from a bed-like dataframe to the pixel table.
+        """Add some annotation columns from a pixel-like dataframe to the pixel table.
 
-        Add pixel annotations to the table by merging against both `bin1_id` and
-        `bin2_id` at the same time. The annotation is stored and is automatically
-        retrieved when fetching data using `get_chunks`, `get_dataframe` and
-        `get_graph`.
+        Add pixel annotations to the table by merging against both ``bin1_id`` and
+        ``bin2_id`` at the same time. The annotation is stored and is automatically
+        retrieved when fetching data using :py:func:`get_chunks`, :py:func:`get_dataframe`
+        and :py:func:`get_graph`.
 
         Parameters
         ----------
         annot_df : polars.DataFrame of pandas.DataFrame
-            The bed-like file from which to fetch the annotations.
+            The pixel-like dataframe from which to fetch the annotations.
 
         Warning
         -------
         The current implementation is unstable and it will likely be changed in the
         future. The main limitations of the current implementation are the following:
 
-        -  The annotation must come from a single DataFrame, which is not ideal for
+        -  The annotation must come from a single dataFrame, which is not ideal for
            large pixel tables.
-        -  Partial annotations (maybe due to clustering) cannot be modified
-        -  The table is updated directly in its storage, which might lead to
-           corruption if the process is halted abruptly.
+        -  Partial annotations (maybe due to clustering) cannot be modified.
 
         """
 
@@ -1042,9 +1088,10 @@ class PixelTable(Table):
     def save(self, path: str) -> None:
         """Save the table to a persistent storage.
 
-        PixelTables are stored in the tmp folder and are deleted when execution
-        is halted or the go out of scope. This saves the table to a persistent
-        storage from which it can be loaded using the `load` class method.
+        :py:class:`PixelTable` instances are stored in the tmp folder and are
+        deleted when execution is halted or they go out of scope.
+        This method saves the table to a persistent storage from which it
+        can be loaded using the :py:func:`PixelTable.load` class method.
 
         Parameters
         ----------
@@ -1060,24 +1107,24 @@ class PixelTable(Table):
     def load(cls, path: str) -> "PixelTable":
         """Load a previously saved table.
 
-        Creates a copy of a previously saved PixelTable (and associated
-        BinTable) into the tmp folder to be able to further work on it.
+        Creates a copy of a previously saved :py:class:`PixelTable` (and associated
+        :py:class:`BinTable`) into the tmp folder to be able to further work on it.
 
         Parameters
         ----------
         path : str
-            Path to the previously saved PixelTable instance.
+            Path to the previously saved :py:class:`PixelTable` instance.
 
         Returns
         -------
-        PixelTable
-            A PixelTable instance backed by a copy of the data in the tmp folder.
+        :py:class:`PixelTable`
+            A :py:class:`PixelTable` instance backed by a copy of the data in the tmp folder.
 
         Note
         ----
         This method creates a tmp copy and does not modify the persistent one.
         If you wish to save changes to the new tmp copy, explicitely save it
-        again using the `save` method.
+        again using the :py:func:`save` method.
 
         """
 

@@ -84,10 +84,21 @@ def _hdf5_deleter(store: str, path: str, df_name: str) -> None:
 
 
 class HiconaCooler(cooler.Cooler):  # type: ignore  # Cooler is not exported explicitly
-    """Cooler file handle with extended functionalities.
+    """Cooler file handler with extended functionalities.
 
-    For class constructor documentation, see :class:`cooler.Cooler`.
-    # TODO: Copy docs from cooler.Cooler or write new ones.
+    Parameters
+    ----------
+    store : str, :py:class:`h5py.File` or :py:class:`h5py.Group`
+        Path to a cooler file, URI string, or open handle to the root HDF5
+        group of a cooler data collection. If providing a group via string,
+        use the :file:`<file_path>::<group_path>` format.
+    kwargs : optional
+        Options to be passed to :py:class:`h5py.File()` upon every access.
+        By default, the file is opened with the default driver and mode='r'.
+
+
+    For more information on the class constructor, see :py:class:`cooler.Cooler`.
+
     """
 
     def __init__(self, store: Union[str, "h5py.File", "h5py.Group"], **kwargs):
@@ -95,19 +106,20 @@ class HiconaCooler(cooler.Cooler):  # type: ignore  # Cooler is not exported exp
         super().__init__(store, **kwargs)
 
     def get_bin_table(self, *, store_size: int = 10_000_000) -> "BinTable":
-        """Returns a bin table containing all bins from the cooler.
+        """Return a bin table containing all bins from the cooler.
 
-        Return an instance of the `BinTable` class. See `BinTable` class
-        documentation for more information.
+        Return an instance of the :py:class:`BinTable` class containing the
+        entire bin table from the cooler (annotations included).
+        See :py:class:`BinTable` class documentation for more information.
 
         Parameters
         ----------
         store_size : int, optional
-            Max number of bins per parquet storage chunk. Default is 10_000_000.
+            Max number of bins per parquet storage chunk. Default is ``10_000_000``.
 
         Returns
         -------
-        BinTable
+        :py:class:`BinTable`
             Bin table handler.
 
         """
@@ -124,21 +136,24 @@ class HiconaCooler(cooler.Cooler):  # type: ignore  # Cooler is not exported exp
         *,
         store_size: int = 10_000_000,
     ) -> "PixelTable":
-        """Returns a pixel table containing all or part of the pixels in the cooler.
+        """Return a pixel table containing all or part of the pixels in the cooler.
 
-        Return an instance of the `PixelTable` class. See `PixelTable` class
-        documentation for more information.
+        Return an instance of the :py:class:`PixelTable` class, containing all or part
+        of the pixels from the cooler. For the fetched pixels, all annotations are kept,
+        if any is present.
+        See :py:class:`PixelTable` class documentation for more information.
 
         Parameters
         ----------
         region : str, optional
-            Genomic region of interest in the format "chr:start-end" or "chr".
+            Genomic region of interest in the format ``chr:start-end`` or ``chr``. If
+            not provided, fetch all pixels. Default is ``None``.
         store_size : int, optional
-            Max number of pixels per parquet storage chunk. Default is 10_000_000.
+            Max number of pixels per parquet storage chunk. Default is ``10_000_000``.
 
         Returns
         -------
-        PixelTable
+        :py:class:`PixelTable`
             Pixel table handler.
 
         """
@@ -168,7 +183,7 @@ class HiconaCooler(cooler.Cooler):  # type: ignore  # Cooler is not exported exp
         save_all_mods: bool = False,
         ignore_null_mode: bool | Literal["auto"] = "auto",
     ) -> None:
-        """Add a new bin annotation column to the bin table in the file.
+        """Add a new bin annotation column to the bin table.
 
         Given a dataframe containing some annotation in bed-like format, intersect
         it with the bin table and store it in the cooler as a new bin table column.
@@ -177,47 +192,48 @@ class HiconaCooler(cooler.Cooler):  # type: ignore  # Cooler is not exported exp
         ----------
         annot_df: pandas.DataFrame or polars.DataFrame
             A bed-like dataframe to merge to the bin table. The dataframe must contain
-            the columns "chrom", "start", "end" and 1 annotation column.
-        metric: one of ["bp_overlap", "chrom_enrich", "frac_overlap"], optional
+            the columns ``chrom``, ``start``, ``end`` and 1 annotation column.
+        metric: one of {``bp_overlap``, ``chrom_enrich``, ``frac_overlap``}, optional
             In case of multiple intersections with a bin, metric used to decide which
             intersection to keep. Available strategies are:
 
-            - `bp_overlap`: keep the intersection with highest overlap in base pairs.
-            - `frac_overlap`: same as `bp_overlap` but as fraction of bin size.
-            - `chrom_enrich`: Requires a categorical annotation covering the entire
+            - ``bp_overlap``: keep the intersection with highest overlap in base pairs.
+            - ``frac_overlap``: same as ``bp_overlap`` but as fraction of bin size.
+            - ``chrom_enrich``: Requires a categorical annotation covering the entire
               genome (initially designed for chromHMM-style annotations). For each
               bin, assign the modality which is most enriched with respect to its
               own chromosome. Enrichment for a modality is computed as the log2 fold
               change between the fraction of bp in the bin assigned to the modality
               and the fraction of bp in the chromosome (containing the bin) assigned to
-              the modality. Only available if `consolidate = True`.
+              the modality. Only available if ``consolidate = True``.
 
-            Default is `frac_overlap`.
+            Default is ``frac_overlap``.
         consolidate: bool, optional
             When the annotation column is categorical with few repetitive modalities,
-            if set to `True`, all intersections belonging to the same modality are
+            if set to ``True``, all intersections belonging to the same modality are
             considered jointly, summing all overlaps of the modality across the bin.
-            Default is True.
+            Default is ``True``.
         save_all_mods: bool, optional
             When the annotation column is categorical with few repetitive modalities,
-            if set to `True`, instead of choosing the best modality for each bin
+            if set to ``True``, instead of choosing the best modality for each bin
             according to the selected metric, create a column for each modality and
             save the metric for each modality for each bin. Only available if
-            `consolidate = True`. Default is False.
-        ignore_null_mode: bool or "auto", optional
+            ``consolidate = True``. Default is ``False``.
+        ignore_null_mode: bool or ``auto``, optional
             Whether to consider no annotation (null) as an annotation modality. If
-            `True`, if the null modality is the one with the highest value according
+            ``True``, if the null modality is the one with the highest value according
             to the chosen metric, it will be chosen for the annotation. In the same
-            scenarion, if `ignore_null_mode = False`, the modality with the second
-            highest value is chosen (if available, else null). `auto` defaults to
-            `False` if the metric is an enrichment, to `True` otherwise. This
-            parameter is ignored if `save_all_mods = True`. Default is `auto`.
+            scenario, if ``ignore_null_mode = False``, the modality with the second
+            highest value is chosen (if available, else null). ``auto`` defaults to
+            ``False`` if the metric is an enrichment, to ``True`` otherwise. This
+            parameter is ignored if ``save_all_mods = True``. Default is ``auto``.
 
         Warning
         -------
         Adding annotations can be quite expensive in terms of file size. Use this
         functionality sparingly and only for annotations you are likely to use often.
-        For one-time use annotations consider annotating the `BinTable` itself.
+        For one-time use annotations consider annotating the :py:class:`BinTable` or
+        :py:class:`PixelTable` themselves.
 
         Note
         ----
@@ -247,10 +263,11 @@ class HiconaCooler(cooler.Cooler):  # type: ignore  # Cooler is not exported exp
             _hdf5_writer(self.store, path.join(self.root, "bins"), col)
 
     def bin_annot_del(self, annot_name: str) -> None:
-        """Delete a bin annotation column from the bin table in the file.
+        """Delete a bin annotation column from the bin table.
 
         Permanently remove a bin annotation column present from the bin table,
-        as long as it is not one of the default ones (e.i. "chrom", "start", "end")
+        as long as it is not one of the default ones (e.i. ``chrom``, ``start``,
+        ``end``)
 
         Parameters
         ----------
@@ -259,10 +276,10 @@ class HiconaCooler(cooler.Cooler):  # type: ignore  # Cooler is not exported exp
 
         Warning
         -------
-        Due to the `hdf5` file format works, deleting a dataset only means removing
+        Due to the ``hdf5`` file format works, deleting a dataset only means removing
         the link to it; the dataset is actually still there, just not reachable. To
         actually reduce the dimension of the file, it is currently necessary to use
-        an external tool, such as `h5repack`.
+        an external tool, such as ``h5repack``.
 
         """
 
