@@ -7,6 +7,7 @@ from typing import Callable, Iterable, Literal
 import coolbox.api as ca
 import matplotlib as mpl
 from matplotlib.figure import Figure
+import polars as pl
 
 from .._core.table import PixelTable
 from ._styling import get_rc_style
@@ -35,6 +36,22 @@ _BIN_CLUST_RATIO = 20  # width/x is the height of bin cluster tracks
 ClusterStyle = Literal["bins", "pixels"]
 MatrixStyle = Literal["matrix", "triangular", "window"]
 PlotStyle = Literal["publication", "slides"]
+
+
+def _extended_chrom_format(region, table) -> str:
+    """Ensure that the genomic query is in the form `chrom:start-end`."""
+
+    if len(region.split(":")) == 1:  # "chrN" format
+        _, upper_bin = table.bins.extent(region)
+
+        bin_table: pl.DataFrame = table.bins.get_dataframe()
+        row: dict[str, str | int] = bin_table.row(
+            by_predicate=(pl.col("bin_id") == (upper_bin - 1)),
+            named=True,
+        )
+        region = f"{row['chrom']}:0-{row['end']}"
+
+    return region
 
 
 def _infer_pix_track(col_name: str) -> Callable:
@@ -165,6 +182,8 @@ def plot_clustering(
 
     """
 
+    region = _extended_chrom_format(region, table)
+
     _BIG_NUMBER: int = 10_000  # Unreasonably big number for cluster level
 
     # How to plot clustering tracks
@@ -249,6 +268,8 @@ def plot_table(
 
     """
 
+    region = _extended_chrom_format(region, table)
+
     main_track: ca.Track = _infer_pix_track(value_col)(
         table, style=modality, depth_ratio=depth_ratio
     )
@@ -319,6 +340,8 @@ def plot_comparison(
 
     if any([len(value_cols) == 0, len(tables) == 0]):
         raise ValueError("Expected at least one table and one value column.")
+
+    region = _extended_chrom_format(region, tables[0])
 
     # Main tracks definition
     main_tracks: list[ca.Track]
