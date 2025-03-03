@@ -443,14 +443,14 @@ class HiconaGraph:
         computed:
 
             - "no": do not compute bins or pixel marginals. Uses description
-            length minimization followed by simulated annealing.
+              length minimization followed by simulated annealing.
             - "bins": compute confidence of assignment of each bin to its
-            cluster. Same as "no" but also adds an equilibration step.
+              cluster. Same as "no" but also adds an equilibration step.
             - "pixels": compute both confidence of assignment of each bin to
-            its cluster and posterior probability of each edge to be a "real"
-            edge (e.i. not the result of random noise and biases). Same as
-            "bins" but the equilibration is computed using a mixed measured
-            block state.
+              its cluster and posterior probability of each edge to be a "real"
+              edge (e.i. not the result of random noise and biases). Same as
+              "bins" but the equilibration is computed using a mixed measured
+              block state.
 
         # TODO: finish description
 
