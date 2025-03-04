@@ -11,6 +11,7 @@ Temporary storages are torn down when the instance is deleted.
 from __future__ import annotations
 
 from functools import partial
+import math
 import os
 from typing import Any, cast, Iterable, Literal, overload, TYPE_CHECKING
 
@@ -764,6 +765,20 @@ class PixelTable(Table):
         bounds: tuple[int, int]
         if region:
             bounds = self._bins.extent(region)
+
+            # NOTE: currently, since the chrom sizes are not preserved, there is no way to
+            # verify that the upper boundary is inside the chromosome.
+            # To avoid inconsistent matrix sizes without being able to raise a warning,
+            # assume that the region is always valid, and extend the table upwards
+            # accordingly. There is no way of doing the same for the full chromosomes.
+            # TODO: Maybe we should just decide to bring along chrom sizes.
+            if len(region.split(":")) > 1:
+                start, end = map(int, region.split(":")[1].split("-"))
+                resolution = self._bins.bin_size
+                expected = math.ceil(end / resolution) - start // resolution
+
+                bounds = (bounds[0], bounds[0] + expected)
+
         else:
             bounds = (
                 cast(int, df.get_column("bin1_id").min()),
