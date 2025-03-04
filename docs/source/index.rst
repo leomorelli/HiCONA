@@ -10,6 +10,8 @@ HiCONA - Hi-C Organization with Network Analysis
    :hidden:
 
    installation
+   overview
+   implementation
    api
 
 .. toctree::

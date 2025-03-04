@@ -139,45 +139,49 @@ def plot_clustering(
     width: float | None = None,
     path: str | None = None,
 ) -> Figure:
-    """Plot hierarchical clustering results for a pixel table.
+    """Plot hierarchical clustering results from a :py:class:`PixelTable`.
 
-    Given a pixel table on which hierarchical clustering was performed, create a
-    plot displaying the results below the count matrix.
+    Given a :py:class:`PixelTable` on which hierarchical clustering was performed,
+    create a genomic tracks-like plot displaying the count matrix at the top and
+    the clustering results below it.
+    Clustering results can be plotted as bins or pixels.
 
     Parameters
     ----------
-    table : PixelTable
+    table : :py:class:`PixelTable`
         Table on which hierachical clustering was performed.
     region : str
-        Genomic region of interest.
-    modality : "lane" or "matrix", optional
+        Genomic region of interest in the format ``chr:start-end`` or ``chr``.
+    modality : one of {"bins", "pixels"}, optional
         Modality in which to display the results of the clustering.
 
-        - "lane": display the bin cluster levels as rows below the count matrix. Default.
-        - "matrix": display the clustering levels using pixel matrices, where each pixel
-          is colored according to its cluster if both bins belong to the same cluster.
+        - ``bins``: Plot a heatmap-like row for each bin clustering level.
+        - ``matrix``: Plot a pixel matrix track for each matrix clustering level.
 
+        Default is ``pixels``.
     min_level : int, optional
-        First level of the clustering hierarchy to plot. Default is 0.
+        First level of the clustering hierarchy to plot. Default is ``0``.
     max_level : int, optional
-        Lase level of the clustering hierarchy to plot. Default is 1.
+        Last level of the clustering hierarchy to plot. If not provided, plot
+        all clustering levels. Default is ``None``.
     depth_ratio : float, optional
-        Fraction of the height of the pixels to display. Default is 0.5.
-    tracks : coolbox Tracks or an iterable of them, optional
-        Any additional Track object (or instance of a class inheriting from it) to add
-        below the default ones. Track height is treated as centimeters.
-    style : "slides", "publication" or path string, optional
+        Fraction of the height of each pixel matrix to display. Default is ``0.5``.
+    tracks : :py:class:`coolbox.Track` or an iterable of them, optional
+        Any additional :py:class:`coolbox.Track` object (or instance of a class
+        inheriting from it) to add below the default ones.
+        Track height is treated as centimeters. Default is ``None``.
+    style : one of {"slides", "publication"} or path string, optional
         Name of a default plotting style or path to a valid mplstyle file.
-        Default is `slides`.
+        Default is ``slides``.
     width : float, optional
         Width of the plot in centimeters. Required when using a custom plotting style,
-        otherwise default width for the default style.
+        otherwise default width for the default style. Default is ``None``.
     path : str, optional
-        If provided, save the figure at that position. Default is None.
+        If provided, save the figure at that position. Default is ``None``.
 
     Returns
     -------
-    Figure
+    :py:class:`matplotlib.figure.Figure`
         The composite figure.
 
     """
@@ -232,38 +236,43 @@ def plot_table(
     width: float | None = None,
     path: str | None = None,
 ) -> Figure:
-    """Plot some column from a pixel table.
+    """Plot some values from a :py:class:`PixelTable` instance.
+
+    Plot a :py:class:`PixelTable` (or part of it) as a heatmap, where the values
+    in the heatmap cells are some pixel level attribute (counts, clustering level,
+    annotation...).
 
     Parameters
     ----------
-    table : PixelTable
-        Pixel table to plot
+    table : :py:class:`PixelTable`
+        The :py:class:`PixelTable` instance to plot.
     region : str
-        Genomic region of interest.
+        Genomic region of interest in the format ``chr:start-end`` or ``chr``.
     value_col : str, optional
         Column from the pixel table to use as values for the plot. Column name is also
-        used to infer the type of track to use for plotting. Default is "count".
-    modality : "matrix", "triangular" or "window", optional
-        Display modality of the matrix track. See coolbox documentation for more
-        information. Default is "window".
+        used to infer the type of track to use for plotting. Default is ``count``.
+    modality :  one of {"matrix", "triangular", "window"}, optional
+        Display modality of the matrix track. See :py:module:``coolbox`` documentation
+        for more information. Default is ``matrix``.
     depth_ratio : float, optional
-        Fraction of the height of the pixels to display. Ignored if `modality = matrix`.
-        Default is 0.5.
-    tracks : coolbox Tracks or an iterable of them, optional
-        Any additional Track object (or instance of a class inheriting from it) to add
-        below the default ones. Track height is treated as centimeters.
-    style : "slides", "publication" or path string, optional
+        Fraction of the height of each pixel matrix to display.
+        Ignored if ``modality = matrix``. Default is ``0.5``.
+    tracks : :py:class:`coolbox.Track` or an iterable of them, optional
+        Any additional :py:class:`coolbox.Track` object (or instance of a class
+        inheriting from it) to add below the default ones.
+        Track height is treated as centimeters. Default is ``None``.
+    style : one of {"slides", "publication"} or path string, optional
         Name of a default plotting style or path to a valid mplstyle file.
-        Default is `slides`.
+        Default is ``slides``.
     width : float, optional
         Width of the plot in centimeters. Required when using a custom plotting style,
-        otherwise default width for the default style.
+        otherwise default width for the default style. Default is ``None``.
     path : str, optional
-        If provided, save the figure at that position.
+        If provided, save the figure at that position. Default is ``None``.
 
     Returns
     -------
-    Figure
+    :py:class:`matplotlib.figure.Figure`
         The composite figure.
 
     """
@@ -295,38 +304,42 @@ def plot_comparison(
     width: float | None = None,
     path: str | None = None,
 ) -> Figure:
-    """Plot the comparison of pixel tables and value columns.
+    """Plot the comparison of :py:class:`PixelTable` instances or value columns.
 
-    Either plot multiple value columns from the same pixel table, or the same value
-    column for multiple pixel tables. If only two tracks are plotted, the second one
+    Use this function to either:
+        - plot multiple value columns from the same :py:class:`PixelTable`
+        - plot the same value column for multiple :py:class:`PixelTable` instances.
+
+    If only two pixel tracks are plotted (regardless of their origin), the second one
     will have inverted orientation to facilitate comparison.
 
     Parameters
     ----------
-    tables : PixelTable or iterable of them.
-        The pixel tables(s) from which to extract the value columns.
+    tables : :py:class:`PixelTable` or iterable of them.
+        :py:class:`PixelTable` instance(s) from which to extract the value column(s).
     region : str
-        Genomic region of interest.
+        Genomic region of interest in the format ``chr:start-end`` or ``chr``.
     value_cols : str or iterable of them, optional
-        Column(s) from the pixel table(s) to use as values for the tracks in the plot.
+        Column(s) from the :py:class:`PixelTable` instance(s) containing the values
+        for the tracks in the plot. Default is ``count``.
     depth_ratio : float, optional
-        Fraction of the height of the pixels to display. Default is 0.5.
-        Default is "count".
-    tracks : coolbox Tracks or an iterable of them, optional
-        Any additional Track object (or instance of a class inheriting from it) to add
-        below the default ones. Track height is treated as centimeters.
-    style : "slides", "publication" or path string, optional
+        Fraction of the height of each pixel matrix to display. Default is ``0.5``.
+    tracks : :py:class:`coolbox.Track` or an iterable of them, optional
+        Any additional :py:class:`coolbox.Track` object (or instance of a class
+        inheriting from it) to add below the default ones.
+        Track height is treated as centimeters. Default is ``None``.
+    style : one of {"slides", "publication"} or path string, optional
         Name of a default plotting style or path to a valid mplstyle file.
-        Default is `slides`.
+        Default is ``slides``.
     width : float, optional
         Width of the plot in centimeters. Required when using a custom plotting style,
-        otherwise default width for the default style.
+        otherwise default width for the default style. Default is ``None``.
     path : str, optional
-        If provided, save the figure at that position.
+        If provided, save the figure at that position. Default is ``None``.
 
     Returns
     -------
-    Figure
+    :py:class:`matplotlib.figure.Figure`
         The composite figure.
 
     """

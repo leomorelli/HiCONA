@@ -106,30 +106,43 @@ def _add_genomic_link(graph: gt.Graph, link_val: int):
 class HiconaGraph:
     """Graph representation of 3D chromatin conformation data.
 
-    A wrapper class for the :class:`graph_tool.Graph` class, implementing methods
-    which are specific for Hi-C-like data, which avoids having to directly interface
-    with the graph object for specialized operations.
+    Handler class for a graph where the vertices correspond to the bins, the
+    edges to the pixels. Any column, in either bin or pixel table, is added
+    as a vertex or edge property, respectively.
+
+    If two genomically contiguous bins do not have any edge (= pixel) among
+    them, an edge with a default value, called ``genomic_link``, is added
+    among them. This is necessary for network clustering purposes.
+
+    This class wraps an instance of the :py:class:`graph_tool.Graph` class
+    and implements methods which are specific for Hi-C-like data. This avoids
+    having to interface directly with the low level API of graph-tool for
+    specialized operations. Any network operation which is not directly
+    implemented by HiCONA can be performed by accessing directly the
+    :py:class:`graph_tool.Graph` instance. This is possibile because
+    :py:class:`HiconaGraph` does not store any data itself.
 
     Parameters
     ----------
-    bins : polars.DataFrame, pandas.DataFrame or a interable of either.
+    bins : polars.DataFrame, pandas.DataFrame or an interable of either.
         A dataframe containing bin information, provided in full or in chunks.
-        The dataframe must contain at least the columns `node_id`, `chrom`, `start`
-        and `end`.
-    pixels: polars.DataFrame, pandas.DataFrame or a interable of either.
+        The dataframe must contain at least the columns ``bin_id``, ``chrom``,
+        ``start`` and ``end``.
+    pixels: polars.DataFrame, pandas.DataFrame or an interable of either.
         A dataframe containing pixel information, provided in full or in chunks.
-        The dataframe must contain at least the columns `bin1_id`, `bin2_id` and
-        `count`.
+        The dataframe must contain at least the columns ``bin1_id``, ``bin2_id``
+        and ``count``.
     default_link : int, optional
         Default value for the genomic link property, e.i. default values for
-        genomically contiguous bins if they do not have an edge already. Default is 1.
-
+        genomically contiguous bins if they do not have an edge already.
+        Default is ``1``.
 
     Warning
     -------
     This class requires loading all the bins and pixels into memory, which can be
     memory-intensive, especially at high resolutions. Consider subsetting the data
     to a chromosome or a region of interest before creating the class instance.
+
     """
 
     def __init__(
@@ -169,7 +182,18 @@ class HiconaGraph:
 
     @property
     def graph(self) -> gt.Graph:
-        """graph_tool.Graph instance associated with the HiconaGraph."""
+        """Associated :py:class:`graph_tool.Graph` instance.
+
+        For algorithms implemented by HiCONA, call the methods of the
+        :py:class:`HiconaGraph` class. For other algorithms, access this object
+        directly and use its API directly.
+
+        Returns
+        -------
+        :py:class:`graph_tool.Graph`
+            The associated :py:class:`graph_tool.Graph` instance.
+
+        """
         return self._graph
 
     @overload
@@ -212,26 +236,26 @@ class HiconaGraph:
         """Return the nodes as an iterable of bins.
 
         Return the nodes from the graph as an iterable of bed-like dataframes.
-        All vertex properties are saved as columns, both those with which the
-        graph was initially generated, as well as those added at runtime.
+        All vertex properties are saved as columns, both those which the
+        graph was initially generated with, as well as those added later.
 
         Parameters
         ----------
         drop_node_id : bool, optional
-            Whether to drop the `node_id` column. Default is True.
+            Whether to drop the ``node_id`` column. Default is ``True``.
         bare : bool, optional
-            Whether to return only the columns `bin_id`, `chrom`, `start` and `end`.
-            Default is False.
+            Whether to return only the columns ``bin_id``, ``chrom``, ``start``
+            and ``end``. Default is ``False``.
         chunk_size : int, optional
-            Max number of bins per chunk. Default is 10_000_000.
-        dtype : {"polars", "pandas"}, optional
+            Max number of bins per chunk. Default is ``10_000_000``.
+        dtype : one of {"polars", "pandas"}, optional
             Whether to return the chunks as polars or pandas dataframes.
-            Default is "polars".
+            Default is ``polars``.
 
         Returns
         -------
-        A generator of pandas or polars dataframes.
-            Bin chunks.
+        Generator of :py:class:`polars.DataFrame` or :py:class:`pandas.DataFrame`
+            Bin data chunks.
 
         """
 
@@ -281,25 +305,25 @@ class HiconaGraph:
     ) -> "DfChunks":
         """Return the edges as an iterable of pixels.
 
-        Return the edges from the graph as an iterable of bed-like dataframes.
-        All edge properties are saved as columns, both those with which the
-        graph was initially generated, as well as those added at runtime.
+        All edge properties are saved as columns, both those which the
+        Return the edges from the graph as an iterable of pixel-like dataframes.
+        graph was initially generated with, as well as those added later.
 
         Parameters
         ----------
         keep_genomic : bool, optional
             Whether to keep the genomic-link pixels added during graph creation.
-            Default is False.
+            Ignored if the graph was reconstructed. Default is ``False``.
         chunk_size : int, optional
-            Max number of pixels per chunk. Default is 10_000_000.
-        dtype : {"polars", "pandas"}, optional
+            Max number of pixels per chunk. Default is ``10_000_000``.
+        dtype : one of {"polars", "pandas"}, optional
             Whether to return the chunks as polars or pandas dataframes.
-            Default is "polars".
+            Default is ``polars``.
 
         Returns
         -------
-        A generator of pandas or polars dataframes.
-            Pixel chunks.
+        Generator of :py:class:`polars.DataFrame` or :py:class:`pandas.DataFrame`
+            Pixel data chunks.
 
         """
 
@@ -342,18 +366,32 @@ class HiconaGraph:
     def from_pixel_table(
         cls, table: "PixelTable", *, region: str | None = None
     ) -> "HiconaGraph":
-        """Create a HiconaGraph from a PixelTable instance.
+        """Create a :py:class:`HiconaGraph` starting from a :py:class:`PixelTable` instance.
+
+        Create a graph starting from a :py:class:`PixelTable`. If a genomic region
+        is provided both pixels and bins are subsetted to that region.
 
         Parameters
         ----------
-        table : PixelTable
-            PixelTable instance to create the graph from.
+        table : :py:class:`PixelTable`
+            Table instance to create the graph from.
         region : str, optional
-            Genomic region of interest in the format "chr:start-end" or "chr".
+            Genomic region of interest in the format ``chr:start-end`` or ``chr``.
+            If provided, subset bins and pixels to that region. Default is ``None``.
 
         Returns
         -------
-        HiconaGraph instance
+        :py:class:`HiconaGraph`
+            The graph representation of the input table.
+
+        Warning
+        -------
+        Since providing a genomic region during creation subsets the binning,
+        a part of the bins is lost when converting the graph back to a table
+        directly. When creating a :py:class:`PixelTable` starting from a
+        :py:class:`HiconaGraph`, always provide a full genomic binning on to
+        which you merged the bins from the graph. This process will be
+        simplified in a future version.
 
         """
 
@@ -365,18 +403,23 @@ class HiconaGraph:
     def from_cooler(
         cls, handle: "HiconaCooler", *, region: str | None = None
     ) -> "HiconaGraph":
-        """Create a HiconaGraph from a HiconaCooler instance.
+        """Create a :py:class:`HiconaGraph` starting from a :py:class:`HiconaCooler` instance.
+
+        Create a graph starting from a :py:class:`HiconaCooler`. If a genomic region
+        is provided both pixels and bins are subsetted to that region.
 
         Parameters
         ----------
-        handle : HiconaCooler
+        handle : :py:class:`HiconaCooler`
             Cooler file handler.
         region : str, optional
-            Genomic region of interest in the format "chr:start-end" or "chr".
+            Genomic region of interest in the format ``chr:start-end`` or ``chr``.
+            If provided, subset bins and pixels to that region. Default is ``None``.
 
         Returns
         -------
-        HiconaGraph instance
+        :py:class:`HiconaGraph`
+            The graph representation of the input cooler.
 
         """
 
@@ -400,14 +443,14 @@ class HiconaGraph:
         computed:
 
             - "no": do not compute bins or pixel marginals. Uses description
-            length minimization followed by simulated annealing.
+              length minimization followed by simulated annealing.
             - "bins": compute confidence of assignment of each bin to its
-            cluster. Same as "no" but also adds an equilibration step.
+              cluster. Same as "no" but also adds an equilibration step.
             - "pixels": compute both confidence of assignment of each bin to
-            its cluster and posterior probability of each edge to be a "real"
-            edge (e.i. not the result of random noise and biases). Same as
-            "bins" but the equilibration is computed using a mixed measured
-            block state.
+              its cluster and posterior probability of each edge to be a "real"
+              edge (e.i. not the result of random noise and biases). Same as
+              "bins" but the equilibration is computed using a mixed measured
+              block state.
 
         # TODO: finish description
 
