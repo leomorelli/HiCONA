@@ -31,7 +31,7 @@ dependencies = [
 [project.optional-dependencies]
 docs = [
     "nbsphinx",
-    "sphinx=7.2",       # Temporary version pin to prevent nbsphinx error
+    "sphinx==7.2",      # Temporary version pin to prevent nbsphinx error
     "sphinx_rtd_theme",
 ]
 
