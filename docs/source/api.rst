@@ -21,8 +21,8 @@ Plotting
 
 Various functions to plot pixel matrices, including their annotations and clustering.
 These functions favor ease of use at the expence of flexibility. For highly customized
-plots, use the tracks provided by ```hicona.plotting.cooler_api``` to compose your own plots
-using ```Coolbox```.
+plots, use the tracks provided by :py:mod:`hicona.plotting.cooler_api` to compose your own plots
+using :py:mod:`Coolbox`.
 
 .. autosummary::
     :toctree: api

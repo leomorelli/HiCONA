@@ -1,5 +1,5 @@
 ..
-    From squidpy's documentation
+    Template from squidpy's documentation
 
 {{ fullname | escape | underline }}
 

@@ -24,6 +24,7 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.napoleon",
     "sphinx.ext.intersphinx",
+    "sphinx.ext.viewcode",
 ]
 
 templates_path = ["_templates"]
@@ -56,3 +57,6 @@ autodoc_typehints = "none"
 html_theme = "sphinx_rtd_theme"
 html_static_path = ["_static"]
 html_show_sphinx = False
+html_show_sourcelink = False
+
+nbsphinx_execute = "never"
