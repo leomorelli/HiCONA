@@ -23,6 +23,9 @@ statistical_test
 old_implementation
 analysis_scripts
 
+# Ignore for visual purposes
+.ropeproject
+
 # Ignore vscode files
 .vscode/
 

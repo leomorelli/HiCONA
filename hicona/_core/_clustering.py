@@ -84,8 +84,8 @@ def _add_pix_marginals(old: gt.Graph, new: gt.Graph):
 
     if any(group_map.get_array() == 2):
         LOGGER.warning(
-            "Some edges were removed from the graph during reconstruction.",
-            "Returned state will not match the initial graph.",
+            "Some edges were removed during reconstruction. "
+            "Returned state will not match the initial graph."
         )
 
 
