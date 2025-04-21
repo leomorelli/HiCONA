@@ -53,7 +53,7 @@ Currently, documentation is available only via local build::
     git submodule update --remote --merge
     make clean html
 
-The documentation will then be in `hicona/docs/build/html`.
+The documentation will then be in ``hicona/docs/build/html``.
 
 Citing
 ======
