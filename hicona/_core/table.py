@@ -15,6 +15,7 @@ import math
 import os
 from typing import Any, cast, Iterable, Literal, overload, TYPE_CHECKING
 
+import graph_tool.all as gt  # type: ignore
 import numpy as np
 import pandas as pd
 import polars as pl
@@ -1032,7 +1033,7 @@ class PixelTable(Table):
         marginals: Literal["no", "bins", "pixels"] = "no",
         seed: int = 42,
         logging_level: str = "INFO",  # TODO: create logging level type
-    ) -> None:
+    ) -> gt.NestedBlockState:
         """
         # TODO Add detailed explanation.
 
@@ -1065,7 +1066,7 @@ class PixelTable(Table):
             return df.drop(to_drop)
 
         graph: HiconaGraph = self.get_graph(region)
-        graph.compute_clustering(
+        state = graph.compute_clustering(
             marginals=marginals,
             seed=seed,
             logging_level=logging_level,
@@ -1099,6 +1100,8 @@ class PixelTable(Table):
             )
         )
         self._store = new_store
+
+        return state
 
     def save(self, path: str) -> None:
         """Save the table to a persistent storage.
