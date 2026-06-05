@@ -1,6 +1,6 @@
 """Custom CoolBox tracks for the visualization of pixel table features."""
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 import coolbox.api as cp
 import numpy as np
@@ -90,6 +90,8 @@ class PixelCounts(PixelTrack):
     value_col : str, optional
         Name of the column, in the pixel table, containing the values to be displayed.
         By default, "count".
+    transform : one of {"raw", "log2", "log10"}
+        Which transformation to apply to the counts before plotting.
     **kwargs
         Additional parameters to be passed to the HicMatBase constructor. These will
         override any declaration of the same parameter from the default values.
@@ -101,8 +103,10 @@ class PixelCounts(PixelTrack):
         pixel_table: "PixelTable",
         *,
         value_col: str = "count",
+        transform: Literal["raw", "log2", "log10"] = "raw",
         **kwargs,
     ):
+        kwargs["transform"] = False if transform == "raw" else transform
         super().__init__(
             pixel_table,
             value_col=value_col,
