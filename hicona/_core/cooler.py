@@ -9,7 +9,7 @@ use in the original class.
 
 from math import ceil
 from os import path
-from typing import TYPE_CHECKING, Literal, Union, cast
+from typing import TYPE_CHECKING, Literal, cast
 
 import cooler
 import h5py
@@ -100,10 +100,6 @@ class HiconaCooler(cooler.Cooler):
     For more information on the class constructor, see :py:class:`cooler.Cooler`.
 
     """
-
-    def __init__(self, store: Union[str, "h5py.File", "h5py.Group"], **kwargs):
-        # Mask deprecated root parameter from super-class
-        super().__init__(store, **kwargs)
 
     def get_bin_table(self, *, store_size: int = 10_000_000) -> "BinTable":
         """Return a bin table containing all bins from the cooler.
