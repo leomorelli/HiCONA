@@ -20,6 +20,7 @@ _TRACK_DEFAULTS: dict[str, dict] = {
     },
     "PixelCounts": {
         "title": "Pixel\ncounts",
+        "cmap": Palettes.COUNTS.value,
     },
     "PixelProbs": {
         "transform": False,
