@@ -1,15 +1,14 @@
 """All network clustering steps and substeps, grouped for clarity and logging."""
 
-from functools import partial
 import logging
-from typing import Callable, cast, Literal
+from functools import partial
+from typing import Callable, Literal, cast
 
+import graph_tool.all as gt
 import numpy as np
 import polars as pl
-import graph_tool.all as gt
 
 from .._utils.graph_ops import add_df_as_vp
-
 
 BIN_PROB_COL: str = "bin_prob"
 PIX_PROB_COL: str = "pix_prob"
@@ -96,13 +95,21 @@ def _add_bin_marginals(graph: gt.Graph, partition_state: gt.PartitionModeState):
     graph.vp[BIN_PROB_COL] = graph.new_vp("float", vals=bin_probs)
 
 
-def marginals_no(graph: gt.Graph, state: gt.NestedBlockState) -> gt.NestedBlockState:
+def marginals_no(
+    graph: gt.Graph,
+    state: gt.NestedBlockState,
+    column: str,
+) -> gt.NestedBlockState:
     """Simply return the model. Needed for compatibility."""
     LOGGER.debug("Simply returning the state")
     return state
 
 
-def marginals_bin(graph: gt.Graph, state: gt.NestedBlockState) -> gt.NestedBlockState:
+def marginals_bin(
+    graph: gt.Graph,
+    state: gt.NestedBlockState,
+    column: str,
+) -> gt.NestedBlockState:
     """Compute bin marginals by equilibrating the initial clustering model."""
 
     LOGGER.info("Computing bin marginals (equilibration)")
@@ -123,31 +130,26 @@ def marginals_bin(graph: gt.Graph, state: gt.NestedBlockState) -> gt.NestedBlock
     return state.copy(bs=partition_state.get_max_nested())
 
 
-def marginals_pix(graph: gt.Graph, state: gt.NestedBlockState) -> gt.NestedBlockState:
+def marginals_pix(
+    graph: gt.Graph,
+    state: gt.NestedBlockState,
+    column: str,
+) -> gt.NestedBlockState:
     """Computed pixel marginals using a mixed measured stochastic block model."""
 
     LOGGER.info("Computing bin and pixels marginals (network reconstruction)")
 
-    LOGGER.debug("Transforming counts to integers")
-    MULTIPLIER: int = 1_000
-    n_values: np.ndarray = graph.ep.count.a
-    if not str(n_values.dtype).startswith("int"):
-        n_values = (np.log(n_values + 1) * MULTIPLIER).astype(int)
-    LOGGER.debug(f"Before: min={graph.ep.count.a.min()}, max={graph.ep.count.a.max()}")
-    LOGGER.debug(f"After: min={n_values.min()}, max={n_values.max()}")
+    n_values: np.ndarray = graph.ep[column].a
 
-    LOGGER.debug("Setting up mixed measured block state")
-    n_default = n_values.max()
-    x_default = 0
-    n = graph.new_edge_property("int", val=n_default)
-    x = graph.new_edge_property("int", vals=n_values)
+    # Default probability for a non observed edge
+    possible_edges = (graph.num_vertices() * (graph.num_vertices() - 1)) / 2
+    default_prob = n_values.sum() / possible_edges
 
-    mixed_state = gt.MixedMeasuredBlockState(
+    edge_probs = graph.new_edge_property("double", vals=n_values)
+    mixed_state = gt.UncertainBlockState(
         graph,
-        n=n,
-        n_default=n_default,
-        x=x,
-        x_default=x_default,
+        q=edge_probs,
+        q_default=default_prob,
         state_args={"bs": state.get_bs()},
     )
 
@@ -156,7 +158,7 @@ def marginals_pix(graph: gt.Graph, state: gt.NestedBlockState) -> gt.NestedBlock
     LOGGER.debug("Reconstructing network")
     gt.mcmc_equilibrate(
         mixed_state,
-        force_niter=50000,
+        max_niter=10000,
         mcmc_args={"niter": 10},
         callback=callback,
     )
@@ -182,21 +184,23 @@ MARGINALS_FUNCS: dict[str, Callable] = {
 ##############################################################################
 
 
-def dl_anneal_clustering(graph: gt.Graph) -> gt.NestedBlockState:
+def dl_anneal_clustering(graph: gt.Graph, value_col: str) -> gt.NestedBlockState:
     """Clustering using description length minimization + simulated annealing."""
 
-    LOGGER.debug("Applying log counts transform")
-    log_counts: gt.EdgePropertyMap = graph.new_ep(
-        "double",
-        vals=np.log(graph.ep.count.a + 1),
-    )
-    LOGGER.debug(f"Before: min={graph.ep.count.a.min()}, max={graph.ep.count.a.max()}")
-    LOGGER.debug(f"After: min={log_counts.a.min()}, max={log_counts.a.max()}")
+    # May not need to create a copy of the edge property map
+    # For now leaving to avoid breaking changes, potentially clean up later
+
+    score: gt.EdgePropertyMap = graph.new_ep("double", vals=graph.ep[value_col].a)
+    if score.a.min() < 0 or score.a.max() > 1:
+        raise ValueError(
+            f"""Score values are in the range ['{score.a.min()}', '{score.a.max()}']"""
+            """ but should be in the range [0,1]."""
+        )
 
     LOGGER.info("Computing rough clustering (description length minimization)")
     state: gt.NestedBlockState = gt.minimize_nested_blockmodel_dl(
         graph,
-        state_args={"recs": [log_counts], "rec_types": ["real-normal"]},
+        state_args={"recs": [score], "rec_types": ["real-normal"]},
         multilevel_mcmc_args={"niter": 10},
     )
 
@@ -224,7 +228,6 @@ def add_bin_clustering(graph: gt.Graph, state: gt.NestedBlockState):
 
     # Remove bad trailing levels (repetitive or one big cluster)
     for level in range(num_levels):
-
         # Project partitions of the block state to vertex level
         level_groups: np.ndarray = state.project_partition(level, 0).get_array()
         level_clusts: int = len(np.unique(level_groups))
@@ -290,6 +293,7 @@ def project_clustering(graph: gt.Graph):
 
 def compute_clustering(
     graph: gt.Graph,
+    on: str,
     marginals: Literal["no", "bins", "pixels"],
     seed: int,
     logging_level: str,  # TODO: Change to logging level dtype
@@ -310,8 +314,8 @@ def compute_clustering(
     gt.seed_rng(seed)
 
     LOGGER.info(f"Started graph clustering (marginals={marginals}, seed={seed})")
-    state: gt.NestedBlockState = dl_anneal_clustering(graph)
-    state = marginals_function(graph, state)
+    state: gt.NestedBlockState = dl_anneal_clustering(graph, on)
+    state = marginals_function(graph, state, on)
 
     LOGGER.info("Projecting clustering on the graph")
     add_bin_clustering(graph, state)

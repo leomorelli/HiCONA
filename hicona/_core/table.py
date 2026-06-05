@@ -10,12 +10,12 @@ Temporary storages are torn down when the instance is deleted.
 
 from __future__ import annotations
 
-from functools import partial
 import math
 import os
-from typing import Any, cast, Iterable, Literal, overload, TYPE_CHECKING
+from functools import partial
+from typing import TYPE_CHECKING, Any, Iterable, Literal, cast, overload
 
-import graph_tool.all as gt  # type: ignore
+import graph_tool.all as gt
 import numpy as np
 import pandas as pd
 import polars as pl
@@ -23,17 +23,18 @@ import polars as pl
 from .._utils.chunked_ops import add_ind_col, convert, rechunk, to_iterable
 from .._utils.tmp_parquet import TmpParquet
 from ._bin_annotation import get_annotated_bins
-from .strategies import annotate_pixels, balance_pixels, subset_region
+from ._pix_norm import PixNormFunc, norm_functions
 from .graph import HiconaGraph
+from .strategies import annotate_pixels, balance_pixels, subset_region
 
 if TYPE_CHECKING:
     from .._utils.df_dtypes import (
         DataFrame,
         DfChunks,
+        DfDtype,
         DfStream,
         PdChunks,
         PlChunks,
-        DfDtype,
         Strategy,
     )
 
@@ -74,6 +75,9 @@ class Table:
 
         for chunk in self._store.get():
             yield chunk.filter(filt_expr if isinstance(filt_expr, pl.Expr) else True)
+
+    def _get_dataframe(self) -> pl.LazyFrame:
+        return pl.scan_parquet(self._store.path)
 
     def _put_chunks(self, chunks: "PlChunks"):
         self._store.put(rechunk(chunks, self._store_size))
@@ -822,7 +826,7 @@ class PixelTable(Table):
                 raise ValueError(f"Invalid mode: {mode}")
 
         if mask_diagonal:
-            np.fill_diagonal(matrix, np.NaN)
+            np.fill_diagonal(matrix, np.nan)
 
         return matrix
 
@@ -1026,9 +1030,48 @@ class PixelTable(Table):
         new_store.put(anno_chunks)
         self._store = new_store
 
+    def normalize_counts(
+        self,
+        norm: Literal["log", "arctan_mean"] | PixNormFunc = "arctan_mean",
+        *,
+        column: str = "norm_count",
+    ) -> None:
+        """Compute count normalization.
+
+        Apply the provided normalization and save the result to a new column.
+        Any User Defined Function (UDF) can be used as long as it takes as
+        input a `polars.LazyFrame` and a column name and return the lazy frame
+        with that column added.
+
+        Provided normalizations are:
+            - `arctan_mean`: arctan(count/average of non-zero pixels in table)/(pi/2)
+            - `log`: ln(count + 1)
+
+        Parameters
+        ----------
+        norm : one of the provided normalizations or a UDF, optional
+            Function used to compute normalized counts. Default is `arctan`.
+        column : str, optional
+            Name of the column to save the results in. Default is `norm_count`.
+
+        """
+
+        if column in self.col_names:
+            raise ValueError(f"Column `{column}` already exists, use another name.")
+
+        norm_func = norm_functions.get(norm) if isinstance(norm, str) else norm
+        if not norm_func:
+            raise ValueError(f"`{norm}` is not a valid normalization function.")
+
+        new_store = TmpParquet()
+        df = norm_func(self._get_dataframe(), column).collect()
+        new_store.put((d for d in df.iter_slices(self._store_size)))
+        self._store = new_store
+
     def add_clustering(
         self,
         region: str | None = None,  # TODO: make mandatory when added inter region
+        on: str = "count",
         *,
         marginals: Literal["no", "bins", "pixels"] = "no",
         seed: int = 42,
@@ -1042,11 +1085,13 @@ class PixelTable(Table):
         region : str, optional
             Genomic region for which to compute the clustering. If none, defaults
             to whole genome. Default is None.
+        on : str, optional
+                    Column to use as scores for clustering. Default is "count".
         marginals : "no", "bins", "pixels"
             Which probabilites to compute. Default is "no".
-        seed : int
+        seed : int, optional
             Rng seed for reproducibility. Default is 42
-        logging_level : valid logging level string
+        logging_level : valid logging level string, optional
             Console log verbosity level. Default is "INFO".
 
         Returns
@@ -1067,6 +1112,7 @@ class PixelTable(Table):
 
         graph: HiconaGraph = self.get_graph(region)
         state = graph.compute_clustering(
+            on=on,
             marginals=marginals,
             seed=seed,
             logging_level=logging_level,

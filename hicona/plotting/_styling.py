@@ -1,7 +1,7 @@
-import os
 import importlib.resources as pkg_resources
-import hicona.plotting._mpl_styles
+import os
 
+import hicona.plotting._mpl_styles
 
 STYLES_FOLDER: str = "_mpl_styles"
 
@@ -15,7 +15,7 @@ def get_default_style_names() -> tuple[str, ...]:
 def get_default_style_path(name: str) -> str:
     """Return the path to a style file."""
 
-    if not name in get_default_style_names():
+    if name not in get_default_style_names():
         raise FileNotFoundError(f"`{name}` is not a valid style name.")
 
     with pkg_resources.path(hicona.plotting, STYLES_FOLDER) as styles_path:

@@ -4,7 +4,6 @@ from typing import Any
 
 from .._palettes import Palettes
 
-
 __all__ = ("get_updated_defaults",)
 
 _TRACK_DEFAULTS: dict[str, dict] = {
@@ -21,6 +20,7 @@ _TRACK_DEFAULTS: dict[str, dict] = {
     },
     "PixelCounts": {
         "title": "Pixel\ncounts",
+        "cmap": Palettes.COUNTS.value,
     },
     "PixelProbs": {
         "transform": False,

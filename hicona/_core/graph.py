@@ -16,10 +16,10 @@ needed by the user, therefore this way keep the namespace cleaner.
 
 from __future__ import annotations
 
-from typing import Literal, overload, TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal, overload
 
+import graph_tool.all as gt
 import polars as pl
-import graph_tool.all as gt  # type: ignore
 
 from .._utils.chunked_ops import convert, rechunk, to_iterable
 from .._utils.graph_ops import (
@@ -34,10 +34,10 @@ if TYPE_CHECKING:
     from .._utils.df_dtypes import (
         DataFrame,
         DfChunks,
+        DfDtype,
         DfStream,
         PdChunks,
         PlChunks,
-        DfDtype,
     )
     from .cooler import HiconaCooler
     from .table import PixelTable
@@ -429,6 +429,7 @@ class HiconaGraph:
     def compute_clustering(
         self,
         *,
+        on: str,
         marginals: Literal["no", "bins", "pixels"] = "no",
         seed: int = 42,
         logging_level: str = "INFO",  # TODO: create logging level type
@@ -456,6 +457,8 @@ class HiconaGraph:
 
         Parameters
         ----------
+        on : str
+            Which column to use values as scores.
         marginals : "no", "bins", "pixels"
             Which probabilites to compute. Default is "no".
         seed : int
@@ -471,4 +474,4 @@ class HiconaGraph:
 
         # Defer all steps of the procedure to functions in a dedicated file
         # for better organization and managing logging
-        return compute_clustering(self._graph, marginals, seed, logging_level)
+        return compute_clustering(self._graph, on, marginals, seed, logging_level)

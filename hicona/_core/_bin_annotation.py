@@ -1,11 +1,10 @@
 """Module with functions for bin annotation."""
 
-from typing import Literal, TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 import bioframe as bf
-import polars as pl
 import pandas as pd
-
+import polars as pl
 
 if TYPE_CHECKING:
     from .._utils.df_dtypes import DataFrame

@@ -6,20 +6,19 @@ from typing import Callable, Iterable, Literal
 
 import coolbox.api as ca
 import matplotlib as mpl
-from matplotlib.figure import Figure
 import polars as pl
+from matplotlib.figure import Figure
 
 from .._core.table import PixelTable
 from ._styling import get_rc_style
 from .coolbox_api import (
-    XAxis,
     BinClusters,
     ChromName,
     PixelClusters,
     PixelCounts,
     PixelProbs,
+    XAxis,
 )
-
 
 __all__ = ("plot_comparison", "plot_clustering", "plot_table")
 
@@ -89,7 +88,7 @@ def _plot_figure(
     user_tracks: None | ca.Track | Iterable[ca.Track],
     width: float | None,
     style: str,
-    path: str | None
+    path: str | None,
 ):
     """Generalized function to set aspects which are shared by all types of plots."""
 

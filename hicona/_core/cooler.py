@@ -7,29 +7,29 @@ use in the original class.
 
 """
 
-from os import path
 from math import ceil
-from typing import cast, Literal, TYPE_CHECKING, Union
+from os import path
+from typing import TYPE_CHECKING, Literal, cast
 
 import cooler
-import h5py  # type: ignore
+import h5py
 import pandas as pd
 import polars as pl
 
 from .._utils.chunked_ops import (
     add_ind_col,
+    cast_dtypes,
     convert,
     row_filter,
-    cast_dtypes,
 )
-from .table import BinTable, PixelTable
 from ._bin_annotation import get_annotated_bins
+from .table import BinTable, PixelTable
 
 if TYPE_CHECKING:
-    from .._utils.df_dtypes import PlChunks, DataFrame
+    from .._utils.df_dtypes import DataFrame, PlChunks
 
 
-__all__ = ["HiconaCooler"]
+__all__ = ("HiconaCooler",)
 BASE_BIN_COLS: tuple[str, str, str] = ("chrom", "start", "end")
 AnnoMetric = Literal["bp_overlap", "frac_overlap", "chrom_enrich"]
 
@@ -83,7 +83,7 @@ def _hdf5_deleter(store: str, path: str, df_name: str) -> None:
         del group[df_name]
 
 
-class HiconaCooler(cooler.Cooler):  # type: ignore  # Cooler is not exported explicitly
+class HiconaCooler(cooler.Cooler):
     """Cooler file handler with extended functionalities.
 
     Parameters
@@ -100,10 +100,6 @@ class HiconaCooler(cooler.Cooler):  # type: ignore  # Cooler is not exported exp
     For more information on the class constructor, see :py:class:`cooler.Cooler`.
 
     """
-
-    def __init__(self, store: Union[str, "h5py.File", "h5py.Group"], **kwargs):
-        # Mask deprecated root parameter from super-class
-        super().__init__(store, **kwargs)
 
     def get_bin_table(self, *, store_size: int = 10_000_000) -> "BinTable":
         """Return a bin table containing all bins from the cooler.
@@ -244,8 +240,9 @@ class HiconaCooler(cooler.Cooler):  # type: ignore  # Cooler is not exported exp
         """
 
         # Only fetch bare bins to avoid erroneous splits on already saved columns
-        bins_df: pd.DataFrame = cast(pd.DataFrame, self.bins()[:])
-        bins_df = bins_df[[*BASE_BIN_COLS]]
+        bins_df: pl.DataFrame = pl.from_pandas(
+            cast(pd.DataFrame, self.bins()[:])
+        ).select(BASE_BIN_COLS)
 
         annot_df = get_annotated_bins(
             bins_df,
@@ -260,6 +257,8 @@ class HiconaCooler(cooler.Cooler):  # type: ignore  # Cooler is not exported exp
             if col.name in BASE_BIN_COLS:
                 continue
 
+            assert isinstance(self.store, str)
+            assert isinstance(self.root, str)
             _hdf5_writer(self.store, path.join(self.root, "bins"), col)
 
     def bin_annot_del(self, annot_name: str) -> None:
@@ -286,4 +285,6 @@ class HiconaCooler(cooler.Cooler):  # type: ignore  # Cooler is not exported exp
         if annot_name in BASE_BIN_COLS:
             raise ValueError("Cannot remove a base column (`chrom`, `start`, `end`).")
 
+        assert isinstance(self.store, str)
+        assert isinstance(self.root, str)
         _hdf5_deleter(self.store, path.join(self.root, "bins"), annot_name)
