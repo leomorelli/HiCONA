@@ -15,7 +15,7 @@ import os
 from functools import partial
 from typing import TYPE_CHECKING, Any, Iterable, Literal, cast, overload
 
-import graph_tool.all as gt  # type: ignore
+import graph_tool.all as gt
 import numpy as np
 import pandas as pd
 import polars as pl
@@ -822,7 +822,7 @@ class PixelTable(Table):
                 raise ValueError(f"Invalid mode: {mode}")
 
         if mask_diagonal:
-            np.fill_diagonal(matrix, np.NaN)
+            np.fill_diagonal(matrix, np.nan)
 
         return matrix
 

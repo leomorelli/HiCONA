@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Literal, overload
 
-import graph_tool.all as gt  # type: ignore
+import graph_tool.all as gt
 import polars as pl
 
 from .._utils.chunked_ops import convert, rechunk, to_iterable
