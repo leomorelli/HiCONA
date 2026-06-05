@@ -1064,10 +1064,8 @@ class PixelTable(Table):
             raise ValueError(f"`{norm}` is not a valid normalization function.")
 
         new_store = TmpParquet()
-        norm_func(self._get_dataframe(), column).sink_parquet(
-            new_store.path,
-            row_group_size=self._store_size,
-        )
+        df = norm_func(self._get_dataframe(), column).collect()
+        new_store.put((d for d in df.iter_slices(self._store_size)))
         self._store = new_store
 
     def add_clustering(
