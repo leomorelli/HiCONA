@@ -1032,7 +1032,7 @@ class PixelTable(Table):
 
     def normalize_counts(
         self,
-        norm: Literal["log", "arctan"] | PixNormFunc = "arctan",
+        norm: Literal["log", "arctan_mean"] | PixNormFunc = "arctan_mean",
         *,
         column: str = "norm_count",
     ) -> None:
@@ -1044,7 +1044,7 @@ class PixelTable(Table):
         with that column added.
 
         Provided normalizations are:
-            - `arctan`: arctan(count/average of non-zero with same dist)/pi + 0.5
+            - `arctan_mean`: arctan(count/average of non-zero pixels in table)/(pi/2)
             - `log`: ln(count + 1)
 
         Parameters

@@ -8,34 +8,25 @@ import polars as pl
 PixNormFunc = Callable[[pl.LazyFrame, str], pl.LazyFrame]
 
 
-def norm_arctan(lf: pl.LazyFrame, column: str) -> pl.LazyFrame:
-    """Apply arctan normalization to counts.
+def norm_arctan_mean(lf: pl.LazyFrame, column: str) -> pl.LazyFrame:
+    """Apply arctan normalization to counts divided by average count.
 
-    This normalization is particularly amenable for clustering since
-    it brings values in the range [0, 1].
+    y = arctan(x/ave_count) / (pi/2)
 
+    ave_count = average of non-zero pixels in the table
+
+    y in [-1, +1] if x in (-inf, +inf)
+    y in [ 0, +1] if x in [   0, +inf)
     """
 
-    ave_counts = (
-        lf.with_columns(pl.col("bin2_id").sub("bin1_id").alias("dist"))
-        .select(("dist", "count"))
-        .group_by("dist")
-        .mean()
-        .rename({"count": "_norm_factor"})
-    )
+    ave_non_zero_count = lf.select("count").mean().collect().item()
 
-    return (
-        lf.with_columns(pl.col("bin2_id").sub("bin1_id").alias("dist"))
-        .join(ave_counts, on="dist", how="left")
-        .with_columns(
-            pl.col("count")
-            .truediv("_norm_factor")
-            .arctan()
-            .truediv(math.pi)  # Scale in [-0.5, 0.5] range
-            .add(0.5)  # Move to [0, 1] range
-            .alias(column)
-        )
-        .drop("_norm_factor")
+    return lf.with_columns(
+        pl.col("count")
+        .truediv(ave_non_zero_count)
+        .arctan()
+        .truediv(math.pi / 2)
+        .alias(column)
     )
 
 
@@ -46,6 +37,6 @@ def norm_log(lf: pl.LazyFrame, column: str) -> pl.LazyFrame:
 
 # Collection of normalization function
 norm_functions: dict[str, PixNormFunc] = {
-    "arctan": norm_arctan,
+    "arctan_mean": norm_arctan_mean,
     "log": norm_log,
 }
