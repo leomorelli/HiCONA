@@ -95,13 +95,21 @@ def _add_bin_marginals(graph: gt.Graph, partition_state: gt.PartitionModeState):
     graph.vp[BIN_PROB_COL] = graph.new_vp("float", vals=bin_probs)
 
 
-def marginals_no(graph: gt.Graph, state: gt.NestedBlockState) -> gt.NestedBlockState:
+def marginals_no(
+    graph: gt.Graph,
+    state: gt.NestedBlockState,
+    column: str,
+) -> gt.NestedBlockState:
     """Simply return the model. Needed for compatibility."""
     LOGGER.debug("Simply returning the state")
     return state
 
 
-def marginals_bin(graph: gt.Graph, state: gt.NestedBlockState) -> gt.NestedBlockState:
+def marginals_bin(
+    graph: gt.Graph,
+    state: gt.NestedBlockState,
+    column: str,
+) -> gt.NestedBlockState:
     """Compute bin marginals by equilibrating the initial clustering model."""
 
     LOGGER.info("Computing bin marginals (equilibration)")
@@ -122,31 +130,26 @@ def marginals_bin(graph: gt.Graph, state: gt.NestedBlockState) -> gt.NestedBlock
     return state.copy(bs=partition_state.get_max_nested())
 
 
-def marginals_pix(graph: gt.Graph, state: gt.NestedBlockState) -> gt.NestedBlockState:
+def marginals_pix(
+    graph: gt.Graph,
+    state: gt.NestedBlockState,
+    column: str,
+) -> gt.NestedBlockState:
     """Computed pixel marginals using a mixed measured stochastic block model."""
 
     LOGGER.info("Computing bin and pixels marginals (network reconstruction)")
 
-    LOGGER.debug("Transforming counts to integers")
-    MULTIPLIER: int = 1_000
-    n_values: np.ndarray = graph.ep.count.a
-    if not str(n_values.dtype).startswith("int"):
-        n_values = (np.log(n_values + 1) * MULTIPLIER).astype(int)
-    LOGGER.debug(f"Before: min={graph.ep.count.a.min()}, max={graph.ep.count.a.max()}")
-    LOGGER.debug(f"After: min={n_values.min()}, max={n_values.max()}")
+    n_values: np.ndarray = graph.ep[column].a
 
-    LOGGER.debug("Setting up mixed measured block state")
-    n_default = n_values.max()
-    x_default = 0
-    n = graph.new_edge_property("int", val=n_default)
-    x = graph.new_edge_property("int", vals=n_values)
+    # Default probability for a non observed edge
+    possible_edges = (graph.num_vertices() * (graph.num_vertices() - 1)) / 2
+    default_prob = n_values.sum() / possible_edges
 
-    mixed_state = gt.MixedMeasuredBlockState(
+    edge_probs = graph.new_edge_property("double", vals=n_values)
+    mixed_state = gt.UncertainBlockState(
         graph,
-        n=n,
-        n_default=n_default,
-        x=x,
-        x_default=x_default,
+        q=edge_probs,
+        q_default=default_prob,
         state_args={"bs": state.get_bs()},
     )
 
@@ -155,7 +158,7 @@ def marginals_pix(graph: gt.Graph, state: gt.NestedBlockState) -> gt.NestedBlock
     LOGGER.debug("Reconstructing network")
     gt.mcmc_equilibrate(
         mixed_state,
-        force_niter=50000,
+        max_niter=10000,
         mcmc_args={"niter": 10},
         callback=callback,
     )
@@ -312,7 +315,7 @@ def compute_clustering(
 
     LOGGER.info(f"Started graph clustering (marginals={marginals}, seed={seed})")
     state: gt.NestedBlockState = dl_anneal_clustering(graph, on)
-    state = marginals_function(graph, state)
+    state = marginals_function(graph, state, on)
 
     LOGGER.info("Projecting clustering on the graph")
     add_bin_clustering(graph, state)
