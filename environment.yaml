@@ -1,0 +1,9 @@
+name: hicona
+channels:
+  - conda-forge
+dependencies:
+  - graph-tool
+  - pkg-config
+  - pip
+  - pip:
+      - -e .

@@ -5,7 +5,6 @@ build-backend = "hatchling.build"
 [project]
 name = "hicona"
 dynamic = ["version"]
-requires-python = "<3.12" # TODO: Check full compatibility
 authors = [
     { name = "Leonardo Morelli", email = "leo.morelli0@gmail.com" },
     { name = "Stefano Cretti", email = "stefanocretti99@gmail.com" },
