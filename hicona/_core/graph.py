@@ -16,10 +16,10 @@ needed by the user, therefore this way keep the namespace cleaner.
 
 from __future__ import annotations
 
-from typing import Literal, overload, TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal, overload
 
-import polars as pl
 import graph_tool.all as gt  # type: ignore
+import polars as pl
 
 from .._utils.chunked_ops import convert, rechunk, to_iterable
 from .._utils.graph_ops import (
@@ -34,10 +34,10 @@ if TYPE_CHECKING:
     from .._utils.df_dtypes import (
         DataFrame,
         DfChunks,
+        DfDtype,
         DfStream,
         PdChunks,
         PlChunks,
-        DfDtype,
     )
     from .cooler import HiconaCooler
     from .table import PixelTable

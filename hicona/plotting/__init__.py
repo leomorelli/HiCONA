@@ -1,2 +1,2 @@
-from ._plots import *
 from . import coolbox_api
+from ._plots import *

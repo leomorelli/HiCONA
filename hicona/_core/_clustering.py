@@ -1,15 +1,14 @@
 """All network clustering steps and substeps, grouped for clarity and logging."""
 
-from functools import partial
 import logging
-from typing import Callable, cast, Literal
+from functools import partial
+from typing import Callable, Literal, cast
 
+import graph_tool.all as gt
 import numpy as np
 import polars as pl
-import graph_tool.all as gt
 
 from .._utils.graph_ops import add_df_as_vp
-
 
 BIN_PROB_COL: str = "bin_prob"
 PIX_PROB_COL: str = "pix_prob"
@@ -224,7 +223,6 @@ def add_bin_clustering(graph: gt.Graph, state: gt.NestedBlockState):
 
     # Remove bad trailing levels (repetitive or one big cluster)
     for level in range(num_levels):
-
         # Project partitions of the block state to vertex level
         level_groups: np.ndarray = state.project_partition(level, 0).get_array()
         level_clusts: int = len(np.unique(level_groups))

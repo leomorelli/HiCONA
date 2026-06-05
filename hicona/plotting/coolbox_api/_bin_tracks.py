@@ -1,11 +1,11 @@
 """Custom CoolBox tracks for the visualization of bin table features."""
 
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 import coolbox.api as cp
-from matplotlib.axes import Axes
 import polars as pl
 import seaborn as sns
+from matplotlib.axes import Axes
 
 from ._track_defaults import get_updated_defaults
 from ._track_utils import get_label_axis

@@ -15,14 +15,14 @@ import pandas as pd
 import polars as pl
 
 from .df_dtypes import (
+    Bool,
     DataFrame,
     DfChunks,
+    DfDtype,
     DfStream,
     PdChunks,
     PlChunks,
     PlStream,
-    Bool,
-    DfDtype,
 )
 
 
@@ -141,7 +141,6 @@ def add_ind_col(chunks: PlStream, ind_name: str, offset: int = 0) -> PlChunks:
     stream_has_ind: bool | None = None
 
     for chunk in chunks:
-
         chunk_has_ind: bool = ind_name in chunk.columns
         stream_has_ind = stream_has_ind or chunk_has_ind
 

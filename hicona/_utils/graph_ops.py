@@ -5,7 +5,7 @@ import numpy as np
 import polars as pl
 
 from .df_dtypes import NpChunks, PlChunks
-from .dtype_conversion import NP_TO_GT, GT_TO_NP
+from .dtype_conversion import GT_TO_NP, NP_TO_GT
 
 
 def _iter_item_chunks(

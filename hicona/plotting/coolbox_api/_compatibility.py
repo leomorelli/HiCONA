@@ -19,7 +19,6 @@ __all__ = ("XAxis", "ChromName", "HicMatBase")
 
 
 class XAxis(ca.XAxis):
-
     DEFAULT_PROPERTIES = {
         "where": "bottom",
         "height": 1,
@@ -55,7 +54,6 @@ class XAxis(ca.XAxis):
 
 
 class ChromName(ca.ChromName):
-
     DEFAULT_PROPERTIES = {"offset": 0.45}
 
     def plot(self, ax, gr: ca.GenomeRange, **kwargs):
@@ -65,7 +63,6 @@ class ChromName(ca.ChromName):
 
 
 class HicMatBase(ca.HicMatBase):
-
     def plot_label(self):
         """Overriding inherited method to remove forcing text dimension."""
 

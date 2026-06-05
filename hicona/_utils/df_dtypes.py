@@ -1,6 +1,6 @@
 """Custom data types for type hinting."""
 
-from collections.abc import Callable, Generator, Iterator, Iterable
+from collections.abc import Callable, Generator, Iterable, Iterator
 from typing import Literal
 
 import numpy as np

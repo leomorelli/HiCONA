@@ -7,6 +7,7 @@ import cooltools as ct
 import pandas as pd
 import polars as pl
 
+from .._core import HiconaCooler
 from .._utils.chunked_ops import convert, to_iterable
 from .._utils.df_dtypes import (
     DataFrame,
@@ -14,7 +15,6 @@ from .._utils.df_dtypes import (
     PdChunks,
     PlChunks,
 )
-from .._core import HiconaCooler
 
 __all__ = [
     "expected_normalized_cooler",

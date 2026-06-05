@@ -7,9 +7,9 @@ use in the original class.
 
 """
 
-from os import path
 from math import ceil
-from typing import cast, Literal, TYPE_CHECKING, Union
+from os import path
+from typing import TYPE_CHECKING, Literal, Union, cast
 
 import cooler
 import h5py  # type: ignore
@@ -18,15 +18,15 @@ import polars as pl
 
 from .._utils.chunked_ops import (
     add_ind_col,
+    cast_dtypes,
     convert,
     row_filter,
-    cast_dtypes,
 )
-from .table import BinTable, PixelTable
 from ._bin_annotation import get_annotated_bins
+from .table import BinTable, PixelTable
 
 if TYPE_CHECKING:
-    from .._utils.df_dtypes import PlChunks, DataFrame
+    from .._utils.df_dtypes import DataFrame, PlChunks
 
 
 __all__ = ["HiconaCooler"]

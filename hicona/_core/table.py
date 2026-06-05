@@ -10,10 +10,10 @@ Temporary storages are torn down when the instance is deleted.
 
 from __future__ import annotations
 
-from functools import partial
 import math
 import os
-from typing import Any, cast, Iterable, Literal, overload, TYPE_CHECKING
+from functools import partial
+from typing import TYPE_CHECKING, Any, Iterable, Literal, cast, overload
 
 import graph_tool.all as gt  # type: ignore
 import numpy as np
@@ -23,17 +23,17 @@ import polars as pl
 from .._utils.chunked_ops import add_ind_col, convert, rechunk, to_iterable
 from .._utils.tmp_parquet import TmpParquet
 from ._bin_annotation import get_annotated_bins
-from .strategies import annotate_pixels, balance_pixels, subset_region
 from .graph import HiconaGraph
+from .strategies import annotate_pixels, balance_pixels, subset_region
 
 if TYPE_CHECKING:
     from .._utils.df_dtypes import (
         DataFrame,
         DfChunks,
+        DfDtype,
         DfStream,
         PdChunks,
         PlChunks,
-        DfDtype,
         Strategy,
     )
 
