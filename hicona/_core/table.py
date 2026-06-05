@@ -1029,6 +1029,7 @@ class PixelTable(Table):
     def add_clustering(
         self,
         region: str | None = None,  # TODO: make mandatory when added inter region
+        on: str = "count",
         *,
         marginals: Literal["no", "bins", "pixels"] = "no",
         seed: int = 42,
@@ -1042,11 +1043,13 @@ class PixelTable(Table):
         region : str, optional
             Genomic region for which to compute the clustering. If none, defaults
             to whole genome. Default is None.
+        on : str, optional
+                    Column to use as scores for clustering. Default is "count".
         marginals : "no", "bins", "pixels"
             Which probabilites to compute. Default is "no".
-        seed : int
+        seed : int, optional
             Rng seed for reproducibility. Default is 42
-        logging_level : valid logging level string
+        logging_level : valid logging level string, optional
             Console log verbosity level. Default is "INFO".
 
         Returns
@@ -1067,6 +1070,7 @@ class PixelTable(Table):
 
         graph: HiconaGraph = self.get_graph(region)
         state = graph.compute_clustering(
+            on=on,
             marginals=marginals,
             seed=seed,
             logging_level=logging_level,

@@ -181,21 +181,23 @@ MARGINALS_FUNCS: dict[str, Callable] = {
 ##############################################################################
 
 
-def dl_anneal_clustering(graph: gt.Graph) -> gt.NestedBlockState:
+def dl_anneal_clustering(graph: gt.Graph, value_col: str) -> gt.NestedBlockState:
     """Clustering using description length minimization + simulated annealing."""
 
-    LOGGER.debug("Applying log counts transform")
-    log_counts: gt.EdgePropertyMap = graph.new_ep(
-        "double",
-        vals=np.log(graph.ep.count.a + 1),
-    )
-    LOGGER.debug(f"Before: min={graph.ep.count.a.min()}, max={graph.ep.count.a.max()}")
-    LOGGER.debug(f"After: min={log_counts.a.min()}, max={log_counts.a.max()}")
+    # May not need to create a copy of the edge property map
+    # For now leaving to avoid breaking changes, potentially clean up later
+
+    score: gt.EdgePropertyMap = graph.new_ep("double", vals=graph.ep[value_col].a)
+    if score.a.min() < 0 or score.a.max() > 1:
+        raise ValueError(
+            f"""Score values are in the range ['{score.a.min()}', '{score.a.max()}']"""
+            """ but should be in the range [0,1]."""
+        )
 
     LOGGER.info("Computing rough clustering (description length minimization)")
     state: gt.NestedBlockState = gt.minimize_nested_blockmodel_dl(
         graph,
-        state_args={"recs": [log_counts], "rec_types": ["real-normal"]},
+        state_args={"recs": [score], "rec_types": ["real-normal"]},
         multilevel_mcmc_args={"niter": 10},
     )
 
@@ -288,6 +290,7 @@ def project_clustering(graph: gt.Graph):
 
 def compute_clustering(
     graph: gt.Graph,
+    on: str,
     marginals: Literal["no", "bins", "pixels"],
     seed: int,
     logging_level: str,  # TODO: Change to logging level dtype
@@ -308,7 +311,7 @@ def compute_clustering(
     gt.seed_rng(seed)
 
     LOGGER.info(f"Started graph clustering (marginals={marginals}, seed={seed})")
-    state: gt.NestedBlockState = dl_anneal_clustering(graph)
+    state: gt.NestedBlockState = dl_anneal_clustering(graph, on)
     state = marginals_function(graph, state)
 
     LOGGER.info("Projecting clustering on the graph")

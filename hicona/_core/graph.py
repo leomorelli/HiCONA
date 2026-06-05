@@ -429,6 +429,7 @@ class HiconaGraph:
     def compute_clustering(
         self,
         *,
+        on: str,
         marginals: Literal["no", "bins", "pixels"] = "no",
         seed: int = 42,
         logging_level: str = "INFO",  # TODO: create logging level type
@@ -456,6 +457,8 @@ class HiconaGraph:
 
         Parameters
         ----------
+        on : str
+            Which column to use values as scores.
         marginals : "no", "bins", "pixels"
             Which probabilites to compute. Default is "no".
         seed : int
@@ -471,4 +474,4 @@ class HiconaGraph:
 
         # Defer all steps of the procedure to functions in a dedicated file
         # for better organization and managing logging
-        return compute_clustering(self._graph, marginals, seed, logging_level)
+        return compute_clustering(self._graph, on, marginals, seed, logging_level)
