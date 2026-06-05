@@ -103,7 +103,7 @@ class PixelCounts(PixelTrack):
         pixel_table: "PixelTable",
         *,
         value_col: str = "count",
-        transform: Literal["raw", "log2", "log10"] = "raw",
+        transform: Literal["raw", "log2", "log10"] = "log10",
         **kwargs,
     ):
         kwargs["transform"] = False if transform == "raw" else transform
