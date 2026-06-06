@@ -24,28 +24,29 @@ __all__ = [
 
 
 def get_expected_counts(handle: HiconaCooler, *, nproc: int = 4) -> pl.DataFrame:
-    """Compute all cis and trans expected counts for a cooler.
+    """Compute cis and trans expected counts for a cooler.
 
-    Using :py:mod:`cooltools`, compute expected count for both intra chromosomal interactions
-    (balanced, smoothened, not aggregated) and inter chromosomal ones (balanced).
-    Distance is in number of bins. Inter chromosomal interactions are assigned a
-    distance of ``-1``. Values are returned in a single dataframe.
+    Compute expected counts for both intra-chromosomal interactions (balanced,
+    smoothed, not aggregated) and inter-chromosomal ones (balanced) using
+    :py:mod:`cooltools`. Distance is expressed in number of bins; inter-chromosomal
+    interactions are assigned a distance of ``-1``. All results are returned in a
+    single dataframe.
 
     Parameters
     ----------
     handle : :py:class:`HiconaCooler`
         Open handle for the cooler for which to compute the expected counts.
-    nproc : int
-        Number of processes to spawn when using :py:mod:`cooltools`.
+    nproc : int, optional
+        Number of processes to spawn when using :py:mod:`cooltools`. Default is ``4``.
 
     Returns
     -------
-    :py:class:`polars.DataFrame`
-        DataFrame containing the expected counts.
+    polars.DataFrame
+        DataFrame with columns ``chrom1``, ``chrom2``, ``dist`` and ``expected``.
 
     Note
     ----
-    Loosely based on code in the `cooltools.sandbox`_
+    Loosely based on code in the `cooltools.sandbox`_.
 
     .. _cooltools.sandbox: https://github.com/open2c/cooltools/blob/master/cooltools/sandbox/obs_over_exp_cooler.py
 
@@ -91,34 +92,34 @@ def expected_normalized_pixels(
     pixels: "DataFrame | DfStream",
     expected: DataFrame,
 ) -> PlChunks:
-    """Convert observed count values to observed/expected count values.
+    """Normalize pixel counts by dividing by the expected count.
 
-    Given some annotated pixels, return new pixels where the count value is
-    normalized by dividing by the expected count value. Works for both inter
-    and intra chromosomal contacts.
+    Return pixels where the ``count`` column is replaced by the
+    observed-over-expected ratio. Works for both inter- and intra-chromosomal
+    contacts.
 
     Parameters
     ----------
-    pixels : polars.DataFrame, pandas.DataFrame or an interable of either.
+    pixels : polars.DataFrame, pandas.DataFrame or iterable of either
         The pixels to normalize. Must be annotated and balanced.
     expected : polars.DataFrame or pandas.DataFrame
-        Dataframe containing the expected counts. Columns must be ``chrom1``,
+        DataFrame containing the expected counts. Must have columns ``chrom1``,
         ``chrom2``, ``dist`` and ``expected``.
 
     Returns
     -------
-    Generator of :py:class:`polars.DataFrame`
-        A stream of normalized pixels.
+    Generator of polars.DataFrame
+        Normalized pixel chunks.
 
     Warning
     -------
-    Due to the way matrix balancing works, some pixels will end up with count
-    equal to zero/NaN and will thus be dropped. For reason, the number of output
-    pixels will likely be smaller than the input one.
+    Due to the way matrix balancing works, some pixels will end up with a count
+    of zero or NaN and will be dropped. The number of output pixels will likely
+    be smaller than the input.
 
     Note
     ----
-    Loosely based on code in the `cooltools.sandbox`_
+    Loosely based on code in the `cooltools.sandbox`_.
 
     .. _cooltools.sandbox: https://github.com/open2c/cooltools/blob/master/cooltools/sandbox/obs_over_exp_cooler.py
 
@@ -150,34 +151,35 @@ def expected_normalized_cooler(
     *,
     nproc: int = 4,
 ) -> pl.DataFrame:
-    """Create a new cooler with counts normalized by expected counts.
+    """Create a new cooler with pixel counts normalized by expected counts.
 
-    Using :py:mod:`cooltools`, compute expected count for both intra chromosomal
-    interactions (balanced, smoothened, not aggregated) and inter chromosomal ones (balanced).
-    Then, normalize the counts in the initial cooler by dividing them for the
-    corresponding expected counts. Save the results to a new cooler.
+    Compute expected counts for both intra- and inter-chromosomal interactions
+    using :py:mod:`cooltools`, then divide the balanced observed counts by the
+    corresponding expected values and write the result to a new cooler file.
 
     Parameters
     ----------
     handle : :py:class:`HiconaCooler`
         Open handle for the cooler to normalize.
-    nproc : int
-        Number of processes to spawn when using :py:mod:`cooltools`.
+    path : str
+        Path where the new normalized cooler file will be written.
+    nproc : int, optional
+        Number of processes to spawn when using :py:mod:`cooltools`. Default is ``4``.
 
     Returns
     -------
-    :py:class:`polars.DataFrame`
-        The expected counts used to create the file.
+    polars.DataFrame
+        The expected counts used to normalize the file.
 
     Warning
     -------
-    Due to the way matrix balancing works, some pixels will end up with count
-    equal to zero/NaN and will thus be dropped. For reason, the number of output
-    pixels will likely be smaller than the input one.
+    Due to the way matrix balancing works, some pixels will end up with a count
+    of zero or NaN and will be dropped. The number of output pixels will likely
+    be smaller than the input.
 
     Note
     ----
-    Loosely based on code in the `cooltools.sandbox`_
+    Loosely based on code in the `cooltools.sandbox`_.
 
     .. _cooltools.sandbox: https://github.com/open2c/cooltools/blob/master/cooltools/sandbox/obs_over_exp_cooler.py
 

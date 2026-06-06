@@ -38,7 +38,7 @@ def _iter_item_chunks(
 
 
 def iter_bin_chunks(graph: gt.Graph, chunk_size: int) -> PlChunks:
-    """Iterate over the bins of a graph in chunks."""
+    """Return vertex properties of a graph as chunked polars DataFrames."""
 
     # Get names and types of the vertex properties
     colnames: list[str] = list(graph.vp.keys())
@@ -53,7 +53,7 @@ def iter_bin_chunks(graph: gt.Graph, chunk_size: int) -> PlChunks:
 
 
 def iter_pix_chunks(graph: gt.Graph, chunk_size: int) -> PlChunks:
-    """Iterate over the rows of a graph in chunks."""
+    """Return edge properties of a graph as chunked polars DataFrames."""
 
     # Get names and types of the edge properties
     colnames: list[str] = list(graph.ep.keys())

@@ -19,6 +19,7 @@ AnnoMetric = Literal["bp_overlap", "frac_overlap", "chrom_enrich"]
 
 
 def _get_annot_col(df: pd.DataFrame) -> str:
+    """Return the single non-base annotation column name, or raise if not exactly one."""
     extra = [c for c in df.columns if c not in BASE_BIN_COLS]
     if len(extra) != 1:
         raise ValueError(f"Expected exactly one annotation column, got: {extra}")

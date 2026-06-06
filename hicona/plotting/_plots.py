@@ -38,7 +38,7 @@ PlotStyle = Literal["publication", "slides"]
 
 
 def _extended_chrom_format(region, table) -> str:
-    """Ensure that the genomic query is in the form `chrom:start-end`."""
+    """Expand a bare chromosome name to the full ``chrom:start-end`` format."""
 
     if len(region.split(":")) == 1:  # "chrN" format
         _, upper_bin = table.bins.extent(region)
@@ -54,7 +54,7 @@ def _extended_chrom_format(region, table) -> str:
 
 
 def _infer_pix_track(col_name: str) -> Callable:
-    """Infer the desired pixel track depending on the name of the column."""
+    """Return the appropriate pixel track class for the given column name."""
 
     # NOTE: this is kind of ugly, but both match case as well as get from a dict do
     # not allow the use of regexes, which are needed in this circumstance.
@@ -72,7 +72,7 @@ def _infer_pix_track(col_name: str) -> Callable:
 
 
 def _get_frame_width(width: float | None, style: str) -> float:
-    """Return the actual float value of the width."""
+    """Return the resolved figure width, falling back to the style default."""
 
     if not width:
         width = _DEFAULT_PLOT_STYLE_WIDTH.get(style)
@@ -90,7 +90,7 @@ def _plot_figure(
     style: str,
     path: str | None,
 ):
-    """Generalized function to set aspects which are shared by all types of plots."""
+    """Assemble and render a coolbox frame with header, main, and user tracks."""
 
     # Header tracks
     width = _get_frame_width(width, style)
@@ -151,11 +151,11 @@ def plot_clustering(
         Table on which hierachical clustering was performed.
     region : str
         Genomic region of interest in the format ``chr:start-end`` or ``chr``.
-    modality : one of {"bins", "pixels"}, optional
+    modality : one of {``bins``, ``pixels``}, optional
         Modality in which to display the results of the clustering.
 
         - ``bins``: Plot a heatmap-like row for each bin clustering level.
-        - ``matrix``: Plot a pixel matrix track for each matrix clustering level.
+        - ``pixels``: Plot a pixel matrix track for each clustering level.
 
         Default is ``pixels``.
     min_level : int, optional
@@ -169,7 +169,7 @@ def plot_clustering(
         Any additional :py:class:`coolbox.Track` object (or instance of a class
         inheriting from it) to add below the default ones.
         Track height is treated as centimeters. Default is ``None``.
-    style : one of {"slides", "publication"} or path string, optional
+    style : one of {``slides``, ``publication``} or path string, optional
         Name of a default plotting style or path to a valid mplstyle file.
         Default is ``slides``.
     width : float, optional
@@ -250,8 +250,8 @@ def plot_table(
     value_col : str, optional
         Column from the pixel table to use as values for the plot. Column name is also
         used to infer the type of track to use for plotting. Default is ``count``.
-    modality :  one of {"matrix", "triangular", "window"}, optional
-        Display modality of the matrix track. See :py:module:``coolbox`` documentation
+    modality : one of {``matrix``, ``triangular``, ``window``}, optional
+        Display modality of the matrix track. See :py:mod:`coolbox` documentation
         for more information. Default is ``matrix``.
     depth_ratio : float, optional
         Fraction of the height of each pixel matrix to display.
@@ -260,7 +260,7 @@ def plot_table(
         Any additional :py:class:`coolbox.Track` object (or instance of a class
         inheriting from it) to add below the default ones.
         Track height is treated as centimeters. Default is ``None``.
-    style : one of {"slides", "publication"} or path string, optional
+    style : one of {``slides``, ``publication``} or path string, optional
         Name of a default plotting style or path to a valid mplstyle file.
         Default is ``slides``.
     width : float, optional
@@ -327,7 +327,7 @@ def plot_comparison(
         Any additional :py:class:`coolbox.Track` object (or instance of a class
         inheriting from it) to add below the default ones.
         Track height is treated as centimeters. Default is ``None``.
-    style : one of {"slides", "publication"} or path string, optional
+    style : one of {``slides``, ``publication``} or path string, optional
         Name of a default plotting style or path to a valid mplstyle file.
         Default is ``slides``.
     width : float, optional

@@ -1,17 +1,12 @@
-"""
-Graph representation of a portion of 3D chromatin conformation data.
+"""Graph representation of a portion of 3D chromatin conformation data.
 
-Class which utilizes the graph_tool.Graph class to represent a portion of a
-Hi-C data-like file. The graph object has the bins as vertices and the pixels
-as edges. All bin annotation columns are stored as vertex properties, as well
-as the pixel count.
+Wraps a graph_tool.Graph where bins are vertices and pixels are edges. All
+bin annotation columns are stored as vertex properties and all pixel columns
+as edge properties.
 
-Rather than directly inheriting from graph_tool.Graph, the graph object is
-stored as an attribute of the class. This avoids mixing the new methods and
-attributes with the methods and attributes from graph_tool.Graph.
-This is relevant since most of the graph_tool.Graph methods will likely not be
-needed by the user, therefore this way keep the namespace cleaner.
-
+Rather than inheriting from graph_tool.Graph directly, the graph is stored as
+an attribute, keeping the HiconaGraph namespace clean and free from the large
+number of low-level graph-tool methods not needed for Hi-C analysis.
 """
 
 from __future__ import annotations
@@ -115,27 +110,25 @@ class HiconaGraph:
     among them. This is necessary for network clustering purposes.
 
     This class wraps an instance of the :py:class:`graph_tool.Graph` class
-    and implements methods which are specific for Hi-C-like data. This avoids
-    having to interface directly with the low level API of graph-tool for
-    specialized operations. Any network operation which is not directly
-    implemented by HiCONA can be performed by accessing directly the
-    :py:class:`graph_tool.Graph` instance. This is possibile because
+    and implements methods specific for Hi-C-like data, avoiding the need to
+    interface directly with the low-level graph-tool API for common operations.
+    Any algorithm not implemented by HiCONA can be run directly on the
+    :py:class:`graph_tool.Graph` instance, which is possible because
     :py:class:`HiconaGraph` does not store any data itself.
 
     Parameters
     ----------
-    bins : polars.DataFrame, pandas.DataFrame or an interable of either.
+    bins : polars.DataFrame, pandas.DataFrame or iterable of either
         A dataframe containing bin information, provided in full or in chunks.
         The dataframe must contain at least the columns ``bin_id``, ``chrom``,
         ``start`` and ``end``.
-    pixels: polars.DataFrame, pandas.DataFrame or an interable of either.
+    pixels : polars.DataFrame, pandas.DataFrame or iterable of either
         A dataframe containing pixel information, provided in full or in chunks.
         The dataframe must contain at least the columns ``bin1_id``, ``bin2_id``
         and ``count``.
     default_link : int, optional
-        Default value for the genomic link property, e.i. default values for
-        genomically contiguous bins if they do not have an edge already.
-        Default is ``1``.
+        Count value assigned to synthetic genomic-link edges added between
+        genomically contiguous bins that have no pixel. Default is ``1``.
 
     Warning
     -------
@@ -233,11 +226,10 @@ class HiconaGraph:
         chunk_size: int = 10_000_000,
         dtype: DfDtype = "polars",
     ) -> "DfChunks":
-        """Return the nodes as an iterable of bins.
+        """Return the graph nodes as an iterable of bed-like bin dataframes.
 
-        Return the nodes from the graph as an iterable of bed-like dataframes.
-        All vertex properties are saved as columns, both those which the
-        graph was initially generated with, as well as those added later.
+        All vertex properties are included as columns, both those from graph
+        creation and those added later.
 
         Parameters
         ----------
@@ -248,7 +240,7 @@ class HiconaGraph:
             and ``end``. Default is ``False``.
         chunk_size : int, optional
             Max number of bins per chunk. Default is ``10_000_000``.
-        dtype : one of {"polars", "pandas"}, optional
+        dtype : one of {``polars``, ``pandas``}, optional
             Whether to return the chunks as polars or pandas dataframes.
             Default is ``polars``.
 
@@ -303,11 +295,10 @@ class HiconaGraph:
         chunk_size: int = 10_000_000,
         dtype: DfDtype = "polars",
     ) -> "DfChunks":
-        """Return the edges as an iterable of pixels.
+        """Return the graph edges as an iterable of pixel-like dataframes.
 
-        All edge properties are saved as columns, both those which the
-        Return the edges from the graph as an iterable of pixel-like dataframes.
-        graph was initially generated with, as well as those added later.
+        All edge properties are included as columns, both those from graph
+        creation and those added later.
 
         Parameters
         ----------
@@ -316,7 +307,7 @@ class HiconaGraph:
             Ignored if the graph was reconstructed. Default is ``False``.
         chunk_size : int, optional
             Max number of pixels per chunk. Default is ``10_000_000``.
-        dtype : one of {"polars", "pandas"}, optional
+        dtype : one of {``polars``, ``pandas``}, optional
             Whether to return the chunks as polars or pandas dataframes.
             Default is ``polars``.
 
@@ -366,10 +357,10 @@ class HiconaGraph:
     def from_pixel_table(
         cls, table: "PixelTable", *, region: str | None = None
     ) -> "HiconaGraph":
-        """Create a :py:class:`HiconaGraph` starting from a :py:class:`PixelTable` instance.
+        """Create a :py:class:`HiconaGraph` from a :py:class:`PixelTable` instance.
 
-        Create a graph starting from a :py:class:`PixelTable`. If a genomic region
-        is provided both pixels and bins are subsetted to that region.
+        If a genomic region is provided, both pixels and bins are subsetted to
+        that region.
 
         Parameters
         ----------
@@ -403,10 +394,10 @@ class HiconaGraph:
     def from_cooler(
         cls, handle: "HiconaCooler", *, region: str | None = None
     ) -> "HiconaGraph":
-        """Create a :py:class:`HiconaGraph` starting from a :py:class:`HiconaCooler` instance.
+        """Create a :py:class:`HiconaGraph` from a :py:class:`HiconaCooler` instance.
 
-        Create a graph starting from a :py:class:`HiconaCooler`. If a genomic region
-        is provided both pixels and bins are subsetted to that region.
+        If a genomic region is provided, both pixels and bins are subsetted to
+        that region.
 
         Parameters
         ----------
@@ -436,40 +427,36 @@ class HiconaGraph:
     ) -> gt.NestedBlockState:
         """Compute hierarchical clustering on the network.
 
-        Compute the hierarchical clustering on the entire network, and save
-        the results as edge or vertex properties in the graph.
+        Run hierarchical stochastic block model clustering on the graph and
+        save the results as vertex and edge properties. The ``marginals``
+        parameter controls which optional posterior probabilities are computed:
 
-        The marginals parameter defines which algorithm is used to compute
-        the clustering, as well as which probabilities (=marginals) are
-        computed:
-
-            - "no": do not compute bins or pixel marginals. Uses description
-              length minimization followed by simulated annealing.
-            - "bins": compute confidence of assignment of each bin to its
-              cluster. Same as "no" but also adds an equilibration step.
-            - "pixels": compute both confidence of assignment of each bin to
-              its cluster and posterior probability of each edge to be a "real"
-              edge (e.i. not the result of random noise and biases). Same as
-              "bins" but the equilibration is computed using a mixed measured
-              block state.
-
-        # TODO: finish description
+        - ``no``: description-length minimization followed by simulated
+          annealing. No marginals are computed.
+        - ``bins``: same as ``no`` plus an equilibration step to estimate
+          the confidence of each bin's cluster assignment.
+        - ``pixels``: same as ``bins`` but equilibration uses an uncertain
+          block state (:py:class:`graph_tool.UncertainBlockState`) to perform
+          network reconstruction, additionally estimating the posterior
+          probability of each edge's existence.
 
         Parameters
         ----------
         on : str
-            Which column to use values as scores.
-        marginals : "no", "bins", "pixels"
-            Which probabilites to compute. Default is "no".
-        seed : int
-            Rng seed for reproducibility. Default is 42
-        logging_level : valid logging level string
-            Console log verbosity level. Default is "INFO".
+            Name of the edge property column to use as scores.
+        marginals : one of {``no``, ``bins``, ``pixels``}, optional
+            Which posterior probabilities to compute. Default is ``no``.
+        seed : int, optional
+            RNG seed for reproducibility. Default is ``42``.
+        logging_level : str, optional
+            Console log verbosity level (e.g. ``INFO``, ``DEBUG``).
+            Default is ``INFO``.
 
         Returns
         -------
-        gt.NestedBlockState
+        graph_tool.NestedBlockState
             The last nested block state computed during clustering.
+
         """
 
         # Defer all steps of the procedure to functions in a dedicated file
