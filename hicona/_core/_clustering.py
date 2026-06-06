@@ -246,7 +246,7 @@ def add_bin_clustering(graph: gt.Graph, state: gt.NestedBlockState):
     # Remove bad heading levels (all bins on their own)
     while True:
         first_all_split: bool = len(np.unique(groups_array[:, 0])) == num_vertices
-        multiple_levels: bool = len(groups_array) > 1
+        multiple_levels: bool = groups_array.shape[1] > 1
         if not (multiple_levels and first_all_split):
             break
         groups_array = groups_array[:, 1:]

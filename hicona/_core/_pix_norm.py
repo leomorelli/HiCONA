@@ -19,6 +19,7 @@ def norm_arctan_mean(lf: pl.LazyFrame, column: str) -> pl.LazyFrame:
     y in [ 0, +1] if x in [   0, +inf)
     """
 
+    # No need to filter out zeros as "count" column already contains non-zeros
     ave_non_zero_count = lf.select("count").mean().collect().item()
 
     return lf.with_columns(

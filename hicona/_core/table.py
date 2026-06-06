@@ -806,11 +806,9 @@ class PixelTable(Table):
         matrix.fill(np.nan)
 
         # TODO: find a way to speed up
-        # NOTE: Int conversion is needed since numpy uses a single type for
-        # the whole array, and val is often float, making x, y floats too.
         for row in edge_list:
             x, y, val = row
-            matrix[int(row[0]), int(row[1])] = row[2]
+            matrix[int(x), int(y)] = val
 
         match mode:
             case "upper":

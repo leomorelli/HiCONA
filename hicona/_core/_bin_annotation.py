@@ -14,7 +14,15 @@ __all__ = ("get_annotated_bins",)
 BASE_BIN_COLS: tuple[str, str, str] = ("chrom", "start", "end")
 MAX_MODS_COLS: int = 15
 
+
 AnnoMetric = Literal["bp_overlap", "frac_overlap", "chrom_enrich"]
+
+
+def _get_annot_col(df: pd.DataFrame) -> str:
+    extra = [c for c in df.columns if c not in BASE_BIN_COLS]
+    if len(extra) != 1:
+        raise ValueError(f"Expected exactly one annotation column, got: {extra}")
+    return extra[0]
 
 
 # TODO: there still is a lot of hard-coded column names which is not great. Refactor.
@@ -98,8 +106,7 @@ def overlap_with_size(df_a: "DataFrame", df_b: "DataFrame") -> pl.DataFrame:
 
     df_a = df_a if isinstance(df_a, pd.DataFrame) else df_a.to_pandas()
     df_b = df_b if isinstance(df_b, pd.DataFrame) else df_b.to_pandas()
-    annot_col: str = [c for c in df_b.columns if c not in BASE_BIN_COLS].pop()
-    # TODO: this can break if there is more than one annotation column
+    annot_col: str = _get_annot_col(df_b)
 
     merged_df: pl.DataFrame = (
         pl.from_pandas(bf.overlap(df_a, df_b, return_overlap=True))
@@ -157,7 +164,7 @@ def get_annotated_bins(
     # Ensure that initially you are working with pandas dataframes.
     bins_df = bins_df if isinstance(bins_df, pd.DataFrame) else bins_df.to_pandas()
     anno_df = anno_df if isinstance(anno_df, pd.DataFrame) else anno_df.to_pandas()
-    annot_col: str = [c for c in anno_df.columns if c not in BASE_BIN_COLS].pop()
+    annot_col: str = _get_annot_col(anno_df)
 
     # Check to prevent exploding the number of columns in the file due to
     # a categorical-like variable with too many modalities.
