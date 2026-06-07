@@ -38,7 +38,7 @@ provided environment.yaml file.
 ```bash
 git clone git@github.com:leomorelli/HiCONA.git hicona
 cd hicona
-conda create -f environment.yaml
+conda env create -f environment.yaml
 conda activate hicona_env
 ```
 
