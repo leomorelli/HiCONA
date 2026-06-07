@@ -13,8 +13,22 @@ description = "Network analysis toolkit for Hi-C data."
 readme = "README.rst"
 
 license = { file = "LICENSE" }
-# keywords = []
-# classifiers = []
+requires-python = ">=3.10"
+keywords = ["hi-c", "genomics", "network analysis", "graph", "chromatin", "3D genome", "bioinformatics"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: BSD License",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
 
 dependencies = [
     "cooler",
