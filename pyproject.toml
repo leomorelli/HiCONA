@@ -43,7 +43,8 @@ dependencies = [
 [project.optional-dependencies]
 docs = ["nbsphinx", "sphinx", "sphinx_rtd_theme"]
 
-# [project.urls]
+[project.urls]
+Repository = "https://github.com/leomorelli/HiCONA"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
