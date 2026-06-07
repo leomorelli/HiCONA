@@ -35,7 +35,7 @@ def convert(chunks: DfStream, to: Literal["pandas"]) -> PdChunks: ...
 
 
 def convert(chunks: DfStream, to: DfDtype) -> DfChunks:
-    """Convert an iterable of DataFrames to polars DataFrames."""
+    """Convert a stream of DataFrames to the specified dtype."""
 
     if to == "polars":
         return (c if isinstance(c, pl.DataFrame) else pl.from_pandas(c) for c in chunks)

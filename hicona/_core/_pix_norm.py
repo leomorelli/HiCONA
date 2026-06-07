@@ -9,16 +9,12 @@ PixNormFunc = Callable[[pl.LazyFrame, str], pl.LazyFrame]
 
 
 def norm_arctan_mean(lf: pl.LazyFrame, column: str) -> pl.LazyFrame:
-    """Apply arctan normalization to counts divided by average count.
+    """Apply arctan normalization: ``arctan(count / mean_count) / (pi/2)``.
 
-    y = arctan(x/ave_count) / (pi/2)
-
-    ave_count = average of non-zero pixels in the table
-
-    y in [-1, +1] if x in (-inf, +inf)
-    y in [ 0, +1] if x in [   0, +inf)
+    Resulting values lie in ``[0, 1]`` for non-negative counts.
     """
 
+    # No need to filter out zeros as "count" column already contains non-zeros
     ave_non_zero_count = lf.select("count").mean().collect().item()
 
     return lf.with_columns(
@@ -31,7 +27,7 @@ def norm_arctan_mean(lf: pl.LazyFrame, column: str) -> pl.LazyFrame:
 
 
 def norm_log(lf: pl.LazyFrame, column: str) -> pl.LazyFrame:
-    """Log transform (with +1 pseudo-count)."""
+    """Apply natural log transform with a ``+1`` pseudo-count: ``ln(count + 1)``."""
     return lf.with_columns(pl.col("count").add(1).log().alias(column))
 
 

@@ -1,3 +1,5 @@
+"""Utilities for resolving matplotlib style sheet paths."""
+
 import importlib.resources as pkg_resources
 import os
 

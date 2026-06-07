@@ -30,7 +30,7 @@ class TmpParquet:
             chunk.write_parquet(os.path.join(self._path, chunk_name), statistics=False)
 
     def get(self) -> PlChunks:
-        """Fetch iterable of chunks from the folder."""
+        """Return stored chunks as a generator."""
 
         files = os.listdir(self._path)
         files.sort()
@@ -39,7 +39,7 @@ class TmpParquet:
             yield pl.read_parquet(os.path.join(self._path, file))
 
     def peek(self) -> dict[str, Any]:
-        """Get first row of the table as a dictionary."""
+        """Return the first row of the table as a column-name-keyed dictionary."""
 
         row_dict: dict[str, Any] | None = None
         for chunk in self.get():

@@ -90,7 +90,7 @@ class PixelCounts(PixelTrack):
     value_col : str, optional
         Name of the column, in the pixel table, containing the values to be displayed.
         By default, "count".
-    transform : one of {"raw", "log2", "log10"}
+    transform : one of {``raw``, ``log2``, ``log10``}
         Which transformation to apply to the counts before plotting.
     **kwargs
         Additional parameters to be passed to the HicMatBase constructor. These will

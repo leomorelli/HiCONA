@@ -18,19 +18,19 @@ __all__ = ("annotate_pixels", "balance_pixels", "subset_region")
 
 
 def subset_region(chunks: "PlChunks", *, extent: tuple[int, int]) -> "PlChunks":
-    """Subset the chunks to a genomic region.
+    """Subset pixel chunks to a genomic region.
 
     Parameters
     ----------
-    chunks : PlChunks
-        Iterable of polars chunks.
+    chunks : Generator of polars.DataFrame
+        Iterable of pixel chunks.
     extent : tuple[int, int]
-        Genomic region boundaried (as bin ids).
+        Lower and upper bin id boundaries of the genomic region.
 
     Returns
     -------
-    PlChunks
-        Subsetted chunks.
+    Generator of polars.DataFrame
+        Filtered pixel chunks.
 
     """
 
@@ -47,19 +47,19 @@ def subset_region(chunks: "PlChunks", *, extent: tuple[int, int]) -> "PlChunks":
 
 
 def annotate_pixels(chunks: "PlChunks", *, bins_df: pl.DataFrame) -> "PlChunks":
-    """Annotate the pixels with bin information.
+    """Annotate pixel chunks with bin-level information.
 
     Parameters
     ----------
-    chunks : PlChunks
-        Iterable of polars chunks.
-    bins_df : pl.DataFrame
+    chunks : Generator of polars.DataFrame
+        Iterable of pixel chunks.
+    bins_df : polars.DataFrame
         DataFrame containing the bin information.
 
     Returns
     -------
-    PlChunks
-        Annotated chunks.
+    Generator of polars.DataFrame
+        Annotated pixel chunks.
 
     """
 
@@ -78,24 +78,27 @@ def balance_pixels(
     bins_df: pl.DataFrame,
     drop_nulls: bool = True,
 ) -> "PlChunks":
-    """Balance the pixel counts by the bin weights.
-
-    It is assumed that the bin weights are stored in the 'weight' column.
-    Also assumed that the weights are multiplicative, as in cooler.
+    """Balance pixel counts by the bin weights.
 
     Parameters
     ----------
-    chunks : PlChunks
-        Iterable of polars chunks.
-    bins_df : pl.DataFrame
+    chunks : Generator of polars.DataFrame
+        Iterable of pixel chunks.
+    bins_df : polars.DataFrame
         DataFrame containing the bin information.
-    drop_nulls : bool
-        Whether to remove pixels whose count column became null during balancing.
+    drop_nulls : bool, optional
+        Whether to drop pixels whose count became null after balancing.
+        Default is ``True``.
 
     Returns
     -------
-    PlChunks
-        Balanced pixel counts.
+    Generator of polars.DataFrame
+        Balanced pixel chunks.
+
+    Note
+    ----
+    Bin weights are read from the ``weight`` column and are assumed to be
+    multiplicative, as produced by ``cooler balance``.
 
     """
 

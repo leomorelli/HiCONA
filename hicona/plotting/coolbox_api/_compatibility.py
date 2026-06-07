@@ -1,16 +1,11 @@
-"""Alternative versions of tracks present natively in coolbox for plotting compatibility.
+"""Stylesheet-compatible replacements for native coolbox tracks.
 
-By default, many tracks provided by coolbox do not work well with a style sheet.
-This is because some of the default parameters are simply aliases for matplotlib
-properties (e.i. ChromName property `fontsize`). Since these properties have a
-declared default value inside the class declaration, the style sheet will never
-be able to override the default values. Other times, there is a value directly
-inside the declaration of the plotting function.
+By default, many coolbox tracks do not work well with matplotlib style sheets
+because their default parameters (e.g. ``ChromName`` property ``fontsize``) are
+declared as class-level defaults that the style sheet cannot override.
 
-There is probably a smarted and more elegant way of doing it, but a quick way
-to allow style sheets to be used is to simply inherit from the classes redeclaring
-or removing the property. For this reason this script is mostly a copy paste from
-coolbox source code. Hopefully this behavior is changed in the future.
+The classes here inherit from their coolbox counterparts, removing or redeclaring
+the offending properties so that style sheets take effect correctly.
 """
 
 import coolbox.api as ca
@@ -19,12 +14,15 @@ __all__ = ("XAxis", "ChromName", "HicMatBase")
 
 
 class XAxis(ca.XAxis):
+    """Stylesheet-compatible genomic x-axis track."""
+
     DEFAULT_PROPERTIES = {
         "where": "bottom",
         "height": 1,
     }
 
     def plot(self, ax, gr: ca.GenomeRange, **kwargs):
+        """Plot the x-axis with auto-scaled genomic coordinate labels."""
         self.ax = ax
 
         ax.set_xlim(gr.start, gr.end)
@@ -54,15 +52,20 @@ class XAxis(ca.XAxis):
 
 
 class ChromName(ca.ChromName):
+    """Stylesheet-compatible chromosome name label track."""
+
     DEFAULT_PROPERTIES = {"offset": 0.45}
 
     def plot(self, ax, gr: ca.GenomeRange, **kwargs):
+        """Plot the chromosome name at the specified offset within the region."""
         x = gr.start + self.properties["offset"] * (gr.end - gr.start)  # type: ignore
         ax.text(x, 0, gr.chrom, size="x-large")
         ax.set_xlim(gr.start, gr.end)
 
 
 class HicMatBase(ca.HicMatBase):
+    """Stylesheet-compatible base class for Hi-C matrix tracks."""
+
     def plot_label(self):
         """Overriding inherited method to remove forcing text dimension."""
 

@@ -1,0 +1,8 @@
+name: hicona_env
+channels:
+  - conda-forge
+dependencies:
+  - graph-tool
+  - pip
+  - pip:
+      - -e .
