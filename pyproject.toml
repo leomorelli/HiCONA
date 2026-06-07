@@ -12,8 +12,7 @@ authors = [
 description = "Network analysis toolkit for Hi-C data."
 readme = "README.rst"
 
-# TODO: add
-# license = ""
+license = { file = "LICENSE" }
 # keywords = []
 # classifiers = []
 
