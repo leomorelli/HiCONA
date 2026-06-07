@@ -23,7 +23,7 @@ dependencies = [
     "pyarrow",
     "bioframe",
     "seaborn",
-    "coolbox @ git+https://github.com/StefanoCretti/CoolBox",
+    "coolbox==0.4.0",
     "cooltools",
 ]
 
@@ -39,11 +39,9 @@ pythonpath = ["."]
 [tool.hatch.version]
 path = "hicona/_version.py"
 
+
 [tool.hatch.envs.default]
 dependencies = ["pip"]
-
-[tool.hatch.metadata]
-allow-direct-references = true
 
 [tool.coverage.report]
 exclude_also = ["if TYPE_CHECKING:"]
