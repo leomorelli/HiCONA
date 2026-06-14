@@ -23,22 +23,12 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
     "sphinx.ext.napoleon",
-    "sphinx.ext.intersphinx",
     "sphinx.ext.viewcode",
 ]
 
 templates_path = ["_templates"]
 exclude_patterns = []
 
-# TODO: Uncomment. Since it is not needed for now, commented for build speed.
-# intersphinx_mapping = dict(
-#     python=("https://docs.python.org/3", None),
-#     numpy=("https://numpy.org/doc/stable/", None),
-#     pandas=("https://pandas.pydata.org/pandas-docs/stable/", None),
-#     polars=("https://docs.pola.rs/api/python/stable/", None),
-#     matplotlib=("https://matplotlib.org/stable/", None),
-#     seaborn=("https://seaborn.pydata.org/", None),
-# )
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
@@ -52,6 +42,7 @@ autodoc_default_options = {
     # "exclude-members": "__init__",
 }
 autodoc_typehints = "none"
+autodoc_mock_imports = ["graph_tool"]
 # autoclass_content = "class"
 
 html_theme = "sphinx_rtd_theme"

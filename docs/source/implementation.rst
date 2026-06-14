@@ -40,14 +40,14 @@ of scope or the program exits (regardless of exit code).
 All this together results in a temporary storage with quick and easy
 data manipulation of a specific subset of pixels, regardless of their position in the original
 ``.cool`` file. Moreover, the original ``.cool`` file is not modified and the disk
-is not occupied by copies of your data (unless you explicitely ask for it).
+is not occupied by copies of your data (unless you explicitly ask for it).
 
 Each :py:class:`PixelTable` is associated with an instance of :py:class:`BinTable`. As you
 might expect, :py:class:`BinTable` works similarly to :py:class:`PixelTable` but for bin data.
 Although :py:class:`BinTable` is a standalone class, in most cases you will not interface
 directly with an instance of it; while working with a :py:class:`PixelTable` instance, this
 object will use the associated :py:class:`BinTable` instance internally. For this reason,
-:py:class:`BinTable` is not discussed estensively throughout the documentation and might
+:py:class:`BinTable` is not discussed extensively throughout the documentation and might
 even be fully incorporated in :py:class:`PixelTable` in the future.
 
 HiconaGraph
@@ -77,14 +77,14 @@ Class Conversion
 Given the different uses of these classes, HiCONA allows to convert an instance of a class
 into an instance of another class, as per requirement. As indicated in the above schema,
 converting to a more *specialized* class (solid arrows) is always possible. On the other
-hand, converting to a more *general* class (dashed arrows) is not always possibile using
+hand, converting to a more *general* class (dashed arrows) is not always possible using
 only the instance itself. This is because converting to a *specialized* class loses part
 of the data:
 
 - going from :py:class:`HiconaCooler` to :py:class:`PixelTable` some of the pixels are
   lost, due to subsetting to a genomic region, filtering and normalizing. The whole
   genome binning is preserved.
-- going from :py:class:`PixelTable` to :py:class:`HiconaGraps` not all bins are
+- going from :py:class:`PixelTable` to :py:class:`HiconaGraph` not all bins are
   retained, only those in a specified genomic region. Moreover, pixels could be further
   subsetted.
 

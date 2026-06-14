@@ -1,45 +1,41 @@
 Installation
 ============
 
-Due to one of the dependencies (:py:mod:`graph_tool`) not being installable through
-``pip``, installing through ``conda``/``mamba`` is highly advised.
+HiCONA requires Python ≥3.10 and is supported on Linux and macOS only,
+due to the required dependency :py:mod:`graph_tool`.
+Installation through conda-forge is recommended.
 
 .. note::
-   Using ``mamba`` should be preferred over ``conda``, as the latter might require hours to
-   solve the environment. To use ``conda``, simply replace ``mamba`` with ``conda`` in
-   all the following commands.
+   Using ``mamba`` instead of ``conda`` is strongly advised for faster
+   dependency solving. To use ``conda``, simply replace ``mamba`` with
+   ``conda`` in all the following commands.
 
-.. warning::
-   When installing from source or PyPI, :py:mod:`graph_tool` **MUST** be installed before
-   :py:mod:`hicona`. Failure to do so might result in package version mismatch.
-
-Source
-------
+Conda/Mamba (recommended)
+--------------------------
 
 ::
 
-  $ mamba create -n hicona_env python=3.11
+  $ mamba create -n hicona_env
   $ mamba activate hicona_env
-  $ mamba install graph-tool
-  $ git clone git@github.com:leomorelli/HiCONA.git hicona
-  $ cd hicona
-  $ pip install .
+  $ mamba install -c conda-forge hicona
 
 PyPI
 ----
 
-Requires a previous accessible installation of :py:mod:`graph-tool`
+Requires a pre-existing installation of :py:mod:`graph_tool` in the environment.
 
 ::
 
   $ pip install hicona
 
+Source
+------
 
-Conda/Mamba
------------
+For development purposes, use the provided ``environment.yaml`` file.
 
 ::
 
-  $ mamba create -n hicona_env python=3.11
+  $ git clone git@github.com:leomorelli/HiCONA.git hicona
+  $ cd hicona
+  $ mamba env create -f environment.yaml
   $ mamba activate hicona_env
-  $ mamba install hicona
