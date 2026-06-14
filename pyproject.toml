@@ -41,7 +41,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-docs = ["nbsphinx", "sphinx", "sphinx_rtd_theme"]
+docs = ["nbsphinx", "sphinx", "sphinx-rtd-theme"]
 
 [project.urls]
 Repository = "https://github.com/leomorelli/HiCONA"

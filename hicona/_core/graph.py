@@ -186,6 +186,14 @@ class HiconaGraph:
         :py:class:`graph_tool.Graph`
             The associated :py:class:`graph_tool.Graph` instance.
 
+        Examples
+        --------
+        >>> g = pt.get_graph("chr1")
+        >>> g.graph.num_vertices()
+        250
+        >>> g.graph.num_edges()
+        5012
+
         """
         return self._graph
 
@@ -248,6 +256,24 @@ class HiconaGraph:
         -------
         Generator of :py:class:`polars.DataFrame` or :py:class:`pandas.DataFrame`
             Bin data chunks.
+
+        Examples
+        --------
+        >>> for chunk in g.get_bins():
+        ...     print(chunk.shape)
+        (250, 4)
+        >>> next(g.get_bins())
+        shape: (250, 4)
+        ┌────────┬───────┬────────┬────────┐
+        │ bin_id ┆ chrom ┆ start  ┆ end    │
+        │ ---    ┆ ---   ┆ ---    ┆ ---    │
+        │ i64    ┆ str   ┆ i32    ┆ i32    │
+        ╞════════╪═══════╪════════╪════════╡
+        │ 0      ┆ chr1  ┆ 0      ┆ 10000  │
+        │ 1      ┆ chr1  ┆ 10000  ┆ 20000  │
+        │ …      ┆ …     ┆ …      ┆ …      │
+        │ 249    ┆ chr1  ┆ 90000  ┆ 100000 │
+        └────────┴───────┴────────┴────────┘
 
         """
 
@@ -315,6 +341,21 @@ class HiconaGraph:
         -------
         Generator of :py:class:`polars.DataFrame` or :py:class:`pandas.DataFrame`
             Pixel data chunks.
+
+        Examples
+        --------
+        >>> next(g.get_pixels())
+        shape: (5_000, 3)
+        ┌─────────┬─────────┬───────┐
+        │ bin1_id ┆ bin2_id ┆ count │
+        │ ---     ┆ ---     ┆ ---   │
+        │ i64     ┆ i64     ┆ i32   │
+        ╞═════════╪═════════╪═══════╡
+        │ 0       ┆ 1       ┆ 87    │
+        │ 0       ┆ 2       ┆ 34    │
+        │ …       ┆ …       ┆ …     │
+        │ 248     ┆ 249     ┆ 112   │
+        └─────────┴─────────┴───────┘
 
         """
 
@@ -456,6 +497,22 @@ class HiconaGraph:
         -------
         graph_tool.NestedBlockState
             The last nested block state computed during clustering.
+
+        Examples
+        --------
+        >>> state = g.compute_clustering(on="norm_count")
+        >>> next(g.get_bins())
+        shape: (250, 6)
+        ┌────────┬───────┬────────┬────────┬───────────┬───────────┐
+        │ bin_id ┆ chrom ┆ start  ┆ end    ┆ level_(0) ┆ level_(1) │
+        │ ---    ┆ ---   ┆ ---    ┆ ---    ┆ ---       ┆ ---       │
+        │ i64    ┆ str   ┆ i32    ┆ i32    ┆ i32       ┆ i32       │
+        ╞════════╪═══════╪════════╪════════╪═══════════╪═══════════╡
+        │ 0      ┆ chr1  ┆ 0      ┆ 10000  ┆ 1         ┆ 0         │
+        │ 1      ┆ chr1  ┆ 10000  ┆ 20000  ┆ 1         ┆ 0         │
+        │ …      ┆ …     ┆ …      ┆ …      ┆ …         ┆ …         │
+        │ 249    ┆ chr1  ┆ 90000  ┆ 100000 ┆ 3         ┆ 1         │
+        └────────┴───────┴────────┴────────┴───────────┴───────────┘
 
         """
 

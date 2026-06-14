@@ -172,6 +172,11 @@ class BinTable(Table):
         int
             Bin size in base pairs.
 
+        Examples
+        --------
+        >>> bt.bin_size
+        100000
+
         """
 
         first_row: dict[str, Any] = self._store.peek()
@@ -221,6 +226,33 @@ class BinTable(Table):
         a subset of it (subsetting may lead to issues, especially when comparing
         tables).
 
+        Examples
+        --------
+        >>> bt.get_dataframe()
+        shape: (1_000, 4)
+        ┌────────┬───────┬────────┬────────┐
+        │ bin_id ┆ chrom ┆ start  ┆ end    │
+        │ ---    ┆ ---   ┆ ---    ┆ ---    │
+        │ i64    ┆ str   ┆ i32    ┆ i32    │
+        ╞════════╪═══════╪════════╪════════╡
+        │ 0      ┆ chr1  ┆ 0      ┆ 10000  │
+        │ 1      ┆ chr1  ┆ 10000  ┆ 20000  │
+        │ …      ┆ …     ┆ …      ┆ …      │
+        │ 999    ┆ chrX  ┆ 0      ┆ 10000  │
+        └────────┴───────┴────────┴────────┘
+        >>> bt.get_dataframe("chr1")
+        shape: (250, 4)
+        ┌────────┬───────┬────────┬────────┐
+        │ bin_id ┆ chrom ┆ start  ┆ end    │
+        │ ---    ┆ ---   ┆ ---    ┆ ---    │
+        │ i64    ┆ str   ┆ i32    ┆ i32    │
+        ╞════════╪═══════╪════════╪════════╡
+        │ 0      ┆ chr1  ┆ 0      ┆ 10000  │
+        │ 1      ┆ chr1  ┆ 10000  ┆ 20000  │
+        │ …      ┆ …     ┆ …      ┆ …      │
+        │ 249    ┆ chr1  ┆ 90000  ┆ 100000 │
+        └────────┴───────┴────────┴────────┘
+
         """
 
         filt_expr: pl.Expr | None = None
@@ -268,6 +300,13 @@ class BinTable(Table):
         If the provided end point of the region falls outside the highest bin for the
         specified chromosome, the highest bin for that chromosome is returned instead.
         No error or warning is raised. A check might be added in the future.
+
+        Examples
+        --------
+        >>> bt.extent("chr1")
+        (0, 250)
+        >>> bt.extent("chr1:50000-150000")
+        (5, 16)
 
         """
 
@@ -346,6 +385,29 @@ class BinTable(Table):
         small resolutions (and therefore large bin tables) become mainstay, the function
         will be changed to work in chunks.
 
+        Examples
+        --------
+        >>> import polars as pl
+        >>> annot = pl.DataFrame({
+        ...     "chrom": ["chr1", "chr1", "chr2"],
+        ...     "start": [0, 50000, 0],
+        ...     "end":   [50000, 100000, 100000],
+        ...     "state": ["A", "B", "A"],
+        ... })
+        >>> bt.add_annotation(annot)
+        >>> bt.get_dataframe()
+        shape: (1_000, 5)
+        ┌────────┬───────┬────────┬────────┬───────┐
+        │ bin_id ┆ chrom ┆ start  ┆ end    ┆ state │
+        │ ---    ┆ ---   ┆ ---    ┆ ---    ┆ ---   │
+        │ i64    ┆ str   ┆ i32    ┆ i32    ┆ str   │
+        ╞════════╪═══════╪════════╪════════╪═══════╡
+        │ 0      ┆ chr1  ┆ 0      ┆ 10000  ┆ A     │
+        │ 1      ┆ chr1  ┆ 10000  ┆ 20000  ┆ A     │
+        │ …      ┆ …     ┆ …      ┆ …      ┆ …     │
+        │ 999    ┆ chrX  ┆ 0      ┆ 10000  ┆ None  │
+        └────────┴───────┴────────┴────────┴───────┘
+
         """
 
         # TODO: Add option to make the annotation partial
@@ -392,6 +454,10 @@ class BinTable(Table):
         path : str
             Path where to save the table. Must be a non-existent folder.
 
+        Examples
+        --------
+        >>> bt.save("path/to/saved_bins")
+
         """
 
         if os.path.exists(path):
@@ -423,6 +489,22 @@ class BinTable(Table):
         This method creates a tmp copy and does not modify the persistent one.
         If you wish to save changes to the new tmp copy, explicitly save it
         again using the :py:func:`BinTable.save` method.
+
+        Examples
+        --------
+        >>> bt = hicona.BinTable.load("path/to/saved_bins")
+        >>> bt.get_dataframe()
+        shape: (1_000, 4)
+        ┌────────┬───────┬────────┬────────┐
+        │ bin_id ┆ chrom ┆ start  ┆ end    │
+        │ ---    ┆ ---   ┆ ---    ┆ ---    │
+        │ i64    ┆ str   ┆ i32    ┆ i32    │
+        ╞════════╪═══════╪════════╪════════╡
+        │ 0      ┆ chr1  ┆ 0      ┆ 10000  │
+        │ 1      ┆ chr1  ┆ 10000  ┆ 20000  │
+        │ …      ┆ …     ┆ …      ┆ …      │
+        │ 999    ┆ chrX  ┆ 0      ┆ 10000  │
+        └────────┴───────┴────────┴────────┘
 
         """
 
@@ -509,6 +591,20 @@ class PixelTable(Table):
         :py:class:`BinTable`
             The associated bin table.
 
+        Examples
+        --------
+        >>> pt.bins.get_dataframe()
+        shape: (1_000, 4)
+        ┌────────┬───────┬────────┬────────┐
+        │ bin_id ┆ chrom ┆ start  ┆ end    │
+        │ ---    ┆ ---   ┆ ---    ┆ ---    │
+        │ i64    ┆ str   ┆ i32    ┆ i32    │
+        ╞════════╪═══════╪════════╪════════╡
+        │ 0      ┆ chr1  ┆ 0      ┆ 10000  │
+        │ …      ┆ …     ┆ …      ┆ …      │
+        │ 999    ┆ chrX  ┆ 0      ┆ 10000  │
+        └────────┴───────┴────────┴────────┘
+
         """
         return self._bins
 
@@ -578,6 +674,33 @@ class PixelTable(Table):
         Warning
         -------
         Data is loaded into memory, which can be quite expensive on a non-subsetted table.
+
+        Examples
+        --------
+        >>> pt.get_dataframe()
+        shape: (5_000, 3)
+        ┌─────────┬─────────┬───────┐
+        │ bin1_id ┆ bin2_id ┆ count │
+        │ ---     ┆ ---     ┆ ---   │
+        │ i64     ┆ i64     ┆ i32   │
+        ╞═════════╪═════════╪═══════╡
+        │ 0       ┆ 0       ┆ 142   │
+        │ 0       ┆ 1       ┆ 87    │
+        │ …       ┆ …       ┆ …     │
+        │ 249     ┆ 249     ┆ 201   │
+        └─────────┴─────────┴───────┘
+        >>> pt.get_dataframe("chr1", annotate=True)
+        shape: (5_000, 11)
+        ┌─────────┬─────────┬───────┬────────┬───┬────────┬────────┬────────┬─────────┐
+        │ bin1_id ┆ bin2_id ┆ count ┆ chrom1 ┆ … ┆ chrom2 ┆ start2 ┆ end2   ┆ weight2 │
+        │ ---     ┆ ---     ┆ ---   ┆ ---    ┆   ┆ ---    ┆ ---    ┆ ---    ┆ ---     │
+        │ i64     ┆ i64     ┆ i32   ┆ str    ┆   ┆ str    ┆ i32    ┆ i32    ┆ f64     │
+        ╞═════════╪═════════╪═══════╪════════╪═══╪════════╪════════╪════════╪═════════╡
+        │ 0       ┆ 0       ┆ 142   ┆ chr1   ┆ … ┆ chr1   ┆ 0      ┆ 10000  ┆ 0.00194 │
+        │ 0       ┆ 1       ┆ 87    ┆ chr1   ┆ … ┆ chr1   ┆ 10000  ┆ 20000  ┆ 0.00245 │
+        │ …       ┆ …       ┆ …     ┆ …      ┆ … ┆ …      ┆ …      ┆ …      ┆ …       │
+        │ 249     ┆ 249     ┆ 201   ┆ chr1   ┆ … ┆ chr1   ┆ 90000  ┆ 100000 ┆ 0.00931 │
+        └─────────┴─────────┴───────┴────────┴───┴────────┴────────┴────────┴─────────┘
 
         """
 
@@ -677,6 +800,14 @@ class PixelTable(Table):
         use :py:func:`functools.partial` to create a partial function with the extra
         arguments.
 
+        Examples
+        --------
+        >>> for chunk in pt.get_chunks("chr1", chunk_size=1000):
+        ...     print(chunk.shape)
+        (1000, 3)
+        (1000, 3)
+        (432, 3)
+
         """
 
         strats: list[Strategy] = []
@@ -744,6 +875,12 @@ class PixelTable(Table):
         Warning
         -------
         This operation can create a huge matrix in memory, use with caution.
+
+        Examples
+        --------
+        >>> mat = pt.get_matrix("chr1")
+        >>> mat.shape
+        (250, 250)
 
         """
 
@@ -841,6 +978,14 @@ class PixelTable(Table):
         are included. Be mindful of it, as it can drastically increase the
         time required to process the graph.
 
+        Examples
+        --------
+        >>> g = pt.get_graph("chr1")
+        >>> g.graph.num_vertices()
+        250
+        >>> g.graph.num_edges()
+        5000
+
         """
         return HiconaGraph.from_pixel_table(self, region=region)
 
@@ -859,6 +1004,22 @@ class PixelTable(Table):
         -------
         :py:class:`PixelTable`
             A new class instance with pixel data from the specified region.
+
+        Examples
+        --------
+        >>> pt_chr1 = pt.subset("chr1")
+        >>> pt_chr1.get_dataframe()
+        shape: (5_000, 3)
+        ┌─────────┬─────────┬───────┐
+        │ bin1_id ┆ bin2_id ┆ count │
+        │ ---     ┆ ---     ┆ ---   │
+        │ i64     ┆ i64     ┆ i32   │
+        ╞═════════╪═════════╪═══════╡
+        │ 0       ┆ 0       ┆ 142   │
+        │ 0       ┆ 1       ┆ 87    │
+        │ …       ┆ …       ┆ …     │
+        │ 249     ┆ 249     ┆ 201   │
+        └─────────┴─────────┴───────┘
 
         """
         return PixelTable(self.get_chunks(region), bins=self._bins)
@@ -891,6 +1052,21 @@ class PixelTable(Table):
         The key difference is that :py:func:`apply` creates a new instance in memory;
         this means a higher overhead for the first use, but it becomes faster if that
         specific subset needs to be iterated multiple times.
+
+        Examples
+        --------
+        >>> from functools import partial
+        >>> import polars as pl
+        >>>
+        >>> def distance_filter(chunks, max_dist):
+        ...     for chunk in chunks:
+        ...         yield chunk.filter(
+        ...             (pl.col("bin2_id") - pl.col("bin1_id")) <= max_dist
+        ...         )
+        >>>
+        >>> pt_filtered = pt.apply(partial(distance_filter, max_dist=10))
+        >>> pt_filtered.get_dataframe().shape
+        (3_200, 3)
 
         """
         return PixelTable(
@@ -953,6 +1129,29 @@ class PixelTable(Table):
             ``False`` if the metric is an enrichment, to ``True`` otherwise. This
             parameter is ignored if ``save_all_mods = True``. Default is ``auto``.
 
+        Examples
+        --------
+        >>> import polars as pl
+        >>> annot = pl.DataFrame({
+        ...     "chrom": ["chr1", "chr1", "chr2"],
+        ...     "start": [0, 50000, 0],
+        ...     "end":   [50000, 100000, 100000],
+        ...     "state": ["A", "B", "A"],
+        ... })
+        >>> pt.add_bin_annotation(annot)
+        >>> pt.get_dataframe("chr1", annotate=True).select(["state1", "state2", "count"])
+        shape: (5_000, 3)
+        ┌────────┬────────┬───────┐
+        │ state1 ┆ state2 ┆ count │
+        │ ---    ┆ ---    ┆ ---   │
+        │ str    ┆ str    ┆ i32   │
+        ╞════════╪════════╪═══════╡
+        │ A      ┆ A      ┆ 142   │
+        │ A      ┆ B      ┆ 87    │
+        │ …      ┆ …      ┆ …     │
+        │ B      ┆ B      ┆ 201   │
+        └────────┴────────┴───────┘
+
         """
         self._bins.add_annotation(
             annot_df,
@@ -983,6 +1182,28 @@ class PixelTable(Table):
         -  The annotation must come from a single dataFrame, which is not ideal for
            large pixel tables.
         -  Partial annotations (maybe due to clustering) cannot be modified.
+
+        Examples
+        --------
+        >>> import polars as pl
+        >>> pix_annot = pl.DataFrame({
+        ...     "bin1_id": [0, 0, 1],
+        ...     "bin2_id": [0, 1, 1],
+        ...     "is_loop": [True, False, True],
+        ... })
+        >>> pt.add_pix_annotation(pix_annot)
+        >>> pt.get_dataframe()
+        shape: (5_000, 4)
+        ┌─────────┬─────────┬───────┬─────────┐
+        │ bin1_id ┆ bin2_id ┆ count ┆ is_loop │
+        │ ---     ┆ ---     ┆ ---   ┆ ---     │
+        │ i64     ┆ i64     ┆ i32   ┆ bool    │
+        ╞═════════╪═════════╪═══════╪═════════╡
+        │ 0       ┆ 0       ┆ 142   ┆ true    │
+        │ 0       ┆ 1       ┆ 87    ┆ false   │
+        │ …       ┆ …       ┆ …     ┆ …       │
+        │ 249     ┆ 249     ┆ 201   ┆ false   │
+        └─────────┴─────────┴───────┴─────────┘
 
         """
 
@@ -1030,6 +1251,22 @@ class PixelTable(Table):
             Normalization to apply. Default is ``arctan_mean``.
         column : str, optional
             Name of the column to save the results in. Default is ``norm_count``.
+
+        Examples
+        --------
+        >>> pt.normalize_counts()
+        >>> pt.get_dataframe()
+        shape: (5_000, 4)
+        ┌─────────┬─────────┬───────┬────────────┐
+        │ bin1_id ┆ bin2_id ┆ count ┆ norm_count │
+        │ ---     ┆ ---     ┆ ---   ┆ ---        │
+        │ i64     ┆ i64     ┆ i32   ┆ f64        │
+        ╞═════════╪═════════╪═══════╪════════════╡
+        │ 0       ┆ 0       ┆ 142   ┆ 0.823      │
+        │ 0       ┆ 1       ┆ 87    ┆ 0.712      │
+        │ …       ┆ …       ┆ …     ┆ …          │
+        │ 249     ┆ 249     ┆ 201   ┆ 0.871      │
+        └─────────┴─────────┴───────┴────────────┘
 
         """
 
@@ -1079,6 +1316,35 @@ class PixelTable(Table):
         -------
         graph_tool.NestedBlockState
             The last nested block state computed during clustering.
+
+        Examples
+        --------
+        >>> pt.normalize_counts()
+        >>> state = pt.add_clustering("chr1", on="norm_count")
+        >>> pt.get_dataframe("chr1")
+        shape: (5_000, 5)
+        ┌─────────┬─────────┬───────┬────────────┬───────────┐
+        │ bin1_id ┆ bin2_id ┆ count ┆ norm_count ┆ level_(0) │
+        │ ---     ┆ ---     ┆ ---   ┆ ---        ┆ ---       │
+        │ i64     ┆ i64     ┆ i32   ┆ f64        ┆ i32       │
+        ╞═════════╪═════════╪═══════╪════════════╪═══════════╡
+        │ 0       ┆ 0       ┆ 142   ┆ 0.82       ┆ null      │
+        │ 0       ┆ 1       ┆ 87    ┆ 0.71       ┆ 1         │
+        │ …       ┆ …       ┆ …     ┆ …          ┆ …         │
+        │ 249     ┆ 249     ┆ 201   ┆ 0.84       ┆ 3         │
+        └─────────┴─────────┴───────┴────────────┴───────────┘
+        >>> pt.bins.get_dataframe("chr1")
+        shape: (250, 6)
+        ┌────────┬───────┬────────┬────────┬───────────┬───────────┐
+        │ bin_id ┆ chrom ┆ start  ┆ end    ┆ level_(0) ┆ level_(1) │
+        │ ---    ┆ ---   ┆ ---    ┆ ---    ┆ ---       ┆ ---       │
+        │ i64    ┆ str   ┆ i32    ┆ i32    ┆ i32       ┆ i32       │
+        ╞════════╪═══════╪════════╪════════╪═══════════╪═══════════╡
+        │ 0      ┆ chr1  ┆ 0      ┆ 10000  ┆ 1         ┆ 0         │
+        │ 1      ┆ chr1  ┆ 10000  ┆ 20000  ┆ 1         ┆ 0         │
+        │ …      ┆ …     ┆ …      ┆ …      ┆ …         ┆ …         │
+        │ 249    ┆ chr1  ┆ 90000  ┆ 100000 ┆ 3         ┆ 1         │
+        └────────┴───────┴────────┴────────┴───────────┴───────────┘
 
         """
 
@@ -1139,6 +1405,10 @@ class PixelTable(Table):
         path : str
             Path where to save the table. Must be a non-existent folder.
 
+        Examples
+        --------
+        >>> pt.save("path/to/saved_pixels")
+
         """
 
         self._bins.save(path)  # Let BinTable.save handle validity check
@@ -1166,6 +1436,22 @@ class PixelTable(Table):
         This method creates a tmp copy and does not modify the persistent one.
         If you wish to save changes to the new tmp copy, explicitly save it
         again using the :py:func:`PixelTable.save` method.
+
+        Examples
+        --------
+        >>> pt = hicona.PixelTable.load("path/to/saved_pixels")
+        >>> pt.get_dataframe()
+        shape: (5_000, 3)
+        ┌─────────┬─────────┬───────┐
+        │ bin1_id ┆ bin2_id ┆ count │
+        │ ---     ┆ ---     ┆ ---   │
+        │ i64     ┆ i64     ┆ i32   │
+        ╞═════════╪═════════╪═══════╡
+        │ 0       ┆ 0       ┆ 142   │
+        │ 0       ┆ 1       ┆ 87    │
+        │ …       ┆ …       ┆ …     │
+        │ 249     ┆ 249     ┆ 201   │
+        └─────────┴─────────┴───────┘
 
         """
 
