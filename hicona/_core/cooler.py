@@ -110,6 +110,24 @@ class HiconaCooler(cooler.Cooler):
         :py:class:`BinTable`
             Bin table handler.
 
+        Examples
+        --------
+        >>> hc = hicona.HiconaCooler("path/to/file.cool")
+        >>> bt = hc.get_bin_table()
+        >>> bt.get_dataframe()
+        shape: (1_000, 4)
+        ┌────────┬───────┬────────┬─────────┐
+        │ bin_id ┆ chrom ┆ start  ┆ end     │
+        │ ---    ┆ ---   ┆ ---    ┆ ---     │
+        │ i64    ┆ str   ┆ i32    ┆ i32     │
+        ╞════════╪═══════╪════════╪═════════╡
+        │ 0      ┆ chr1  ┆ 0      ┆ 100000  │
+        │ 1      ┆ chr1  ┆ 100000 ┆ 200000  │
+        │ 2      ┆ chr1  ┆ 200000 ┆ 300000  │
+        │ …      ┆ …     ┆ …      ┆ …       │
+        │ 999    ┆ chrX  ┆ 0      ┆ 100000  │
+        └────────┴───────┴────────┴─────────┘
+
         """
 
         chunks: "PlChunks" = _chunked_selector(self.bins(), store_size)
@@ -143,6 +161,24 @@ class HiconaCooler(cooler.Cooler):
         -------
         :py:class:`PixelTable`
             Pixel table handler.
+
+        Examples
+        --------
+        >>> hc = hicona.HiconaCooler("path/to/file.cool")
+        >>> pt = hc.get_pixel_table("chr1")
+        >>> pt.get_dataframe()
+        shape: (5_000, 3)
+        ┌─────────┬─────────┬───────┐
+        │ bin1_id ┆ bin2_id ┆ count │
+        │ ---     ┆ ---     ┆ ---   │
+        │ i64     ┆ i64     ┆ i32   │
+        ╞═════════╪═════════╪═══════╡
+        │ 0       ┆ 0       ┆ 142   │
+        │ 0       ┆ 1       ┆ 87    │
+        │ 0       ┆ 2       ┆ 34    │
+        │ …       ┆ …       ┆ …     │
+        │ 249     ┆ 249     ┆ 201   │
+        └─────────┴─────────┴───────┘
 
         """
 
@@ -229,6 +265,23 @@ class HiconaCooler(cooler.Cooler):
         small resolutions (and therefore large bin tables) become mainstay, the function
         will be changed to work in chunks.
 
+        Examples
+        --------
+        >>> import polars as pl
+        >>> hc = hicona.HiconaCooler("path/to/file.cool")
+        >>> annot = pl.DataFrame({
+        ...     "chrom": ["chr1", "chr1", "chr2"],
+        ...     "start": [0, 500000, 0],
+        ...     "end":   [500000, 1000000, 1000000],
+        ...     "state": ["A", "B", "A"],
+        ... })
+        >>> hc.bin_annot_add(annot)
+        >>> hc.bins()[:]
+           chrom   start     end state
+        0   chr1       0  100000     A
+        1   chr1  100000  200000     A
+        ..   ...     ...     ...   ...
+
         """
 
         # Only fetch bare bins to avoid erroneous splits on already saved columns
@@ -270,6 +323,21 @@ class HiconaCooler(cooler.Cooler):
         the link to it; the data is still present in the file but unreachable. To
         actually reduce the size of the file, use an external tool such as
         ``h5repack``.
+
+        Examples
+        --------
+        >>> hc = hicona.HiconaCooler("path/to/file.cool")
+        >>> hc.bins()[:]
+           chrom   start     end state
+        0   chr1       0  100000     A
+        1   chr1  100000  200000     A
+        ..   ...     ...     ...   ...
+        >>> hc.bin_annot_del("state")
+        >>> hc.bins()[:]
+           chrom   start     end
+        0   chr1       0  100000
+        1   chr1  100000  200000
+        ..   ...     ...     ...
 
         """
 
