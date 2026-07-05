@@ -7,7 +7,12 @@ on:
 
 jobs:
   publish:
-    if: github.repository == 'leomorelli/HiCONA' && github.ref == 'refs/heads/main'
+    if: |
+      github.repository == 'leomorelli/HiCONA' &&
+      (
+        (github.event_name == 'release' && github.event.release.target_commitish == 'main') ||
+        (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+      )
     runs-on: ubuntu-latest
     permissions:
       id-token: write
