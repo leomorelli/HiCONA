@@ -44,7 +44,7 @@ conda activate hicona_env
 
 ## Documentation
 
-API documentation and examples will soon be available on ReadTheDocs.
+API documentation can be found [here](https://hicona.readthedocs.io/en/latest/).
 
 ## Citing
 
